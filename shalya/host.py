@@ -32,6 +32,7 @@ def host_err(e):
 class Host(ABC):
     "The application under an agent: the folders it may touch, and what it declares it can do."
 
+    group = 'file'          #: every host has the path boundary the file tools need
     without = frozenset()   #: groups this instance cannot do, whatever its class declares
 
     @property
@@ -119,6 +120,11 @@ class CodeHost(Capability):
     def grep(self, pattern, path_filter='', regex=True, ignore_case=False, limit=MAX_GREP_HITS):
         "Every line matching `pattern` exactly, as `Hit`s. None means this host has no exact matcher."
         return None
+
+    @property
+    def indexed(self):
+        "The folders whose index is built and searchable now. Empty means `public_api` has nothing to read."
+        return ()
 
     @property
     def search_note(self):
