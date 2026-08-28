@@ -1,0 +1,14 @@
+project:
+  output-dir: _docs
+
+website:
+  title: "shalya"
+  site-url: "https://vedicreader.github.io/shalya"
+  description: "the tools an agent is given, and the host that answers them"
+  repo-branch: main
+  repo-url: "https://github.com/vedicreader/shalya"
+
+format-links:
+  - html
+  - format: commonmark
+    text: Markdown

@@ -1,0 +1,55 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "shalya"
+dynamic = ["version"]
+description = "the tools an agent is given, and the host that answers them"
+readme = "README.md"
+requires-python = ">=3.12"
+license = {text = "Apache-2.0"}
+authors = [{name = "Karthik", email = "karthik.rajgopal@hotmail.com"}]
+keywords = ['nbdev']
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+dependencies = [
+    "fastcore>=2.1.16",
+    "exhash>=0.4.9",
+]
+
+[project.optional-dependencies]
+code = ["koshas>=0.0.31", "litesearch>=0.1.1"]
+web = ["fossick>=0.1.11"]
+memory = ["vishalakshi>=0.1.11"]
+api = ["fastspec>=0.2.1"]
+git = ["gheasy>=0.0.9"]
+kernel = ["dhrishti>=0.1.2", "jupyter-client>=8.9.1"]
+all = ["shalya[code,web,memory,api,git,kernel]"]
+dev = ["shalya[all]", "nbdev>=3.3.11", "notebook>=7.6.1", "pytest>=8.0.0"]
+
+[project.urls]
+Repository = "https://github.com/vedicreader/shalya"
+Documentation = "https://vedicreader.github.io/shalya/"
+
+[project.entry-points.nbdev]
+shalya = "shalya._modidx:d"
+
+[tool.nbdev]
+tst_flags = "notest"
+
+[tool.hatch.build.targets.wheel]
+packages = ["shalya"]
+
+[tool.hatch.build.targets.sdist]
+include = ["/shalya", "/README.md", "/pyproject.toml"]
+
+[tool.hatch.version]
+path = "shalya/__init__.py"
+
+[dependency-groups]
+dev = ["shalya[dev]"]
