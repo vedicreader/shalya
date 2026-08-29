@@ -296,7 +296,7 @@ def notebook_tools(host, mx=MAX_TOOL_CHARS):
 
     return [notebook_cells, view_cell, edit_cell, add_cell]
 
-# %% ../nbs/02_tools.ipynb #968d6d27
+# %% ../nbs/02_tools.ipynb #68bb2099
 def web_tools(host, mx=MAX_TOOL_CHARS):
     "The web, for the questions whose answer depends on current documentation."
 
@@ -322,6 +322,7 @@ def web_tools(host, mx=MAX_TOOL_CHARS):
 
     return [web_search, read_url, research]
 
+# %% ../nbs/02_tools.ipynb #13dd6936
 def memory_tools(host, mx=MAX_TOOL_CHARS):
     "Durable pages and research recalled as document sections rather than flat snippets."
 
@@ -364,6 +365,7 @@ def memory_tools(host, mx=MAX_TOOL_CHARS):
 
     return [memory_search, memory_tree, memory_read, memory_topics, memory_forget]
 
+# %% ../nbs/02_tools.ipynb #e919c44b
 def watch_tools(host, mx=MAX_TOOL_CHARS):
     "Standing interests: what to put back on the desk later, and what has come due now."
 
@@ -466,7 +468,7 @@ def ask_tools(host, mx=MAX_TOOL_CHARS):
 
     return [ask_memory]
 
-# %% ../nbs/02_tools.ipynb #1704874c
+# %% ../nbs/02_tools.ipynb #5632a9ae
 def session_tools(host, mx=MAX_TOOL_CHARS):
     "The live kernel the user is working in, and the terminal they are looking at."
 
@@ -519,6 +521,7 @@ def session_tools(host, mx=MAX_TOOL_CHARS):
     # No tool per recipe: `run_python` composes one in a line. See `coding_patterns`.
     return [list_vars, run_python, inspect_python, read_terminal]
 
+# %% ../nbs/02_tools.ipynb #0eb6a349
 def shell_tools(host, mx=MAX_TOOL_CHARS):
     "Running a command, which is the only way to find out whether the work is done."
 

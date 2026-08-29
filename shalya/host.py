@@ -441,6 +441,11 @@ class LocalHost(Host, CodeHost, WebHost, NotebookHost, SessionHost, ShellHost, M
         if self.apis is None: out.add('api')
         return frozenset(out)
 
+#: Every method below arrives by `@patch`, which runs after `ABCMeta` has worked out what is
+#: missing, so it cannot see any of them yet. `implemented(LocalHost)` at the foot of this notebook
+#: asks again by the same rule, and anything nothing ever wrote goes back to being abstract.
+LocalHost.__abstractmethods__ = frozenset()
+
 # %% ../nbs/01_host.ipynb #8bd0c5bd
 def _installed(mod):
     "Whether `mod` imports. Asked once per host, at construction, and never again."
@@ -448,15 +453,17 @@ def _installed(mod):
     try: return find_spec(mod) is not None
     except Exception: return False
 
-# %% ../nbs/01_host.ipynb #b5526fd6
+# %% ../nbs/01_host.ipynb #682e7b40
 @patch(as_prop=True)
 def roots(self:LocalHost): return list(self._roots)
 
+# %% ../nbs/01_host.ipynb #8daf0762
 @patch(as_prop=True)
 def added_roots(self:LocalHost):
     "Roots opened after construction. `/resume` lapses these, and says that it did."
     return list(self._added_roots)
 
+# %% ../nbs/01_host.ipynb #6d3cb86c
 @patch
 def add_root(self:LocalHost, path):
     """Open another folder for reading and writing, and index it. Returns it resolved.
@@ -474,6 +481,7 @@ def add_root(self:LocalHost, path):
     except Exception as e: self._index_errors.append(host_err(e))
     return str(p)
 
+# %% ../nbs/01_host.ipynb #86af36e8
 @patch
 def check(self:LocalHost, path, must_exist=False, reading=False):
     "Resolve `path`. Refuse outside `roots` (unless `read_outside` and `reading`). Walks stay confined."
@@ -487,6 +495,7 @@ def check(self:LocalHost, path, must_exist=False, reading=False):
     if must_exist and not p.exists(): raise HostError(f'no such file: {p}')
     return p
 
+# %% ../nbs/01_host.ipynb #9f11dcff
 @patch(as_prop=True)
 def roots_note(self:LocalHost):
     "How paths are resolved here, in one line, for the briefing and a status bar."
@@ -494,6 +503,7 @@ def roots_note(self:LocalHost):
     return (f'{n} folder(s); reads may name any path on this machine, writes may not'
             if self.read_outside else f'{n} folder(s); nothing outside them is readable')
 
+# %% ../nbs/01_host.ipynb #32df96e2
 @patch
 def _walk(self:LocalHost, root):
     "Files under `root`, skipping the same generated dirs/suffixes `grep` covers."
@@ -517,15 +527,18 @@ def _walk(self:LocalHost, root):
         except OSError: continue
         yield p
 
+# %% ../nbs/01_host.ipynb #3c10f362
 @patch
 def walk(self:LocalHost):
     return [p for r in self._roots for p in self._walk(r)]
 
+# %% ../nbs/01_host.ipynb #26c39f55
 @patch
 def read(self:LocalHost, path):
     try: return self.check(path, must_exist=True, reading=True).read_text(encoding='utf-8')
     except Exception: return None
 
+# %% ../nbs/01_host.ipynb #fc9d7ee5
 @patch
 def write(self:LocalHost, path, text):
     p = self.check(path)
@@ -533,6 +546,7 @@ def write(self:LocalHost, path, text):
     p.write_text(str(text), encoding='utf-8')
     return str(p)
 
+# %% ../nbs/01_host.ipynb #ba75a7d3
 @patch
 def text_at(self:LocalHost, path):
     "One file as a diffable document: a notebook as its cell sources, anything else as text."
@@ -547,9 +561,11 @@ def text_at(self:LocalHost, path):
     try: return p.read_text(encoding='utf-8')
     except Exception: return None
 
+# %% ../nbs/01_host.ipynb #b5aa8784
 @patch(as_prop=True)
 def approvals(self:LocalHost): return self._approvals
 
+# %% ../nbs/01_host.ipynb #33ed4b7b
 @patch
 def note(self:LocalHost, text):
     self.transcript.append(str(text))
@@ -557,7 +573,7 @@ def note(self:LocalHost, text):
         try: self._note(str(text))
         except Exception: pass
 
-# %% ../nbs/01_host.ipynb #556bccaf
+# %% ../nbs/01_host.ipynb #9ebf4413
 @patch
 def sync_index(self:LocalHost, wait=False, force=False):
     "Run `Kosha.sync` for every open root, once, in a daemon thread. Each root publishes as it returns."
@@ -582,22 +598,26 @@ def sync_index(self:LocalHost, wait=False, force=False):
     if wait: self._index_thread.join()
     return self
 
+# %% ../nbs/01_host.ipynb #587e2e87
 @patch(as_prop=True)
 def index_ready(self:LocalHost):
     "Whether *every* open folder is indexed. `indexed` is the per-folder answer `search` uses."
     return bool(self._indexes) and not self._pending
 
+# %% ../nbs/01_host.ipynb #bb0cafcf
 @patch(as_prop=True)
 def indexed(self:LocalHost):
     "The folders whose index is built and searchable now. The rest are still syncing."
     return [str(getattr(k, 'root', '')) for k in list(self._indexes)]
 
+# %% ../nbs/01_host.ipynb #0c87e6ee
 @patch
 def wait_index(self:LocalHost, timeout=None):
     "Wait for the automatic Kosha sync. Returns whether semantic search is ready."
     if self._index_thread is not None: self._index_thread.join(timeout)
     return self.index_ready
 
+# %% ../nbs/01_host.ipynb #5e852338
 @patch
 def _rg(self:LocalHost, query, limit, regex=False, ignore_case=False, path_filter='', per_file=5, every_file=False):
     "Search through `rgapi.rg`. `every_file=True` matches what `walk` yields, hidden files included."
@@ -629,12 +649,14 @@ def _rg(self:LocalHost, query, limit, regex=False, ignore_case=False, path_filte
     except Exception: return None
     return hits
 
+# %% ../nbs/01_host.ipynb #00b07bcc
 @patch
 def grep(self:LocalHost, pattern, path_filter='', regex=True, ignore_case=False, limit=MAX_GREP_HITS):
     "Exact matching through ripgrep. None when `rgapi` is unavailable. The tool then reads files itself."
     return self._rg(pattern, limit, regex=regex, ignore_case=ignore_case,
                     path_filter=path_filter, per_file=None, every_file=True)
 
+# %% ../nbs/01_host.ipynb #dff70ebc
 @patch
 def _ranked(self:LocalHost, call, **kw):
     "One Kosha context call, reordered by its cross-encoder when reranking is on and working."
@@ -645,6 +667,7 @@ def _ranked(self:LocalHost, call, **kw):
             self._rerank_note = f'; reranking off ({host_err(e)})'
     return call(**kw)
 
+# %% ../nbs/01_host.ipynb #e880e833
 @patch
 def _semantic(self:LocalHost, query, limit):
     "Kosha hybrid results (repo + env + graph) as the Host's stable `Hit` shape."
@@ -674,6 +697,7 @@ def _semantic(self:LocalHost, query, limit):
             if len(out) >= limit: return out
     return out
 
+# %% ../nbs/01_host.ipynb #3ef3aa5d
 @patch
 def _scan(self:LocalHost, query, limit):
     "Every matching line, by reading the files. What is left when there is no index and no ripgrep."
@@ -688,6 +712,7 @@ def _scan(self:LocalHost, query, limit):
                 if len(hits) >= limit: return hits
     return hits
 
+# %% ../nbs/01_host.ipynb #40668712
 @patch
 def search(self:LocalHost, query, limit=20):
     "The code index and the literal scan, fused by rank rather than tried in order."
@@ -696,6 +721,7 @@ def search(self:LocalHost, query, limit=20):
     if (hits := _fuse([self._semantic(query, limit), rg or []], limit)): return hits
     return [] if rg is not None else self._scan(query, limit)
 
+# %% ../nbs/01_host.ipynb #9b9d27c3
 @patch(as_prop=True)
 def search_note(self:LocalHost):
     n, tot = len(self._indexes), len(self._roots)
@@ -705,6 +731,7 @@ def search_note(self:LocalHost):
     if self._index_errors: return f'Kosha unavailable ({self._index_errors[-1]}); literal fallback'
     return 'Kosha sync in progress; literal fallback via ripgrep'
 
+# %% ../nbs/01_host.ipynb #94cb1a1b
 @patch
 def public_api(self:LocalHost, package, limit=MAX_API):
     "Kosha's public surface for `package`, `@patch`-added methods included."
@@ -725,6 +752,7 @@ def public_api(self:LocalHost, package, limit=MAX_API):
             if len(out) >= limit: return out
     return out
 
+# %% ../nbs/01_host.ipynb #f914b4ba
 @patch
 def _defs(self:LocalHost, path):
     "Every def/class in one file as `(line, qualified_name, depth)`, by parsing rather than grepping."
@@ -742,6 +770,7 @@ def _defs(self:LocalHost, path):
     walk(tree)
     return out
 
+# %% ../nbs/01_host.ipynb #b4730a52
 @patch
 def symbols(self:LocalHost, path):
     "The defs and classes in one file, as `Hit`s whose `score` is the indent depth."
@@ -753,6 +782,7 @@ def symbols(self:LocalHost, path):
         out.append(h)
     return out
 
+# %% ../nbs/01_host.ipynb #5c2865b4
 @patch
 def peers(self:LocalHost, path, line, limit=20):
     "Every other place the symbol defined at `path`:`line` is mentioned."
@@ -764,13 +794,14 @@ def peers(self:LocalHost, path, line, limit=20):
     return [h for h in self.search(leaf, limit * 2)
             if not (str(h.path) == str(p) and h.line == int(line))][:limit]
 
-# %% ../nbs/01_host.ipynb #fc753b6e
+# %% ../nbs/01_host.ipynb #b579f602
 @patch
 def nb_cells(self:LocalHost, path):
     from fastcore.nbio import read_nb
     nb = read_nb(self.check(path, must_exist=True, reading=True))
     return [(c.get('id', ''), c.cell_type, ''.join(c.source)) for c in nb.cells]
 
+# %% ../nbs/01_host.ipynb #e0805d6b
 @patch
 def nb_add_cell(self:LocalHost, path, source, index=-1, cell_type='code'):
     from fastcore.nbio import read_nb, write_nb, mk_cell, dict2nb
@@ -783,6 +814,7 @@ def nb_add_cell(self:LocalHost, path, source, index=-1, cell_type='code'):
     write_nb(nb, p)
     return cell['id']
 
+# %% ../nbs/01_host.ipynb #2d89bc1f
 @patch
 def _exec(self:LocalHost, code, ns):
     "Run `code` in `ns`, returning printed output plus the last expression's value."
@@ -797,6 +829,7 @@ def _exec(self:LocalHost, code, ns):
     if value is not None: out += ('' if not out or out.endswith('\n') else '\n') + repr(value)
     return out.strip() or '(no output)'
 
+# %% ../nbs/01_host.ipynb #ae7249ae
 @patch
 def run_python(self:LocalHost, code):
     "Run `code` in the live namespace. Failures come back as text: a tool cannot usefully raise."
@@ -804,6 +837,7 @@ def run_python(self:LocalHost, code):
     try: return self._exec(code, self.ns)
     except Exception as e: return f'{host_err(e)}'
 
+# %% ../nbs/01_host.ipynb #ea5138cc
 @patch
 def inspect_python(self:LocalHost, code, scope='isolated'):
     "Run `code` without rebinding anything the user made. A kernel enforces this; a copy approximates it."
@@ -812,15 +846,18 @@ def inspect_python(self:LocalHost, code, scope='isolated'):
     try: return self._exec(code, dict(self.ns))
     except Exception as e: return f'{host_err(e)}'
 
+# %% ../nbs/01_host.ipynb #de83c89e
 @patch(as_prop=True)
 def scopes(self:LocalHost):
     "What `inspect_python` honours. A kernel says for itself; in process it is the shallow copy alone."
     return self.kernel.scopes if self.kernel is not None else ('isolated',)
 
+# %% ../nbs/01_host.ipynb #369d2058
 @patch(as_prop=True)
 def kernel_kind(self:LocalHost):
     return self.kernel.kind if self.kernel is not None else 'inprocess'
 
+# %% ../nbs/01_host.ipynb #2d0ef076
 @patch
 def list_vars(self:LocalHost):
     if self.kernel is not None: return self.kernel.list_vars()
@@ -832,11 +869,13 @@ def list_vars(self:LocalHost):
         rows.append(f'{k:20} {type(v).__name__:12} {short[:60]}')
     return '\n'.join(rows)
 
+# %% ../nbs/01_host.ipynb #45e8ab24
 @patch
 def terminal_text(self:LocalHost, lines=200):
     "What this process has printed, when the application records it in `transcript`."
     return '\n'.join(str(x) for x in self.transcript[-int(lines):])
 
+# %% ../nbs/01_host.ipynb #da3261d6
 @patch
 def run_cmd(self:LocalHost, command, cwd=None, timeout=120):
     """Run `command` in a shell under one of the open folders.
@@ -861,11 +900,12 @@ def run_cmd(self:LocalHost, command, cwd=None, timeout=120):
         return 124, (out or '') + f'\n[killed after {int(timeout)}s]'
     return p.returncode, out or ''
 
+# %% ../nbs/01_host.ipynb #936548e4
 @patch(as_prop=True)
 def shell_note(self:LocalHost):
     return f'shell, in {self._roots[0]}' if self._roots else 'no folder to run a command in'
 
-# %% ../nbs/01_host.ipynb #1359ada5
+# %% ../nbs/01_host.ipynb #2e9eee2e
 @patch
 def _fossick(self:LocalHost):
     if not self.web: raise NotImplementedError
@@ -874,6 +914,7 @@ def _fossick(self:LocalHost):
         return fossick
     except Exception: raise NotImplementedError
 
+# %% ../nbs/01_host.ipynb #5d1cd1db
 @patch
 def web_search(self:LocalHost, query, n=20):
     "Search the web through fossick. An empty query answers `[]`: that is how `tools_for` probes."
@@ -882,6 +923,7 @@ def web_search(self:LocalHost, query, n=20):
     rows = fossick.search(str(query), n=int(n))   # `n` to fossick. Its own default is 10
     return [AttrDict(title=str(r.get('title', '')), url=str(r.get('href') or r.get('url', ''))) for r in rows]
 
+# %% ../nbs/01_host.ipynb #b7f2f630
 @patch
 def read_url(self:LocalHost, url, remember=True):
     "Page as markdown via fossick: `READERS`, then `fetch(auto=True)`, thin-page escalate, JSON-LD."
@@ -907,11 +949,13 @@ def read_url(self:LocalHost, url, remember=True):
         text = f'<structured-data>\n{json.dumps(ld)[:LD_CHARS]}\n</structured-data>\n\n{text}'
     return None if not text.strip() else AttrDict(text=text, url=str(url))
 
+# %% ../nbs/01_host.ipynb #85171ef8
 @patch
 def research(self:LocalHost, query):
     "The cited corpus fossick assembled: its `digest`, and not the record it assembled it from."
     return str((self._fossick().research(str(query)) or {}).get('digest') or '')
 
+# %% ../nbs/01_host.ipynb #fac19fe7
 @patch(as_prop=True)
 def research_note(self:LocalHost): return 'fossick' if self.web else 'web access is switched off'
 
@@ -922,88 +966,102 @@ LocalHost.READERS = (
         (re.compile(r'https?://(www\.)?(youtube\.com/watch|youtu\.be/)', re.I), 'read_yt', {}),
     )
 
-# %% ../nbs/01_host.ipynb #eaca202c
+# %% ../nbs/01_host.ipynb #3feed41c
 def _needs(host, what):
     "The refusal a forwarding method gives when its backend was never attached."
     return HostError(f'this host has no {what}')
 
+# %% ../nbs/01_host.ipynb #121abd1e
 @patch
 def memory_search(self:LocalHost, query, limit=8):
     if self.memory is None: raise _needs(self, 'vault')
     return self.memory.search(str(query), limit=int(limit))
 
+# %% ../nbs/01_host.ipynb #316c7b1f
 @patch
 def memory_tree(self:LocalHost, document=''):
     if self.memory is None: raise _needs(self, 'vault')
     return self.memory.tree(str(document or ''))
 
+# %% ../nbs/01_host.ipynb #7f3a5f3b
 @patch
 def memory_read(self:LocalHost, node_id):
     if self.memory is None: raise _needs(self, 'vault')
     return self.memory.read(str(node_id))
 
+# %% ../nbs/01_host.ipynb #d5dc90b5
 @patch
 def memory_topics(self:LocalHost, limit=12):
     if self.memory is None: raise _needs(self, 'vault')
     return self.memory.topics(limit=int(limit))
 
+# %% ../nbs/01_host.ipynb #fcb89ac4
 @patch
 def memory_forget(self:LocalHost, doc_id):
     if self.memory is None: raise _needs(self, 'vault')
     return self.memory.forget(str(doc_id))
 
+# %% ../nbs/01_host.ipynb #3a1847c4
 @patch
 def remember(self:LocalHost, text, title=None, tags=()):
     if self.memory is None: raise _needs(self, 'vault')
     return self.memory.remember(str(text), title=title, tags=tuple(tags))
 
+# %% ../nbs/01_host.ipynb #5d0a69ed
 @patch
 def ask(self:LocalHost, question, ref=None, instruction='', **kw):
     if self.memory is None: raise _needs(self, 'vault')
     return self.memory.ask(str(question), ref=ref, instruction=instruction, **kw)
 
+# %% ../nbs/01_host.ipynb #ef92f2f9
 @patch
 def watch(self:LocalHost, target, action='remind', every='1d', note=None, **params):
     if self.memory is None: raise _needs(self, 'vault')
     return self.memory.watch(target, action=action, every=every, note=note, **params)
 
+# %% ../nbs/01_host.ipynb #b91294a2
 @patch
 def watches(self:LocalHost, due_only=False):
     if self.memory is None: raise _needs(self, 'vault')
     return self.memory.watches(due_only=bool(due_only))
 
+# %% ../nbs/01_host.ipynb #91f80b0a
 @patch
 def unwatch(self:LocalHost, watch_id): 
     if self.memory is None: raise _needs(self, 'vault')
     return self.memory.unwatch(str(watch_id))
 
+# %% ../nbs/01_host.ipynb #1a5e84ff
 @patch
 def poll(self:LocalHost):
     if self.memory is None: raise _needs(self, 'vault')
     return self.memory.poll()
 
-# %% ../nbs/01_host.ipynb #6fb4a1e5
+# %% ../nbs/01_host.ipynb #18519fef
 @patch
 def api_load(self:LocalHost, src, name=''):
     if self.apis is None: raise _needs(self, 'API specifications')
     return self.apis.api_load(src, name=name)
 
+# %% ../nbs/01_host.ipynb #8353d136
 @patch
 def api_ops(self:LocalHost, group='', name='', match='', limit=None, offset=0):
     if self.apis is None: raise _needs(self, 'API specifications')
     return self.apis.api_ops(group=group, name=name, match=match, limit=limit, offset=offset)
 
+# %% ../nbs/01_host.ipynb #02e694ed
 @patch
 def api_count(self:LocalHost, group='', name='', match=''):
     if self.apis is None: raise _needs(self, 'API specifications')
     return self.apis.api_count(group=group, name=name, match=match)
 
+# %% ../nbs/01_host.ipynb #27c2f983
 @patch
 def api_call(self:LocalHost, operation, name='', **params):
     if self.apis is None: raise _needs(self, 'API specifications')
     return self.apis.api_call(operation, name=name, **params)
 
-# %% ../nbs/01_host.ipynb #121df5c8
+# %% ../nbs/01_host.ipynb #3f0e0e03
 def implemented(cls):
     "Recompute what `cls` is still missing, after `@patch` filled some of it in."
     names = {m for base in cls.__mro__ for m in getattr(base, '__abstractmethods__', ())}
