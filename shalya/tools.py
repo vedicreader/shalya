@@ -6,12 +6,12 @@ Docs: https://vedicreader.github.io/shalya/tools.html.md"""
 
 # %% auto #0
 __all__ = ['RESPONSES_API', 'IMAGE_API', 'IMAGE_MODEL', 'IMAGE_SIZES', 'API_VENDORS', 'GROUPS', 'readable', 'code_tools',
-           'file_tools', 'notebook_tools', 'web_tools', 'memory_tools', 'watch_tools', 'session_tools', 'shell_tools',
-           'api_tools', 'skill_tools', 'media_dir', 'mime_for', 'save_media', 'image_available', 'api_model',
-           'image_tools', 'git_tools', 'tools_for', 'read_only']
+           'file_tools', 'notebook_tools', 'web_tools', 'memory_tools', 'watch_tools', 'ask_tools', 'session_tools',
+           'shell_tools', 'api_tools', 'skill_tools', 'media_dir', 'mime_for', 'save_media', 'image_available',
+           'api_model', 'image_tools', 'git_tools', 'tools_for', 'read_only']
 
-# %% ../nbs/02_tools.ipynb #25277efb
-import functools, json, mimetypes, os, threading, uuid
+# %% ../nbs/02_tools.ipynb #a71f9b84
+import functools, json, mimetypes, os, re, threading, uuid
 from base64 import b64decode
 from pathlib import Path
 from fastcore.basics import AttrDict
@@ -23,12 +23,12 @@ from .core import (Hit, ERR, MAX_TOOL_CHARS, MAX_HITS, MAX_GREP_HITS, MAX_API, G
 from .host import Host, HostError, LocalHost, host_err
 from .skills import Skill, find, skill_index
 
-# %% ../nbs/02_tools.ipynb #ecb7e8c9
+# %% ../nbs/02_tools.ipynb #837ae38d
 def readable(host, path, must_exist=False):
     "Resolve a path a tool is only going to read. `reading=True` is the read-outside allowance."
     return host.check(path, must_exist=must_exist, reading=True)
 
-# %% ../nbs/02_tools.ipynb #c7887e38
+# %% ../nbs/02_tools.ipynb #38740e63
 def code_tools(host, mx=MAX_TOOL_CHARS):
     "Seeing the code: the index, the shapes in it, and the files it covers."
 
@@ -153,7 +153,7 @@ def code_tools(host, mx=MAX_TOOL_CHARS):
     if host.indexed: tools.append(public_api)   # with no index it could only ever refuse
     return tools
 
-# %% ../nbs/02_tools.ipynb #a75ef3f0
+# %% ../nbs/02_tools.ipynb #6d65593d
 def file_tools(host, mx=MAX_TOOL_CHARS):
     "Reading and editing files, by exact text or by hash-verified address."
 
@@ -260,7 +260,7 @@ def file_tools(host, mx=MAX_TOOL_CHARS):
 
     return [view_file, replace_text, edit_file, create_file, add_root]
 
-# %% ../nbs/02_tools.ipynb #4a38f2d7
+# %% ../nbs/02_tools.ipynb #3c171dfb
 def notebook_tools(host, mx=MAX_TOOL_CHARS):
     "Notebooks, addressed by cell id rather than by line."
 
@@ -296,7 +296,7 @@ def notebook_tools(host, mx=MAX_TOOL_CHARS):
 
     return [notebook_cells, view_cell, edit_cell, add_cell]
 
-# %% ../nbs/02_tools.ipynb #15656a9c
+# %% ../nbs/02_tools.ipynb #968d6d27
 def web_tools(host, mx=MAX_TOOL_CHARS):
     "The web, for the questions whose answer depends on current documentation."
 
@@ -353,36 +353,6 @@ def memory_tools(host, mx=MAX_TOOL_CHARS):
         try: return clip(json.dumps(host.memory_topics(int(limit)), default=str), MAX_TOOL_CHARS * 2)
         except Exception as e: return err('memory topics failed', e)
 
-    def ask_memory(question: str, document: str = '', instruction: str = '') -> str:
-        """Ask remembered research a question and get a short cited answer, not the sections.
-
-        Prefer this to `memory_search` when you want an answer rather than material: the search
-        returns whole sections into your context and this returns a paragraph, which is the same
-        trade `delegate_search` makes. `document` narrows it to one remembered document by title
-        or id.
-
-        Some of what the vault holds is private. A statement, a medical letter, an exported
-        chat. Those are answered by a model on this machine that is instructed not to repeat any
-        personal detail to you. What you get back is shape and quantity: how many, what kind,
-        which period, whether two things agree. It will tell you what it is holding and what
-        instruction would let it answer usefully. Send that back as `instruction` and it gets
-        another turn on the same material.
-
-        Do not ask it for the details it withheld, or ask it to relay them "for the user". It
-        will refuse, and the refusal is the point rather than an obstacle.
-        """
-        try: r = host.ask(question, ref=document or None, instruction=instruction)
-        except NotImplementedError: raise
-        except Exception as e: return err('could not ask memory', e)
-        rows = [str(r.get('answer') or '(no answer)')]
-        if (p := r.get('pii')) and p.get('has_pii'):
-            rows.append(f"\n[answered on a local model; it holds back "
-                        f"{', '.join(sorted(p.get('identifying') or {}))}. Reply with `instruction=` "
-                        f"to say what you need -- a count, a total, a comparison, a yes or no.]")
-        if (c := r.get('cited')):
-            rows.append('\n' + '\n'.join(f"[{x['n']}] {x['breadcrumb']}  ({x['node_id']})" for x in c))
-        return clip('\n'.join(rows), MAX_TOOL_CHARS * 2)
-
     @writes
     def memory_forget(doc_id: str) -> str:
         """Purge one bad, sensitive, stale or irrelevant remembered document by id.
@@ -392,7 +362,7 @@ def memory_tools(host, mx=MAX_TOOL_CHARS):
         try: return 'forgot document' if host.memory_forget(doc_id) else 'document was not forgotten'
         except Exception as e: return err('memory purge failed', e)
 
-    return [memory_search, memory_tree, memory_read, memory_topics, ask_memory, memory_forget]
+    return [memory_search, memory_tree, memory_read, memory_topics, memory_forget]
 
 def watch_tools(host, mx=MAX_TOOL_CHARS):
     "Standing interests: what to put back on the desk later, and what has come due now."
@@ -460,7 +430,43 @@ def watch_tools(host, mx=MAX_TOOL_CHARS):
 
     return [remember, set_reminder, watch_url, list_watches, cancel_watch, poll_watches]
 
-# %% ../nbs/02_tools.ipynb #55d5a365
+# %% ../nbs/02_tools.ipynb #27b30123
+def ask_tools(host, mx=MAX_TOOL_CHARS):
+    "One tool, and its own group: answering out of memory takes a model, and a store is not one."
+
+    def ask_memory(question: str, document: str = '', instruction: str = '') -> str:
+        """Ask remembered research a question and get a short cited answer, not the sections.
+
+        Prefer this to `memory_search` when you want an answer rather than material: the search
+        returns whole sections into your context and this returns a paragraph, which is the same
+        trade `delegate_search` makes. `document` narrows it to one remembered document by title
+        or id.
+
+        Some of what the vault holds is private. A statement, a medical letter, an exported
+        chat. Those are answered by a model on this machine that is instructed not to repeat any
+        personal detail to you. What you get back is shape and quantity: how many, what kind,
+        which period, whether two things agree. It will tell you what it is holding and what
+        instruction would let it answer usefully. Send that back as `instruction` and it gets
+        another turn on the same material.
+
+        Do not ask it for the details it withheld, or ask it to relay them "for the user". It
+        will refuse, and the refusal is the point rather than an obstacle.
+        """
+        try: r = host.ask(question, ref=document or None, instruction=instruction)
+        except NotImplementedError: raise
+        except Exception as e: return err('could not ask memory', e)
+        rows = [str(r.get('answer') or '(no answer)')]
+        if (p := r.get('pii')) and p.get('has_pii'):
+            rows.append(f"\n[answered on a local model; it holds back "
+                        f"{', '.join(sorted(p.get('identifying') or {}))}. Reply with `instruction=` "
+                        f"to say what you need -- a count, a total, a comparison, a yes or no.]")
+        if (c := r.get('cited')):
+            rows.append('\n' + '\n'.join(f"[{x['n']}] {x['breadcrumb']}  ({x['node_id']})" for x in c))
+        return clip('\n'.join(rows), MAX_TOOL_CHARS * 2)
+
+    return [ask_memory]
+
+# %% ../nbs/02_tools.ipynb #1704874c
 def session_tools(host, mx=MAX_TOOL_CHARS):
     "The live kernel the user is working in, and the terminal they are looking at."
 
@@ -548,7 +554,7 @@ def shell_tools(host, mx=MAX_TOOL_CHARS):
 
     return [run_shell]
 
-# %% ../nbs/02_tools.ipynb #3c7384f1
+# %% ../nbs/02_tools.ipynb #80208a7b
 def api_tools(host, mx=MAX_TOOL_CHARS):
     "Read an API specification, browse what it declares, and call one operation."
 
@@ -589,7 +595,7 @@ def api_tools(host, mx=MAX_TOOL_CHARS):
 
     return [api_load, api_ops, api_call]
 
-# %% ../nbs/02_tools.ipynb #73a7c5c9
+# %% ../nbs/02_tools.ipynb #6ae4e312
 def skill_tools(host, get_skills, mx=MAX_TOOL_CHARS):
     "Reading discovered skills and creating project-local Agent Skills."
 
@@ -637,14 +643,14 @@ def skill_tools(host, get_skills, mx=MAX_TOOL_CHARS):
 
     return [read_skill, create_skill]
 
-# %% ../nbs/02_tools.ipynb #fb964a86
+# %% ../nbs/02_tools.ipynb #8e7cc301
 RESPONSES_API = 'https://api.openai.com/v1/responses'
 IMAGE_API = 'https://api.openai.com/v1/images/generations'
 IMAGE_MODEL = 'gpt-image-1'
 IMAGE_SIZES = ('1024x1024', '1536x1024', '1024x1536', 'auto')
 API_VENDORS = ('openai/', 'azure/')
 
-# %% ../nbs/02_tools.ipynb #2dc53c24
+# %% ../nbs/02_tools.ipynb #14d82ec8
 def media_dir(session=''):
     "Where a turn's generated pictures are kept: beside the session record that produced them."
     d = Path(session or '.') / 'media'
@@ -695,7 +701,7 @@ def _post_responses(prompt, model, timeout=300):
     r.raise_for_status()
     return r.json()
 
-# %% ../nbs/02_tools.ipynb #92dc5b39
+# %% ../nbs/02_tools.ipynb #7a99e2b6
 def image_tools(host, mx=MAX_TOOL_CHARS, session='', draws_itself=None, from_reply=None, model_id='',
                 on_media=None):
     "Drawing: by the turn's own model where it can, and by the images endpoint where it cannot."
@@ -724,7 +730,7 @@ def image_tools(host, mx=MAX_TOOL_CHARS, session='', draws_itself=None, from_rep
 
     return [generate_image]
 
-# %% ../nbs/02_tools.ipynb #fb102b88
+# %% ../nbs/02_tools.ipynb #49342acf
 from gheasy.repo import GitRepo, STATE_KEYS, REMOTE_OPS, _said
 
 def git_tools(host, mx=MAX_TOOL_CHARS):
@@ -765,10 +771,11 @@ def git_tools(host, mx=MAX_TOOL_CHARS):
         return answer('git checkout', path, lambda r: state(r, _said(r.checkout(str(branch or '').strip()))))
     return [git_status, git_divergence, git_rebase_preview, git_remote, git_checkout]
 
-# %% ../nbs/02_tools.ipynb #e2d75b83
+# %% ../nbs/02_tools.ipynb #8cc4fdac
 #: group -> the factory that builds it. Order is the order a model sees the tools in.
 GROUPS = (('code', code_tools), ('file', file_tools), ('notebook', notebook_tools),
-          ('web', web_tools), ('memory', memory_tools), ('watch', watch_tools),
+          ('web', web_tools), ('memory', memory_tools), ('ask', ask_tools),
+          ('watch', watch_tools),
           ('api', api_tools), ('session', session_tools), ('shell', shell_tools),
           ('git', git_tools))
 
@@ -784,7 +791,7 @@ def tools_for(host, get_skills=None, extra=(), mx=MAX_TOOL_CHARS, drop=(), image
     if image is not None and 'image' not in drop: tools += list(image)
     return tools + list(extra or ())
 
-# %% ../nbs/02_tools.ipynb #79100795
+# %% ../nbs/02_tools.ipynb #01e94cbe
 def read_only(tools, max_calls=None, writes=False, block=()):
     "The tools a sub-agent may have, optionally behind a hard per-task call budget."
     blocked = set(block or ())

@@ -6,8 +6,8 @@ Docs: https://vedicreader.github.io/shalya/core.html.md"""
 
 # %% auto #0
 __all__ = ['MAX_TOOL_CHARS', 'MAX_HITS', 'MAX_GREP_HITS', 'MAX_API', 'MAX_FILE', 'ERR', 'GIT_READ_TOOLS', 'GIT_WRITE_TOOLS',
-           'GIT_TOOLS', 'WRITE_TOOLS', 'Hit', 'err', 'failed', 'clip', 'clip_lines', 'cmds', 'edits', 'apply_edits',
-           'diff_text', 'writes', 'is_write']
+           'GIT_TOOLS', 'WRITE_TOOLS', 'Hit', 'HostError', 'host_err', 'err', 'failed', 'clip', 'clip_lines', 'cmds',
+           'edits', 'apply_edits', 'diff_text', 'writes', 'is_write']
 
 # %% ../nbs/00_core.ipynb #8ff4e050
 import json
@@ -29,9 +29,15 @@ class Hit(AttrDict):
 # %% ../nbs/00_core.ipynb #c55d1ed2
 ERR = 'ERROR: '
 
+class HostError(Exception): "Something a host refuses to do, rather than a failure while doing it."
+
+def host_err(e):
+    "A caught exception, for a user-facing surface."
+    return f'{type(e).__name__}: {e}'
+
 def err(what, e=None):
     "One tool failure, spelled the way every other tool spells it."
-    return f'{ERR}{what}' + (f': {type(e).__name__}: {e}' if e is not None else '')
+    return f'{ERR}{what}' + (f': {host_err(e)}' if e is not None else '')
 
 def failed(result):
     "Whether a tool result is a failure. The one place that knows how a failure is spelled."
