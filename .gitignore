@@ -8,3 +8,7 @@ dist/
 build/
 *.egg-info/
 .pytest_cache/
+
+# `save_media(session="s1")` writes beside the cwd, so a test run leaves images behind and
+# `save_media` numbers the next one from what it finds
+s1/
