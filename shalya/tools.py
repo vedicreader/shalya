@@ -132,7 +132,9 @@ def code_tools(host, mx=MAX_TOOL_CHARS):
         return clip_lines([f'{len(rows)} public name(s) in {package}'] + rows, n=mx, more='read one with view_file')
 
     tools = [search_code, grep, ls, similar_code, outline, list_files]
-    if host.indexed: tools.append(public_api)   # with no index it could only ever refuse
+    #: `indexed` is `LocalHost`'s, not part of the code group's contract, so a host may declare
+    #: the group and not carry it. With no index `public_api` could only ever refuse.
+    if getattr(host, 'indexed', False): tools.append(public_api)
     return tools
 
 # %% ../nbs/02_tools.ipynb #6d65593d
