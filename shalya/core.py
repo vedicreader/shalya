@@ -6,8 +6,8 @@ Docs: https://vedicreader.github.io/shalya/core.html.md"""
 
 # %% auto #0
 __all__ = ['MAX_TOOL_CHARS', 'MAX_HITS', 'MAX_GREP_HITS', 'MAX_API', 'MAX_FILE', 'ERR', 'GIT_READ_TOOLS', 'GIT_WRITE_TOOLS',
-           'GIT_TOOLS', 'WRITE_TOOLS', 'Hit', 'HostError', 'host_err', 'err', 'failed', 'clip', 'clip_lines', 'cmds',
-           'edits', 'apply_edits', 'diff_text', 'writes', 'is_write']
+           'GIT_TOOLS', 'WRITE_TOOLS', 'ACTING_TOOLS', 'Hit', 'HostError', 'host_err', 'err', 'failed', 'clip',
+           'clip_lines', 'cmds', 'edits', 'apply_edits', 'diff_text', 'writes', 'is_write', 'acts', 'has_effect']
 
 # %% ../nbs/00_core.ipynb #8ff4e050
 import json
@@ -136,6 +136,15 @@ def is_write(t):
     "Whether `t` is a tool that changes something."
     return bool(getattr(t, 'writes', False))
 
+def acts(f):
+    "Mark a tool that acts without writing a file the user owns."
+    f.acts = True
+    return f
+
+def has_effect(t):
+    "Whether `t` acts. Orthogonal to `is_write`: these are the effects approval does not gate."
+    return bool(getattr(t, 'acts', False))
+
 #: Rehearsing a merge is not approving one, so the git tools split before the write set uses them.
 GIT_READ_TOOLS = ('git_status', 'git_divergence', 'git_rebase_preview')
 GIT_WRITE_TOOLS = frozenset({'git_remote', 'git_checkout'})
@@ -145,3 +154,8 @@ GIT_TOOLS = (*GIT_READ_TOOLS, *sorted(GIT_WRITE_TOOLS))
 WRITE_TOOLS = frozenset({'edit_file', 'replace_text', 'create_file', 'edit_cell', 'add_cell',
                          'run_python', 'run_shell', 'memory_forget', 'create_skill',
                          'cancel_watch', 'add_root'}) | GIT_WRITE_TOOLS
+
+#: The same fact as `has_effect`, by name. Running code, spending money and standing work are
+#: effects `WRITE_TOOLS` does not name, because none of them writes a file the user owns.
+ACTING_TOOLS = frozenset({'inspect_python', 'api_call', 'generate_image', 'research',
+                          'watch_url', 'set_reminder'})

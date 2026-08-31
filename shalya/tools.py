@@ -19,7 +19,7 @@ from fastcore.foundation import L
 from fastcore.xtras import detect_mime
 from .core import (Hit, ERR, MAX_TOOL_CHARS, MAX_HITS, MAX_GREP_HITS, MAX_API, GIT_TOOLS,
                          GIT_READ_TOOLS, GIT_WRITE_TOOLS, WRITE_TOOLS, clip, clip_lines, cmds,
-                         edits, apply_edits, diff_text, err, failed, is_write, writes)
+                         edits, apply_edits, diff_text, err, failed, is_write, writes, acts, has_effect)
 from .host import Host, HostError, LocalHost, host_err
 from .skills import Skill, find, skill_index
 
@@ -288,6 +288,7 @@ def web_tools(host, mx=MAX_TOOL_CHARS):
     no_save_read.__name__ = 'read_url'
     read_url.read_only = no_save_read
 
+    @acts
     def research(query: str) -> str:
         "Search the web and read the top results into one cited digest. Slower than `web_search`. Use for depth."
         return clip(host.research(query) or f'nothing found ({host.research_note})')
@@ -350,6 +351,7 @@ def watch_tools(host, mx=MAX_TOOL_CHARS):
             return f"remembered {d.get('title')!r} as {d.get('doc_id')}"
         except Exception as e: return err('could not remember', e)
 
+    @acts
     def set_reminder(text: str, every: str = '1w', note: str = '') -> str:
         """Come back to `text` every `every` ('30m', '6h', '1d', '1w').
         The reminder files itself into memory when it comes due. It surfaces in
@@ -360,6 +362,7 @@ def watch_tools(host, mx=MAX_TOOL_CHARS):
             return f"reminder {w['id']} set, every {every}"
         except Exception as e: return err('could not set reminder', e)
 
+    @acts
     def watch_url(url: str, every: str = '1d', note: str = '') -> str:
         "Re-read `url` every `every` and file each version in memory. Changes are visible over time."
         try:
@@ -445,6 +448,7 @@ def session_tools(host, mx=MAX_TOOL_CHARS):
         except NotImplementedError: raise
         except Exception as e: return err('run failed', e)
 
+    @acts
     def inspect_python(code: str, scope: str = 'isolated') -> str:
         """Look at the user's live variables by running Python that cannot change them.
 
@@ -539,6 +543,7 @@ def api_tools(host, mx=MAX_TOOL_CHARS):
             return clip(json.dumps(out, default=str), mx)
         except Exception as e: return err('could not read the operations', e)
 
+    @acts
     def api_call(operation: str, name: str = '', params: dict = None) -> str:
         """Call one operation, passing `params` under the names `api_ops` reported.
 
@@ -659,6 +664,7 @@ def image_tools(host, mx=MAX_TOOL_CHARS, session='', draws_itself=None, from_rep
                 on_media=None):
     "Drawing: by the turn's own model where it can, and by the images endpoint where it cannot."
 
+    @acts
     def generate_image(prompt: str, size: str = '1024x1024', n: int = 1, model: str = '') -> str:
         """Generate a picture from a description and save it. Returns the paths written.
         Use whenever the user asks for an image. `size` is one of 1024x1024, 1536x1024,
@@ -743,12 +749,13 @@ def tools_for(host, get_skills=None, extra=(), mx=MAX_TOOL_CHARS, drop=(), image
     return tools + list(extra or ())
 
 # %% ../nbs/02_tools.ipynb #01e94cbe
-def read_only(tools, max_calls=None, writes=False, block=()):
-    "The tools a sub-agent may have, optionally behind a hard per-task call budget."
+def read_only(tools, max_calls=None, writes=False, effects=True, block=()):
+    "The tools an agent may have when it must not act, optionally behind a hard call budget."
     blocked = set(block or ())
     allowed = []
     for t in tools:
         if getattr(t, '__name__', '') in blocked: continue
+        if not effects and has_effect(t): continue
         if writes: allowed.append(t)
         elif (safe := getattr(t, 'read_only', None)) is not None: allowed.append(safe)
         elif not is_write(t): allowed.append(t)
@@ -762,7 +769,7 @@ def read_only(tools, max_calls=None, writes=False, block=()):
                 state['n'] += 1
                 over = state['n'] > max_calls
             if over:
-                return ('Sub-agent tool budget exhausted. Stop calling tools and return the '
+                return ('Tool budget exhausted. Stop calling tools and return the '
                         'best evidence-backed answer now.')
             return f(*args, **kw)
         return call
