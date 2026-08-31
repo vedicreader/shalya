@@ -2,6 +2,15 @@
 
 <!-- do not remove -->
 
+## 0.0.3
+
+- `summary` marks the one line a person reads after a tool runs, beside the tool's docstring, and
+  `summarise` reads it. Every tool this package defines carries one, including the git group, the
+  API group, `add_root`, `ask_memory`, `public_api` and `generate_image`, which the dispatch that
+  used to hold this in Ramabana had never named. `SUMMARIES` indexes them by name as well, because
+  an activity row records what was called rather than the object that ran.
+- `one_line` is the clipper both sides of that were using separately.
+
 ## 0.0.2
 
 - `acts` marks a tool that acts without writing a file the user owns: running code, an API call that
