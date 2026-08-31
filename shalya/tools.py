@@ -749,16 +749,21 @@ def tools_for(host, get_skills=None, extra=(), mx=MAX_TOOL_CHARS, drop=(), image
     return tools + list(extra or ())
 
 # %% ../nbs/02_tools.ipynb #01e94cbe
+#: The mark is the fact, and the name set is the same fact for a tool that arrived without one.
+#: An extension may register `edit_file` and forget `@writes`; the refusal cannot depend on it.
+def _writing(t): return is_write(t) or getattr(t, '__name__', '') in WRITE_TOOLS
+def _acting(t):  return has_effect(t) or getattr(t, '__name__', '') in ACTING_TOOLS
+
 def read_only(tools, max_calls=None, writes=False, effects=True, block=()):
     "The tools an agent may have when it must not act, optionally behind a hard call budget."
     blocked = set(block or ())
     allowed = []
     for t in tools:
         if getattr(t, '__name__', '') in blocked: continue
-        if not effects and has_effect(t): continue
+        if not effects and _acting(t): continue
         if writes: allowed.append(t)
         elif (safe := getattr(t, 'read_only', None)) is not None: allowed.append(safe)
-        elif not is_write(t): allowed.append(t)
+        elif not _writing(t): allowed.append(t)
     if max_calls is None: return allowed
     state, lock = {'n': 0}, threading.Lock()
 
