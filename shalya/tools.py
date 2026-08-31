@@ -19,7 +19,8 @@ from fastcore.foundation import L
 from fastcore.xtras import detect_mime
 from .core import (Hit, ERR, MAX_TOOL_CHARS, MAX_HITS, MAX_GREP_HITS, MAX_API, GIT_TOOLS,
                          GIT_READ_TOOLS, GIT_WRITE_TOOLS, WRITE_TOOLS, clip, clip_lines, cmds,
-                         edits, apply_edits, diff_text, err, failed, is_write, writes, acts, has_effect)
+                         edits, apply_edits, diff_text, err, failed, is_write, writes, acts, has_effect,
+                         ACTING_TOOLS)
 from .host import Host, HostError, LocalHost, host_err
 from .skills import Skill, find, skill_index
 
