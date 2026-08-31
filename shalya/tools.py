@@ -799,8 +799,6 @@ def tools_for(host, get_skills=None, extra=(), mx=MAX_TOOL_CHARS, drop=(), image
     return tools + list(extra or ())
 
 # %% ../nbs/02_tools.ipynb #01e94cbe
-#: The mark is the fact, and the name set is the same fact for a tool that arrived without one.
-#: An extension may register `edit_file` and forget `@writes`; the refusal cannot depend on it.
 def _writing(t): return is_write(t) or getattr(t, '__name__', '') in WRITE_TOOLS
 def _acting(t):  return has_effect(t) or getattr(t, '__name__', '') in ACTING_TOOLS
 

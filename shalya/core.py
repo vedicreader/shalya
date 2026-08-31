@@ -151,10 +151,7 @@ def one_line(v, n=90):
     t = ' '.join(str(v or '').split())
     return t if len(t) <= n else t[:n - 1] + '…'
 
-#: A tool's summary is indexed by name as well as carried on the tool. `summarise` is handed a
-#: name as often as a tool: an activity row holds what was called, not the object that ran.
 SUMMARIES = {}
-
 def summary(fn):
     "Mark the one line a person reads after this tool runs. `fn` is given the call's arguments."
     def _mark(t):
@@ -168,23 +165,16 @@ def summarise(tool, args=None):
     a = args if isinstance(args, dict) else {}
     nm = tool if isinstance(tool, str) else getattr(tool, '__name__', '')
     fn = getattr(tool, 'summary', None) or SUMMARIES.get(nm)
-    # a summary is a label on a call that has already happened, so it never costs the call
     if fn is not None:
         try: return fn(a)
         except Exception: pass
     return f'{nm}({", ".join(f"{k}={one_line(v, 30)!r}" for k, v in a.items())})'
 
-#: Rehearsing a merge is not approving one, so the git tools split before the write set uses them.
 GIT_READ_TOOLS = ('git_status', 'git_divergence', 'git_rebase_preview')
 GIT_WRITE_TOOLS = frozenset({'git_remote', 'git_checkout'})
 GIT_TOOLS = (*GIT_READ_TOOLS, *sorted(GIT_WRITE_TOOLS))
 
-#: The same fact as `is_write`, by name, for callers that only have a name.
-WRITE_TOOLS = frozenset({'edit_file', 'replace_text', 'create_file', 'edit_cell', 'add_cell',
-                         'run_python', 'run_shell', 'memory_forget', 'create_skill',
-                         'cancel_watch', 'add_root'}) | GIT_WRITE_TOOLS
+WRITE_TOOLS = frozenset({'edit_file', 'replace_text', 'create_file', 'edit_cell', 'add_cell', 'run_python', 'run_shell', 'memory_forget',
+                         'create_skill', 'cancel_watch', 'add_root'}) | GIT_WRITE_TOOLS
 
-#: The same fact as `has_effect`, by name. Running code, spending money and standing work are
-#: effects `WRITE_TOOLS` does not name, because none of them writes a file the user owns.
-ACTING_TOOLS = frozenset({'inspect_python', 'api_call', 'generate_image', 'research',
-                          'watch_url', 'set_reminder'})
+ACTING_TOOLS = frozenset({'inspect_python', 'api_call', 'generate_image', 'research', 'watch_url', 'set_reminder'})
