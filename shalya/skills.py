@@ -148,7 +148,7 @@ EVENTS = ('before_turn', 'after_turn', 'before_tool', 'after_tool', 'compact', '
 
 # %% ../nbs/03_skills.ipynb #18873bfa
 class Registry:
-    "What `setup(ext)` is handed: everything an extension may add, and no route to a backend's internals."
+    "Extension registration surface."
 
     def __init__(self, host=None, agent=None):
         self.host, self.agent = host, agent
@@ -159,12 +159,12 @@ class Registry:
 
 
     def tool(self, f):
-        "Add a tool, as a decorator: a plain function with type hints and the docstring the model reads."
+        "Register a tool."
         self.tools.append(f)
         return f
 
     def skill(self, name, text, description=''):
-        "Add a skill the discovery pass would not find. A file, a string, anything callable."
+        "Register a skill."
         s = Skill(name=name, source='ext', description=description or _describe(text if isinstance(text, str) else ''),
                   where='extension', _text=text)
         self.skills.append(s)
@@ -176,19 +176,19 @@ class Registry:
         return fn
 
     def on(self, event, fn):
-        "Hook a harness lifecycle event. Unknown event names are an error, not a silent no-op."
+        "Register a hook for a known lifecycle event."
         if event not in EVENTS: raise KeyError(f'unknown event {event!r}; known: {", ".join(EVENTS)}')
         self.hooks[event].append(fn)
         return fn
 
     def approval(self, fn):
-        "Replace the approval policy wholesale. The last extension to call this wins."
+        "Replace the approval policy; the last registration wins."
         self.approve = fn
         return fn
 
 
     def fire(self, event, *args, **kw):
-        "Run every hook for `event`, swallowing failures. Returns how many ran cleanly."
+        "Run hooks for `event`, recording failures. Return the success count."
         n = 0
         for f in self.hooks.get(event, ()):
             try: f(*args, **kw); n += 1
@@ -196,7 +196,7 @@ class Registry:
         return n
 
 def ext_dirs(roots=(), cfg=None, project=False):
-    "Where extensions are looked for. Project directories only when explicitly allowed."
+    "Return enabled extension directories."
     ds = []
     if cfg is not None: ds.append(Path(cfg)/'extensions')
     if project:
@@ -204,7 +204,7 @@ def ext_dirs(roots=(), cfg=None, project=False):
     return ds
 
 def load(reg, roots=(), cfg=None, project=False, paths=()):
-    "Run every extension found, calling its `setup(reg)`. A file with no `setup` is left alone."
+    "Load extensions and call each `setup(reg)`."
     files = []
     for d in ext_dirs(roots, cfg, project):
         if Path(d).is_dir(): files += sorted(p for p in Path(d).glob('*.py') if not p.name.startswith('_'))

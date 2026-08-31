@@ -14,7 +14,7 @@ __all__ = ['RESPONSES_API', 'IMAGE_API', 'IMAGE_MODEL', 'IMAGE_SIZES', 'API_VEND
 import functools, json, mimetypes, os, re, threading, uuid
 from base64 import b64decode
 from pathlib import Path
-from fastcore.basics import AttrDict
+from fastcore.basics import AttrDict, bind
 from fastcore.foundation import L
 from fastcore.xtras import detect_mime
 from .core import (Hit, ERR, MAX_TOOL_CHARS, MAX_HITS, MAX_GREP_HITS, MAX_API, GIT_TOOLS,
@@ -30,11 +30,10 @@ def readable(host, path, must_exist=False):
 
 # %% ../nbs/02_tools.ipynb #38740e63
 def code_tools(host, mx=MAX_TOOL_CHARS):
-    "Seeing the code: the index, the shapes in it, and the files it covers."
+    "Code search and structure tools."
 
     def search_code(query: str) -> str:
         """Search the codebase and every installed package for `query`.
-
         Semantic when the code index is built, a literal scan otherwise. Use this before
         writing anything non-trivial: the answer is usually already in the environment.
         """
@@ -68,14 +67,12 @@ def code_tools(host, mx=MAX_TOOL_CHARS):
 
     def grep(pattern: str, path_filter: str = '', regex: bool = True, ignore_case: bool = False) -> str:
         """Find every line in the open folders matching `pattern`, exactly.
-
-        The literal counterpart to `search_code`, and not a replacement for it. Use
+        The literal counterpart to `search_code`, not a replacement. Use
         `search_code` for "how does this work". It is a semantic index and it covers
         installed packages. Use `grep` when you know the string: a symbol you are about to
         rename, an error message, an import, a call site you must not miss. An index answers
         with what is *like* the query. This answers with what *is* the query, which is what
         a rename or an audit needs.
-
         `path_filter` is a substring of the path (`tests/`, `.py`). Set `regex=False` to
         match `pattern` literally when it contains regex punctuation.
         """
@@ -83,9 +80,7 @@ def code_tools(host, mx=MAX_TOOL_CHARS):
         flags = re.IGNORECASE if ignore_case else 0
         try: rx = re.compile(pattern if regex else re.escape(pattern), flags)
         except re.error as e: return err('bad pattern', e)
-        # ask the host first: it may have ripgrep, and reading every file costs a `check` each
-        try: fast = host.grep(pattern, path_filter=path_filter, regex=regex,
-                              ignore_case=ignore_case, limit=MAX_GREP_HITS)
+        try: fast = host.grep(pattern, path_filter=path_filter, regex=regex, ignore_case=ignore_case, limit=MAX_GREP_HITS)
         except Exception: fast = None
         if fast is not None:
             if not fast: return f'no matches for {pattern!r}'
@@ -111,14 +106,8 @@ def code_tools(host, mx=MAX_TOOL_CHARS):
         return clip_lines([head] + hits, n=mx, more='narrow `pattern` or set `path_filter`')
 
     def ls(path: str = '') -> str:
-        """List one directory: its subdirectories, then its files with sizes.
-
-        For finding your way around. `list_files` walks everything and `grep` reads
-        everything. This just says what is here, which is usually the cheaper question.
-        Empty `path` lists each open folder.
-        """
-        roots = ([readable(host, path)] if str(path or '').strip()
-                 else [host.check(r) for r in host.roots])
+        "List one directory with subdirectories first and file sizes. Empty `path` lists each open root."
+        roots = ([readable(host, path)] if str(path or '').strip() else [host.check(r) for r in host.roots])
         out = []
         for d in roots:
             if not d.exists(): out.append(f'{d}: does not exist'); continue
@@ -133,19 +122,11 @@ def code_tools(host, mx=MAX_TOOL_CHARS):
         return clip_lines(out, n=mx, more='name a subdirectory to list it', empty='(nothing)')
 
     def public_api(package: str) -> str:
-        """Every public name a package exports, with its docstring and where it is defined.
-
-        The whole surface of `package` in one call, `@patch`-added methods included, which
-        reading one source file will not show. Ask before writing against an unfamiliar
-        package: what you were about to implement is often already exported.
-        """
+        "Every public name a package exports, with its docstring and where it is defined."
         if not str(package or '').strip(): return err('public_api needs a package name')
         try: api = host.public_api(package)
         except Exception as e: return err(f'cannot list the API of {package}', e)
-        if not api:
-            # the index answered. This is not a missing index. Say what it does not cover
-            return (f'nothing public indexed for {package!r}. The index covers installed packages and '
-                    f'the open folders, not the stdlib')
+        if not api: return (f'nothing public indexed for {package!r}. covers installed packages and open folders, not stdlib')
         rows = [f'{h.symbol}  {h.path}:{h.line}  {h.text}' for h in api]
         return clip_lines([f'{len(rows)} public name(s) in {package}'] + rows, n=mx, more='read one with view_file')
 
@@ -160,7 +141,6 @@ def file_tools(host, mx=MAX_TOOL_CHARS):
     @writes
     def add_root(path: str) -> str:
         """Open another folder, so it can be read and written like the ones already open.
-
         Ask for this only when the user has named a folder outside the open ones. It widens what
         you may change on their machine, so it goes to them for approval like any other write.
         """
@@ -175,32 +155,21 @@ def file_tools(host, mx=MAX_TOOL_CHARS):
         """
         from exhash import lnhashview, lnhashview_file
         p = readable(host, path)
-        # through the host, so a host answering from somewhere other than disk -- an editor
-        # holding an unsaved buffer -- is seen as itself rather than as a stale copy. The
-        # hashes are the same either way: both views hash `line_hash(lineno, line)` over the
-        # same lines. `replace_text` and `create_file` go through the host too; `edit_file`
-        # verifies against the file, so against such a host it refuses rather than misfires
-        # a host is allowed to raise from any method, and one may not implement `read` at all;
-        # that is a reason to read the file, not to lose the tool
         try: text = host.read(str(p))
         except Exception: text = None
         if text is None and not p.exists(): return err(f'no such file: {p}')
-        view = str(lnhashview(text, start or None, end or None) if text is not None
-                   else lnhashview_file(str(p), start or None, end or None))
+        view = str(lnhashview(text, start or None, end or None) if text is not None else lnhashview_file(str(p), start or None, end or None))
         return clip_lines(view.splitlines(), start=(start or 1), n=mx,
                           more='call view_file(path, start={next}) to continue')
 
     @writes
     def replace_text(path: str, spec: str) -> str:
         """Edit a file by exact text replacement, and return the diff. Usually the easier editor.
-
         `edits` is a JSON array of objects, applied together:
           [{"oldText": "def old(a):", "newText": "def new(a, b):"},
            {"oldText": "return a", "newText": "return a + b"}]
-
         Rules, all of them checked *before* anything is written. A rejected edit leaves
         the file exactly as it was:
-
         - Every `oldText` must appear **exactly once** in the file. If it appears twice,
           include more surrounding lines until it is unique. Do not guess which one.
         - Every `oldText` is matched against the file as it is **now**, not against the
@@ -210,7 +179,6 @@ def file_tools(host, mx=MAX_TOOL_CHARS):
           function to change one line of it.
         - An empty `oldText` is refused. To create a file use `create_file`. To append,
           include the last existing line in `oldText`.
-
         This and `edit_file` do the same job by different addresses: `edit_file` names
         lines by hash, which catches a stale read but costs a `view_file` before every
         edit and again after each one. Prefer this for ordinary edits. Prefer `edit_file`
@@ -234,7 +202,6 @@ def file_tools(host, mx=MAX_TOOL_CHARS):
     @writes
     def edit_file(path: str, commands: str) -> str:
         """Edit a file with hash-verified exhash commands, and return the diff.
-
         `commands` is a JSON array of command arrays, each starting with an address taken
         from `view_file`, e.g.
           [["12|a1b2|", "s", "old text", "new text"],
@@ -269,8 +236,7 @@ def notebook_tools(host, mx=MAX_TOOL_CHARS):
         try: rows = host.nb_cells(str(readable(host, path)))
         except NotImplementedError: raise
         except Exception as e: return err('could not read notebook', e)
-        return clip('\n'.join(f'{i}  {t:8} {(s or "").strip().splitlines()[0][:100] if (s or "").strip() else ""}'
-                              for i, t, s in rows) or '(empty notebook)')
+        return clip('\n'.join(f'{i}  {t:8} {(s or "").strip().splitlines()[0][:100] if (s or "").strip() else ""}' for i, t, s in rows) or '(empty notebook)')
 
     def view_cell(path: str, cell_id: str) -> str:
         "Read one notebook cell as `lineno|hash|content` lines, ready to address with `edit_cell`."
@@ -316,6 +282,12 @@ def web_tools(host, mx=MAX_TOOL_CHARS):
         d = host.read_url(url, remember=remember)
         return clip(d.text if d else f'could not read {url} ({host.research_note})')
 
+    def no_save_read(url: str) -> str:
+        "Read one web page without saving it to durable memory."
+        return read_url(url, False)
+    no_save_read.__name__ = 'read_url'
+    read_url.read_only = no_save_read
+
     def research(query: str) -> str:
         "Search the web and read the top results into one cited digest. Slower than `web_search`. Use for depth."
         return clip(host.research(query) or f'nothing found ({host.research_note})')
@@ -328,11 +300,10 @@ def memory_tools(host, mx=MAX_TOOL_CHARS):
 
     def memory_search(query: str, limit: int = 8) -> str:
         """Search pages remembered from earlier reads and research.
-
         Returns whole operative sections with breadcrumbs plus related semantic paths. Use
         this before searching the live web when the question may have been researched before.
         """
-        try: return clip(json.dumps(host.memory_search(query, int(limit)), default=str), MAX_TOOL_CHARS * 2)
+        try: return clip(json.dumps(list(host.memory_search(query, int(limit))), default=str), MAX_TOOL_CHARS * 2)
         except Exception as e: return err('memory search failed', e)
 
     def memory_tree(document: str = '') -> str:
@@ -371,19 +342,16 @@ def watch_tools(host, mx=MAX_TOOL_CHARS):
 
     def remember(text: str, title: str = '', tags: str = '') -> str:
         """Write a conclusion into durable memory so a later session finds it.
-
         For what you worked out, not for what you read. `read_url` already files pages.
         `tags` is a comma-separated list.
         """
         try:
-            d = host.remember(text, title=title or None,
-                              tags=[t.strip() for t in tags.split(',') if t.strip()])
+            d = host.remember(text, title=title or None, tags=[t.strip() for t in tags.split(',') if t.strip()])
             return f"remembered {d.get('title')!r} as {d.get('doc_id')}"
         except Exception as e: return err('could not remember', e)
 
     def set_reminder(text: str, every: str = '1w', note: str = '') -> str:
         """Come back to `text` every `every` ('30m', '6h', '1d', '1w').
-
         The reminder files itself into memory when it comes due. It surfaces in
         `memory_search` and in `poll_watches` rather than needing a notification channel.
         """
@@ -419,7 +387,6 @@ def watch_tools(host, mx=MAX_TOOL_CHARS):
 
     def poll_watches() -> str:
         """Run every watch that has come due, and report what fired.
-
         Call this when the user asks what is outstanding, or at the start of a session.
         Anything that fired is now in memory: follow up with `memory_search`.
         """
@@ -434,25 +401,15 @@ def watch_tools(host, mx=MAX_TOOL_CHARS):
 
 # %% ../nbs/02_tools.ipynb #27b30123
 def ask_tools(host, mx=MAX_TOOL_CHARS):
-    "One tool, and its own group: answering out of memory takes a model, and a store is not one."
+    "Model-backed answers from memory."
 
     def ask_memory(question: str, document: str = '', instruction: str = '') -> str:
-        """Ask remembered research a question and get a short cited answer, not the sections.
-
-        Prefer this to `memory_search` when you want an answer rather than material: the search
-        returns whole sections into your context and this returns a paragraph, which is the same
-        trade `delegate_search` makes. `document` narrows it to one remembered document by title
-        or id.
-
-        Some of what the vault holds is private. A statement, a medical letter, an exported
-        chat. Those are answered by a model on this machine that is instructed not to repeat any
-        personal detail to you. What you get back is shape and quantity: how many, what kind,
-        which period, whether two things agree. It will tell you what it is holding and what
-        instruction would let it answer usefully. Send that back as `instruction` and it gets
-        another turn on the same material.
-
-        Do not ask it for the details it withheld, or ask it to relay them "for the user". It
-        will refuse, and the refusal is the point rather than an obstacle.
+        """Ask remembered research for a short cited answer.
+        Use `memory_search` when you need source sections. `document` narrows this call to one
+        remembered document.
+        Private material is answered by a local model that withholds identifying details. The
+        result may report counts, totals, comparisons or a yes/no answer. Use `instruction` to
+        request one of those forms. Never request or relay details the local model withheld.
         """
         try: r = host.ask(question, ref=document or None, instruction=instruction)
         except NotImplementedError: raise
@@ -523,16 +480,13 @@ def session_tools(host, mx=MAX_TOOL_CHARS):
 
 # %% ../nbs/02_tools.ipynb #0eb6a349
 def shell_tools(host, mx=MAX_TOOL_CHARS):
-    "Running a command, which is the only way to find out whether the work is done."
+    "Shell command tools."
 
     @writes
     def run_shell(command: str, cwd: str = '', timeout: int = 120) -> str:
-        """Run one shell command in the project and return its exit code and output.
+        """Run one terminating project command and return its exit code and output.
 
-        This is how you check your work, and you are expected to use it: after an edit, run
-        the tests. After a change to a signature, run the type checker or the linter the
-        project already uses. Before saying something passes, make it pass here. A claim
-        with no command behind it is a guess, and will be read as one.
+        Use this to verify edits before reporting success.
 
         - stdout and stderr come back interleaved, as a person would see them, with the
           exit code on the first line. A non-zero exit is a *result*: read the output and
@@ -563,7 +517,6 @@ def api_tools(host, mx=MAX_TOOL_CHARS):
 
     def api_load(src: str, name: str = '') -> str:
         """Load an OpenAPI or discovery document from a url or a path.
-
         Do this before `api_ops` or `api_call`. `src` is often `<host>/openapi.json`. Returns
         the operation count and the groups, which is what to narrow by next.
         """
@@ -572,7 +525,6 @@ def api_tools(host, mx=MAX_TOOL_CHARS):
 
     def api_ops(group: str = '', name: str = '', match: str = '', offset: int = 0) -> str:
         """List the operations a loaded spec declares, with their signatures.
-
         Narrow with `group` or `match` first: a real API has hundreds of operations, and
         reading all of them is not how you find the one you want. One page comes back at a
         time. `api_load` says how many there are in total, and `offset` walks the rest.
@@ -655,19 +607,19 @@ API_VENDORS = ('openai/', 'azure/')
 
 # %% ../nbs/02_tools.ipynb #14d82ec8
 def media_dir(session=''):
-    "Where a turn's generated pictures are kept: beside the session record that produced them."
+    "Return the session's media directory."
     d = Path(session or '.') / 'media'
     d.mkdir(parents=True, exist_ok=True)
     return d
 
 def mime_for(path):
-    "The mime a saved picture is: what its bytes say, else what its name does."
+    "Detect a file's MIME type from bytes, then its suffix."
     try: m = detect_mime(Path(path).read_bytes()[:64])
     except OSError: m = None
     return m or mimetypes.guess_type(str(path))[0] or 'image/png'
 
 def save_media(m, session='', stem='image'):
-    "One `{'mime','data'}` from `Resp.media` written under the session, as a `Path`."
+    "Save one media item under the session and return its path."
     mime = m.get('mime') or 'image/png'
     ext = mimetypes.guess_extension(mime) or '.' + mime.split('/')[-1]
     d = media_dir(session)
@@ -683,24 +635,22 @@ def _hdrs(): return {'Authorization': f"Bearer {os.environ['OPENAI_API_KEY']}"}
 def _post_image(prompt, size, n, timeout=120, model=IMAGE_MODEL):
     "Raw `data` rows from the images endpoint."
     import httpx
-    r = httpx.post(IMAGE_API, timeout=timeout, headers=_hdrs(),
-                   json={'model': model, 'prompt': prompt, 'size': size, 'n': n})
+    r = httpx.post(IMAGE_API, timeout=timeout, headers=_hdrs(), json={'model': model, 'prompt': prompt, 'size': size, 'n': n})
     r.raise_for_status()
     return r.json().get('data') or []
 
 def api_model(model):
-    "A spec's `model_id` as the OpenAI endpoints spell it."
+    "Strip a supported API-vendor prefix from a model id."
     s = str(model or '')
     for v in API_VENDORS:
         if s.startswith(v): return s[len(v):]
     return s
 
 def _post_responses(prompt, model, timeout=300):
-    "The untouched Responses reply from `model` drawing through its built-in image tool."
+    "Return a Responses API image-generation reply."
     import httpx
     r = httpx.post(RESPONSES_API, timeout=timeout, headers=_hdrs(),
-                   json={'model': api_model(model), 'input': prompt,
-                         'tools': [{'type': 'image_generation'}]})
+                   json={'model': api_model(model), 'input': prompt, 'tools': [{'type': 'image_generation'}]})
     r.raise_for_status()
     return r.json()
 
@@ -711,7 +661,6 @@ def image_tools(host, mx=MAX_TOOL_CHARS, session='', draws_itself=None, from_rep
 
     def generate_image(prompt: str, size: str = '1024x1024', n: int = 1, model: str = '') -> str:
         """Generate a picture from a description and save it. Returns the paths written.
-
         Use whenever the user asks for an image. `size` is one of 1024x1024, 1536x1024,
         1024x1536, or auto. Set `model` to use the dedicated images endpoint.
         """
@@ -721,9 +670,7 @@ def image_tools(host, mx=MAX_TOOL_CHARS, session='', draws_itself=None, from_rep
         try:
             if not model and own: media = from_reply(_post_responses(prompt, model_id))
             else: media = [{'mime': 'image/png', 'data': b64decode(r['b64_json'])}
-                           for r in _post_image(prompt, size, max(1, min(int(n or 1), 4)),
-                                                model=api_model(model or IMAGE_MODEL))
-                           if r.get('b64_json')]
+                for r in _post_image(prompt, size, max(1, min(int(n or 1), 4)), model=api_model(model or IMAGE_MODEL)) if r.get('b64_json')]
         except Exception as e: return err('could not generate the image', e)
         if not media: return err('the model returned no image', 'the reply carried no picture')
         try: out = [save_media(m, session, 'generated') for m in media]
@@ -736,6 +683,7 @@ def image_tools(host, mx=MAX_TOOL_CHARS, session='', draws_itself=None, from_rep
 # %% ../nbs/02_tools.ipynb #49342acf
 from gheasy.repo import GitRepo, STATE_KEYS, REMOTE_OPS, _said
 
+# %% ../nbs/02_tools.ipynb #5c1e1c29
 def git_tools(host, mx=MAX_TOOL_CHARS):
     "Git bound to one open repository, kept inside the host's roots."
     def repo(path=''):
@@ -798,7 +746,12 @@ def tools_for(host, get_skills=None, extra=(), mx=MAX_TOOL_CHARS, drop=(), image
 def read_only(tools, max_calls=None, writes=False, block=()):
     "The tools a sub-agent may have, optionally behind a hard per-task call budget."
     blocked = set(block or ())
-    allowed = [t for t in tools if getattr(t, '__name__', '') not in blocked and (writes or not is_write(t))]
+    allowed = []
+    for t in tools:
+        if getattr(t, '__name__', '') in blocked: continue
+        if writes: allowed.append(t)
+        elif (safe := getattr(t, 'read_only', None)) is not None: allowed.append(safe)
+        elif not is_write(t): allowed.append(t)
     if max_calls is None: return allowed
     state, lock = {'n': 0}, threading.Lock()
 

@@ -17,20 +17,10 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
 ]
-dependencies = [
-    "fastcore>=2.1.16",
-    "exhash>=0.4.9",
-]
+dependencies = ["fastcore>=2.1.16","exhash>=0.4.9","vishalakshi","fastspec","gheasy","dhrishti", "jupyter-client"]
 
 [project.optional-dependencies]
-code = ["koshas>=0.0.31", "litesearch>=0.1.1"]
-web = ["fossick>=0.1.11"]
-memory = ["vishalakshi>=0.1.11"]
-api = ["fastspec>=0.2.1"]
-git = ["gheasy>=0.0.9"]
-kernel = ["dhrishti>=0.1.2", "jupyter-client>=8.9.1"]
-all = ["shalya[code,web,memory,api,git,kernel]"]
-dev = ["shalya[all]", "nbdev>=3.3.11", "notebook>=7.6.1", "pytest>=8.0.0"]
+dev = ["nbdev>=3.3.11", "notebook>=7.6.1", "pytest>=8.0.0"]
 
 [project.urls]
 Repository = "https://github.com/vedicreader/shalya"

@@ -11,7 +11,8 @@ __all__ = ['MAX_TOOL_CHARS', 'MAX_HITS', 'MAX_GREP_HITS', 'MAX_API', 'MAX_FILE',
 
 # %% ../nbs/00_core.ipynb #8ff4e050
 import json
-from fastcore.basics import AttrDict
+from fastcore.basics import AttrDict, listify
+from fastcore.xtras import str_diff
 
 # %% ../nbs/00_core.ipynb #9af4b779
 MAX_TOOL_CHARS = 6000   # chars per tool result, budgeted for the smallest model
@@ -29,7 +30,7 @@ class Hit(AttrDict):
 # %% ../nbs/00_core.ipynb #c55d1ed2
 ERR = 'ERROR: '
 
-class HostError(Exception): "Something a host refuses to do, rather than a failure while doing it."
+class HostError(Exception): "A host refusal."
 
 def host_err(e):
     "A caught exception, for a user-facing surface."
@@ -40,7 +41,7 @@ def err(what, e=None):
     return f'{ERR}{what}' + (f': {host_err(e)}' if e is not None else '')
 
 def failed(result):
-    "Whether a tool result is a failure. The one place that knows how a failure is spelled."
+    "Whether a tool result starts with `ERROR: `."
     return str(result or '').startswith(ERR)
 
 # %% ../nbs/00_core.ipynb #a2c88077
@@ -49,19 +50,15 @@ def clip(s, n=MAX_TOOL_CHARS, more=''):
     s = str(s)
     if len(s) <= n: return s
     cut = s[:n]
-    nl = cut.rfind('\n')                    # never end mid-line: the line would look complete
+    nl = cut.rfind('\n')
     if nl > n * 0.6: cut = cut[:nl]
     note = f'[truncated: {len(cut)} of {len(s)} chars shown'
-    return cut + f'\n…{note}. {more}]' if more else cut + f'\n…{note}]'
+    return cut + f'…{note}. {more}]' if more else cut + f'…{note}]'
 
 # %% ../nbs/00_core.ipynb #7ca20dbc
 def clip_lines(lines, start=1, n=MAX_TOOL_CHARS, more='', empty='(nothing)'):
-    """Render `lines` within the budget, and say which line to resume from.
-
-    One line longer than the whole budget is cut by characters instead, and the notice says
-    characters. The model is not invited to resume at the same too-long line.
-    """
-    lines = list(lines)
+    "Render `lines` within the budget, and say which line to resume from."
+    lines = listify(lines)
     if not lines: return empty
     out, used = [], 0
     for i, line in enumerate(lines):
@@ -72,8 +69,7 @@ def clip_lines(lines, start=1, n=MAX_TOOL_CHARS, more='', empty='(nothing)'):
                 tail = f'\n…[{rest} more line(s) not shown'
                 hint = more.format(next=start + i) if '{next}' in more else more
                 return '\n'.join(out) + (f'{tail}. {hint}]' if hint else f'{tail}]')
-            keep = max(1, n - 1)
-            rest = len(lines) - 1
+            keep, rest = max(1, n - 1), len(lines) - 1
             more_lines = f', and {rest} more line(s) not shown' if rest else ''
             return line[:keep] + f'\n…[line {start} is {len(line)} chars; {keep} shown{more_lines}]'
         out.append(line); used += len(line) + 1
@@ -110,12 +106,8 @@ def apply_edits(text, es):
     for i, (old, new) in enumerate(es, 1):
         if not old: raise ValueError(f'edit {i}: oldText is empty; use create_file to write a whole file')
         n = text.count(old)
-        if n == 0:
-            raise ValueError(f'edit {i}: oldText not found. It must match the file exactly, '
-                             f'including indentation. Re-read the file and try again')
-        if n > 1:
-            raise ValueError(f'edit {i}: oldText matches {n} places. Include more surrounding '
-                             f'lines so it matches exactly one')
+        if n == 0: raise ValueError(f'edit {i}: oldText not found. It must match the file exactly, including indentation. Re-read the file and try again')
+        if n > 1: raise ValueError(f'edit {i}: oldText matches {n} places. Include more surrounding lines so it matches exactly one')
         at = text.index(old)
         spans.append((at, at + len(old), new, i))
     spans.sort()
@@ -123,17 +115,16 @@ def apply_edits(text, es):
         if s2 < e1: raise ValueError(f'edits {i1} and {i2} overlap; merge them into one edit')
     out, at = [], 0
     for s, e, new, _ in spans:
-        out.append(text[at:s]); out.append(new); at = e
+        out.append(text[at:s])
+        out.append(new)
+        at = e
     out.append(text[at:])
     return ''.join(out)
 
 # %% ../nbs/00_core.ipynb #c6041489
 def diff_text(before, after, path='file'):
-    "A unified diff, which is what a person approving an edit should be looking at."
-    import difflib
-    d = difflib.unified_diff(before.splitlines(), after.splitlines(),
-                             f'a/{path}', f'b/{path}', lineterm='', n=2)
-    return '\n'.join(d)
+    "Return a unified diff."
+    return str_diff(before, after, n=2, names=(f'a/{path}', f'b/{path}'))
 
 # %% ../nbs/00_core.ipynb #399d9f51
 def writes(f):
