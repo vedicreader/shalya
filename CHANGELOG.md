@@ -2,6 +2,9 @@
 
 <!-- do not remove -->
 
+## 0.0.4
+init exposes inner all
+
 ## 0.0.3
 - `summary` decorator for all tools to help humans understand what the tool does.
 
