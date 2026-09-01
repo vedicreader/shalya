@@ -2,6 +2,9 @@
 
 <!-- do not remove -->
 
+## 0.0.5
+make tools succinct
+
 ## 0.0.4
 init exposes inner all
 

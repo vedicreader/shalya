@@ -126,13 +126,11 @@ def _clip_desc(s, n=SKILL_DESC_MAX):
     return s[:cut if cut > 0 else n].rstrip(' .,;:\u2014-') + '\u2026'
 
 def skill_index(skills):
-    "The block that goes in the system prompt: names and clipped descriptions, never bodies."
+    "Render skill names and clipped descriptions for the system prompt."
     if not skills: return ''
-    rows = '\n'.join(f'- `{s.name}` -- {_clip_desc(s.description)}' for s in skills)
-    return ('\n\n## Skills\n\nKnow-how available to you. Read one with `read_skill(name)` when its '
-            'description matches what you are about to do, *before* you do it -- several of these '
-            'describe tools already installed in this environment, so the code they discuss is '
-            'also searchable with `search_code`.\n\n' + rows)
+    rows = '\n'.join(f'- `{s.name}`: {_clip_desc(s.description)}' for s in skills)
+    return ('\n\n## Skills\n\nUse `read_skill(name)` before doing the work a skill covers. '
+            'Installed tool code is also searchable with `search_code`.\n\n' + rows)
 
 def find(skills, name):
     "A skill by exact name, then unique prefix, then unique substring. Ambiguity is None, not a guess."
