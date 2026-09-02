@@ -19,8 +19,12 @@
 
 ### Fixed
 
-- `create_file` consulted no write guard, so a host that refused an edit to a generated file was
-  bypassed by writing the whole file instead.
+- `create_file`, `edit_cell` and `add_cell` consulted no write guard, so a host that refused an edit
+  to a generated file was bypassed by writing the whole file, or the whole cell, instead.
+- `read_only` read the `@writes` mark alone, so a tool built somewhere that never marked it was
+  handed to an agent which must not act. It reads the mark or the name now, and fails safe on either.
+- `image_tools` took `model_id` as a string, so a caller that reads the turn's model per call had no
+  way to pass it. It accepts a callable.
 - A path outside the open folders raised out of `view_file`, `replace_text`, `edit_file`, `outline`,
   `ls` and `similar_code`. It is the commonest mistake a model makes, and a raise ends the turn
   instead of letting it try again. Every path tool answers with `ERROR: ` now.

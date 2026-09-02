@@ -288,16 +288,20 @@ def notebook_tools(host, mx=MAX_TOOL_CHARS):
     def edit_cell(path: str, cell_id: str, commands: str) -> str:
         "Edit one notebook cell's source with exhash commands from `view_cell`. Same format as `edit_file`."
         from exhash import cell_exhash
+        p, refused = resolved(host, path, writing=True)
+        if refused: return refused
         try: cs = cmds(commands)
         except Exception as e: return err('could not parse commands', e)
-        try: return clip(str(cell_exhash(str(host.check(path)), cell_id, *cs)))
+        try: return clip(str(cell_exhash(str(p), cell_id, *cs)))
         except Exception as e: return err('edit failed', e)
 
     @writes
     @summary(lambda a: f'Add {a.get("cell_type","code")} cell to {a.get("path","")}')
     def add_cell(path: str, source: str, index: int = -1, cell_type: str = 'code') -> str:
         "Insert a new cell into a notebook at `index` (-1 appends). Creates the notebook if needed."
-        try: return f'added cell {host.nb_add_cell(str(host.check(path)), source, int(index), cell_type)} to {path}'
+        p, refused = resolved(host, path, writing=True)
+        if refused: return refused
+        try: return f'added cell {host.nb_add_cell(str(p), source, int(index), cell_type)} to {path}'
         except NotImplementedError: raise
         except Exception as e: return err('could not add cell', e)
 
@@ -734,7 +738,11 @@ def _post_responses(prompt, model, timeout=300):
 # %% ../nbs/02_tools.ipynb #7a99e2b6
 def image_tools(host, mx=MAX_TOOL_CHARS, session='', draws_itself=None, from_reply=None, model_id='',
                 on_media=None):
-    "Drawing: by the turn's own model where it can, and by the images endpoint where it cannot."
+    """Drawing: by the turn's own model where it can, and by the images endpoint where it cannot.
+
+    `model_id` may be a callable. The turn's model can change under a built tool, and a caller that
+    reads it once hands this group a model the session has already moved off.
+    """
 
     @acts
     @summary(lambda a: f'Draw: {_1(a.get("prompt"), 100)}')
@@ -745,9 +753,10 @@ def image_tools(host, mx=MAX_TOOL_CHARS, session='', draws_itself=None, from_rep
         """
         if not image_available(): return err('image generation is unavailable', 'OPENAI_API_KEY is not set')
         if size not in IMAGE_SIZES: return err('unknown size', f'{size!r}; use one of {", ".join(IMAGE_SIZES)}')
-        own = bool(draws_itself and draws_itself() and from_reply and model_id)
+        mid = str((model_id() if callable(model_id) else model_id) or '')
+        own = bool(draws_itself and draws_itself() and from_reply and mid)
         try:
-            if not model and own: media = from_reply(_post_responses(prompt, model_id))
+            if not model and own: media = from_reply(_post_responses(prompt, mid))
             else: media = [{'mime': 'image/png', 'data': b64decode(r['b64_json'])}
                 for r in _post_image(prompt, size, max(1, min(int(n or 1), 4)), model=api_model(model or IMAGE_MODEL)) if r.get('b64_json')]
         except Exception as e: return err('could not generate the image', e)
@@ -852,16 +861,21 @@ def group_of(name):
     return tool_groups().get(str(name), '')
 
 # %% ../nbs/02_tools.ipynb #01e94cbe
+#: The mark or the name. A tool built somewhere that never marked it is still a write, and this is
+#: the gate that decides what an agent which must not act is handed: it fails safe on either fact.
+def _writing(t): return is_write(t) or getattr(t, '__name__', '') in WRITE_TOOLS
+def _acting(t):  return has_effect(t) or getattr(t, '__name__', '') in ACTING_TOOLS
+
 def read_only(tools, max_calls=None, writes=False, effects=True, block=()):
-    "The tools a sub-agent may have, optionally behind a hard per-task call budget."
+    "The tools an agent may have when it must not act, optionally behind a hard call budget."
     blocked = set(block or ())
     allowed = []
     for t in tools:
         if getattr(t, '__name__', '') in blocked: continue
-        if not effects and has_effect(t): continue
+        if not effects and _acting(t): continue
         if writes: allowed.append(t)
         elif (safe := getattr(t, 'read_only', None)) is not None: allowed.append(safe)
-        elif not is_write(t): allowed.append(t)
+        elif not _writing(t): allowed.append(t)
     if max_calls is None: return allowed
     state, lock = {'n': 0}, threading.Lock()
 
@@ -872,7 +886,8 @@ def read_only(tools, max_calls=None, writes=False, effects=True, block=()):
                 state['n'] += 1
                 over = state['n'] > max_calls
             if over:
-                return ('Sub-agent tool budget exhausted. Stop calling tools and return the '
+                #: any read-only surface reaches this, not only a sub-agent
+                return ('Tool budget exhausted. Stop calling tools and return the '
                         'best evidence-backed answer now.')
             return f(*args, **kw)
         return call
