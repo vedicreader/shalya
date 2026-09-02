@@ -169,7 +169,12 @@ def _reads(text):
 _EVAL_ORDER = {ast.Assign: ('value', 'targets'), ast.AugAssign: ('value', 'target'),
                ast.AnnAssign: ('value', 'target'), ast.For: ('iter', 'target'),
                ast.AsyncFor: ('iter', 'target'), ast.comprehension: ('iter', 'target'),
-               ast.withitem: ('context_expr', 'optional_vars')}
+               ast.withitem: ('context_expr', 'optional_vars'),
+               # a comprehension binds its target before the element reads it, and `elt` is the
+               # earlier field, so without these the loop variable looks free
+               ast.ListComp: ('generators', 'elt'), ast.SetComp: ('generators', 'elt'),
+               ast.GeneratorExp: ('generators', 'elt'),
+               ast.DictComp: ('generators', 'key', 'value')}
 
 # %% ../nbs/04_refactor.ipynb #73040635
 def _reads_before_writes(nodes):
