@@ -4,43 +4,35 @@
 
 ## 0.0.6
 
-### New
+- `read_page` is the whole of reading one url: the site readers, the fetch, the extraction that
+  decides which part of the page is the article, the escalation for a page that answered with a
+  shell, and the JSON-LD on top. `LocalHost.read_url` is now four lines over it, and takes a `sel`
+  selector. It returns `title`, `kind`, `sections` and `strategy` beside `text` and `url`.
+  Leela's `Research.read` was a second implementation of the same dispatch; the two had diverged in
+  both directions, so this is the union: Leela's candidate scoring, repeated-`<article>` sectioning
+  and independent-extraction fallback, with shalya's structured data and stealthy retry.
+- `READERS` rows carry a fourth field, the `kind` their result is: `repo`, `paper` or `page`.
+- `THIN_PAGE` is 800 rather than 400: the larger threshold catches strictly more shells, at the
+  cost of one more fetch on a page that was going to be thin anyway.
+- `md_title`, `CONTENT_SEL`, `BLOCK_SEL`, `MAX_PAGE` and `MIN_SECTION` are public with it.
+- `tool_groups` and `group_of` name the group every tool belongs to without a host, built from the
+  factories rather than listed beside them, so the table cannot go stale. `image` and `skill` are
+  in it. A checkpoint form drawing a saved call has the tool's name and nothing else.
 
-- `read_page` is one page reader where there were two, and it is the union of both. Leela had the
-  extraction fallback and the repeated-`<article>` sectioning; this package had the JSON-LD block and
-  the stealthy retry; each was worse than the union and they had diverged in both directions. It
-  dispatches the readers by URL, picks the best of several extractions, re-fetches a thin shell
-  rendered and a bot wall stealthily, falls back to an independent extraction, and returns the
-  articles a feed holds as sections. A reader that gives up falls through to the page rather than
-  ending the read. `md_title` and `md_sections` come with it, and `LocalHost.read_url` is one line
-  over it.
-- `tool_groups` and `group_of` answer which group a tool name belongs to, read off the factories
-  rather than a second list a caller has to keep in step.
-- `summary` marks the one line a person reads after a tool runs, `summarise` renders it, and
-  `SUMMARIES` answers from a name alone. Every tool shalya builds carries one.
-- `acts`, `has_effect` and `ACTING_TOOLS` name the effects approval does not gate, and
-  `read_only(effects=False)` withholds them.
+## 0.0.5
+make tools succinct
 
-### Fixed
+## 0.0.4
+init exposes inner all
 
-- `create_file`, `edit_cell` and `add_cell` consulted no write guard, so a host that refused an edit
-  to a generated file was bypassed by writing the whole file, or the whole cell, instead.
-- `read_only` read the `@writes` mark alone, so a tool built somewhere that never marked it was
-  handed to an agent which must not act. It reads the mark or the name now, and fails safe on either.
-- `image_tools` took `model_id` as a string, so a caller that reads the turn's model per call had no
-  way to pass it. It accepts a callable.
-- A path outside the open folders raised out of `view_file`, `replace_text`, `edit_file`, `outline`,
-  `ls` and `similar_code`. It is the commonest mistake a model makes, and a raise ends the turn
-  instead of letting it try again. Every path tool answers with `ERROR: ` now.
-- `read_skill` clipped a skill body a second time at a smaller budget than `Skill.text` holds, so a
-  skill written up to the limit arrived without its closing tag.
-- `save_media` numbered by file count, so deleting one picture made the next one overwrite another.
-- `terminal_text(0)` returned the whole transcript, because `transcript[-0:]` is `transcript[0:]`.
-- `clip` with a budget of zero or less kept the end of the string and reported nothing shown.
-  `run_shell` reached it by subtracting its margin from a small budget.
-- `_fuse` imported `litesearch` outside the `try` written to fall back without it.
-- `watch_url` was offered to hosts that declare they accept reminders only.
-- `replace_text`'s docstring named an `edits` parameter it does not take.
+## 0.0.3
+- `summary` decorator for all tools to help humans understand what the tool does.
+
+## 0.0.2
+
+- `acts` marks a tool that acts without writing a file the user owns.
+- `read_only` takes `effects=False` to withhold them, for an agent that may look and propose but never act. The default keeps them, so a sub-agent still researches.
+- The tool budget message no longer says `sub-agent`. The budget is reachable without delegating.
 
 ## 0.0.1
 shalya - arrow heads for ramabana

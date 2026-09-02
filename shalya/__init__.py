@@ -1,7 +1,8 @@
-__version__ = "0.0.6"
+__version__ = "0.0.5"
 
-from . import core, host, skills, tools
+from . import core, host, refactor, skills, tools
 from .core import *
 from .host import *
+from .refactor import *
 from .skills import *
 from .tools import *
