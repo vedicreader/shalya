@@ -12,11 +12,13 @@ from functools import partial
 from itertools import accumulate
 from fastcore.basics import first
 from fastcore.xtras import Path
+from .core import one_line
 
 _BUILTINS = frozenset(dir(builtins))
 
 # %% auto #0
-__all__ = ['is_texty', 'FileEdit', 'replace_plan', 'extract', 'inline', 'module_of', 'top_symbols', 'move_plan']
+__all__ = ['SG_LANGS', 'is_texty', 'FileEdit', 'replace_plan', 'extract', 'inline', 'module_of', 'top_symbols', 'move_plan',
+           'ast_sub', 'ast_plan']
 
 # %% ../nbs/04_refactor.ipynb #491836c7
 #: Suffixes no text editor opens. Not `SKIP_SUFFIXES`: that is what an index walks past.
@@ -495,3 +497,70 @@ def move_plan(read,          # gives a file's text, or None where there is no su
         if (broke := _gained(row.path, row.before, row.after)):
             raise ValueError(f"{Path(row.path).name} would lose {', '.join(broke)}; move what it needs as well")
     return rows, notes
+
+# %% ../nbs/04_refactor.ipynb #7177e984
+#: ast-grep language by file suffix. Nothing else is offered: an unknown language name panics in
+#: the Rust extension, and a panic is not an `Exception`.
+SG_LANGS = {'.py': 'python', '.pyi': 'python'}
+
+_META = re.compile(r'\$\$\$([A-Za-z_]\w*)|\$([A-Za-z_]\w*)')
+
+def _metas(s):
+    "Every `$VAR` and `$$$VAR` name in a pattern or a replacement."
+    return {a or b for a, b in _META.findall(s)}
+
+def _outer(ms):
+    "Matches nested inside a wider one dropped, so what is left does not overlap."
+    out = []
+    for m in sorted(ms, key=lambda m: (m.range().start.index, -m.range().end.index)):
+        a, b = m.range().start.index, m.range().end.index
+        if out and a < out[-1][1]: continue
+        out.append((a, b, m))
+    return out
+
+def _parses(text):
+    "Whether `text` is Python. A rewrite that breaks this is refused rather than written."
+    try: ast.parse(text); return True
+    except SyntaxError: return False
+
+def _fill(node, tpl, text):
+    "`tpl` with every metavariable replaced by the source `node` captured for it."
+    def sub(m):
+        if m[1]:
+            ns = node.get_multiple_matches(m[1])
+            return text[ns[0].range().start.index:ns[-1].range().end.index] if ns else ''
+        got = node.get_match(m[2])
+        return got.text() if got is not None else ''
+    return _META.sub(sub, tpl)
+
+# %% ../nbs/04_refactor.ipynb #62d21bce
+def ast_sub(path_or_lang, text, pattern, replacement):
+    "Structural find and replace over one source. Returns the new text and how many matched."
+    pat, tpl = str(pattern), str(replacement)
+    lang = SG_LANGS.get(Path(path_or_lang).suffix.lower(), path_or_lang)
+    if lang not in set(SG_LANGS.values()): raise ValueError(f'no structural search for {path_or_lang}')
+    if not pat.strip(): raise ValueError('pattern is empty')
+    if (bad := sorted(_metas(tpl) - _metas(pat))):
+        raise ValueError(f"the pattern does not capture {', '.join('$' + b for b in bad)}")
+    try: from ast_grep_py import SgRoot
+    except ImportError as e: raise ValueError('structural search needs ast-grep-py') from e
+    try: found = SgRoot(text, lang).root().find_all(pattern=pat)
+    except Exception as e: raise ValueError(f'{pat!r} is not a usable pattern: {one_line(str(e))}') from e
+    spans = _outer(found)
+    out = _apply(text, [(a, b, _fill(m, tpl, text)) for a, b, m in spans])
+    if spans and lang == 'python' and _parses(text) and not _parses(out):
+        raise ValueError(f'{pat!r} -> {tpl!r} would not leave valid Python. A `$$$` body on one '
+                         'line of the replacement is the usual cause')
+    return out, len(spans)
+
+def ast_plan(fs, pattern, replacement, limit=20000):
+    "Changed files for one structural replacement across a workspace."
+    rows, skipped = [], []
+    for path in fs.walk()[:limit]:
+        if Path(path).suffix.lower() not in SG_LANGS: skipped.append(str(path)); continue
+        try: before = fs.read(path)
+        except Exception: skipped.append(str(path)); continue
+        if before is None or '\ufffd' in before: skipped.append(str(path)); continue
+        after, n = ast_sub(path, before, pattern, replacement)
+        if n: rows.append(FileEdit(str(path), before, after, n))
+    return rows, skipped
