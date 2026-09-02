@@ -478,7 +478,8 @@ def move_plan(read,          # gives a file's text, or None where there is no su
         want = []
         notes.append(f're-export left out: {dest_mod} imports {", ".join(back)} back from {src_mod}')
     sedits = _add_imports(rest, rtree, rstarts, src_mod, {dest_mod: set(want)}, set()) if want else []
-    if (e := _all_edit(rest, rstarts, rtree, drop=() if shim else names)): sedits.append(e)
+    # `__all__` keeps the name only while something still exports it: a dropped re-export takes it too
+    if (e := _all_edit(rest, rstarts, rtree, drop=() if want else names)): sedits.append(e)
     safter = _apply(rest, sedits)
 
     rows = [FileEdit(src, source, safter, len(names)),
