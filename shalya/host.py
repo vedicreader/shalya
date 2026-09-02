@@ -345,7 +345,6 @@ def _fuse(legs, limit):
     legs = [list(l) for l in legs if l]
     if not legs: return []
     if len(legs) == 1: return legs[0][:limit]
-    from litesearch import rrf_all
     by_key, lists = {}, []
     for leg in legs:
         rows = []
@@ -354,7 +353,9 @@ def _fuse(legs, limit):
             by_key.setdefault(key, h)
             rows.append({'_fid': key})
         lists.append(rows)
-    try: fused = rrf_all(lists, id_key='_fid', limit=limit)
+    try:   # litesearch arrives with vishalakshi rather than declared here, so guard the import
+        from litesearch import rrf_all
+        fused = rrf_all(lists, id_key='_fid', limit=limit)
     except Exception: return legs[0][:limit]
     return [by_key[r['_fid']] for r in fused if r.get('_fid') in by_key]
 
@@ -822,7 +823,8 @@ def list_vars(self:LocalHost):
 @patch
 def terminal_text(self:LocalHost, lines=200):
     "What this process has printed, when the application records it in `transcript`."
-    return '\n'.join(str(x) for x in self.transcript[-int(lines):])
+    n = max(0, int(lines))                      # `transcript[-0:]` is the whole transcript
+    return '\n'.join(str(x) for x in (self.transcript[-n:] if n else []))
 
 # %% ../nbs/01_host.ipynb #da3261d6
 @patch

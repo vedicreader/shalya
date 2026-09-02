@@ -117,7 +117,7 @@ class Sandbox:
 # %% ../nbs/00_core.ipynb #a2c88077
 def clip(s, n=MAX_TOOL_CHARS, more=''):
     "Truncate a tool result to `n` chars. A caller with a way to resume passes it as `more`."
-    s = str(s)
+    s, n = str(s), max(1, int(n))   # a caller subtracting a margin can arrive at zero or less
     if len(s) <= n: return s
     cut = s[:n]
     nl = cut.rfind('\n')

@@ -19,6 +19,22 @@
   factories rather than listed beside them, so the table cannot go stale. `image` and `skill` are
   in it. A checkpoint form drawing a saved call has the tool's name and nothing else.
 
+### Fixed
+
+- `create_file`, `edit_cell` and `add_cell` consulted no write guard, so a host refusing an edit to
+  a generated file was bypassed by writing the whole file, or the cell, instead.
+- A path outside the open folders raised out of `view_file`, `replace_text`, `edit_file`, `outline`,
+  `ls` and `similar_code`, ending the turn where an `ERROR: ` lets the model try again. `resolved`
+  is the one spelling.
+- `read_skill` clipped a body a second time at a smaller budget than `Skill.text` holds, so a skill
+  written up to the limit arrived without its closing tag.
+- `save_media` numbered by counting files, so deleting one picture made the next overwrite another.
+- `terminal_text(0)` returned the whole transcript: `transcript[-0:]` is `transcript[0:]`.
+- `clip` with a budget of zero or less kept the end of the string and reported nothing shown.
+  `run_shell` reached it by subtracting its margin from a small budget.
+- `_fuse` imported `litesearch` above the `try` written to fall back without it.
+- `watch_url` was offered to a host that declares it accepts reminders only.
+
 ## 0.0.5
 make tools succinct
 
