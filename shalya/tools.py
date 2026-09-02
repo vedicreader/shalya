@@ -212,7 +212,7 @@ def file_tools(host, mx=MAX_TOOL_CHARS):
     def ast_edit(pattern: str, replacement: str, path: str = '') -> str:
         """Rewrite Python by shape rather than by text, and return the diff.
         `pattern` and `replacement` are ast-grep patterns: `area($A)` matches every call to `area` whatever its argument, and `$A` in the replacement is what that call passed. Use `$$$A` where the count varies. Never matches inside a comment or a string, or a longer name that contains yours, which is what makes it safe for a rename across files. Leave `path` empty to change every Python file in the open folders.
-        A definition is not renameable this way: every pattern matching one matches its whole body. Rename the calls and the imports here, and change the `def` with `replace_text`.
+        To rename a function or a variable everywhere, pass the bare name as both: `pattern` `area`, `replacement` `surface`. That reaches the `def`, every call, every bare reference and both import spellings. It is not scope-aware, so it renames an unrelated method or attribute of the same name too; read the diff. A pattern matching a whole definition, such as `def area($$$P): $$$B`, is refused, because a one-line replacement flattens the body.
         """
         if path:
             try:
