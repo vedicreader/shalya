@@ -17,10 +17,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
 ]
-dependencies = ["fastcore>=2.1.16",
-    # `ast_edit` and `refactor.ast_sub` import it. It arrives through vishalakshi -> koshas as well,
-    # and a transitive is not a contract.
-    "ast-grep-py>=0.39.5","exhash>=0.4.9","vishalakshi","fastspec","gheasy","dhrishti", "jupyter-client"]
+dependencies = ["fastcore>=2.1.16","exhash>=0.4.9","vishalakshi","fastspec","gheasy","dhrishti", "jupyter-client"]
 
 [project.optional-dependencies]
 dev = ["nbdev>=3.3.11", "notebook>=7.6.1", "pytest>=8.0.0"]

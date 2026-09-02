@@ -17,7 +17,6 @@ from pathlib import Path
 from fastcore.basics import AttrDict, bind
 from fastcore.foundation import L
 from fastcore.xtras import detect_mime
-from .refactor import SG_LANGS, ast_plan, ast_sub
 from .core import (Hit, ERR, MAX_TOOL_CHARS, MAX_HITS, MAX_GREP_HITS, MAX_API, GIT_TOOLS,
                          GIT_READ_TOOLS, GIT_WRITE_TOOLS, WRITE_TOOLS, clip, clip_lines, cmds,
                          edits, apply_edits, diff_text, err, failed, is_write, writes, acts, has_effect,
@@ -207,43 +206,7 @@ def file_tools(host, mx=MAX_TOOL_CHARS):
         try: return f'wrote {host.write(path, text)}'
         except Exception as e: return err('write failed', e)
 
-    @writes
-    @summary(lambda a: f'Structural edit {a.get("path","") or "every open folder"}')
-    def ast_edit(pattern: str, replacement: str, path: str = '') -> str:
-        """Rewrite Python by shape rather than by text, and return the diff.
-        `pattern` and `replacement` are ast-grep patterns: `area($A)` matches every call to `area` whatever its argument, and `$A` in the replacement is what that call passed. Use `$$$A` where the count varies. Never matches inside a comment or a string, or a longer name that contains yours, which is what makes it safe for a rename across files. Leave `path` empty to change every Python file in the open folders.
-        To rename a function or a variable everywhere, pass the bare name as both: `pattern` `area`, `replacement` `surface`. That reaches the `def`, every call, every bare reference and both import spellings. It is not scope-aware, so it renames an unrelated method or attribute of the same name too; read the diff. A pattern matching a whole definition, such as `def area($$$P): $$$B`, is refused, because a one-line replacement flattens the body.
-        """
-        if path:
-            try:
-                p = host.check(path)
-                if hasattr(host, 'check_write'): host.check_write(p)
-            except Exception as e: return err(f'cannot write {path}', e)
-            try: before = host.read(str(p))
-            except Exception as e: return err(f'could not read {p}', e)
-            if before is None: return err(f'no such file: {p}')
-            try: after, n = ast_sub(str(p), before, pattern, replacement)
-            except ValueError as e: return err(str(e))
-            if not n: return err(f'{pattern!r} matched nothing in {p}')
-            try: host.write(str(p), after)
-            except Exception as e: return err('write failed', e)
-            return clip(f'{n} match(es) in {p}\n' + diff_text(before, after, str(p)), mx)
-        try: rows, _ = ast_plan(host, pattern, replacement)
-        except ValueError as e: return err(str(e))
-        if not rows: return err(f'{pattern!r} matched nothing in ' + ', '.join(host.roots))
-        done, out = [], []
-        for r in rows:
-            if hasattr(host, 'check_write'):
-                try: host.check_write(Path(r.path))
-                except Exception as e: return err(f'{r.path} cannot be written', e)
-        for r in rows:
-            try: host.write(r.path, r.after)
-            except Exception as e: return err(f'wrote {len(done)} file(s), then {r.path} failed', e)
-            done.append(r)
-            out.append(diff_text(r.before, r.after, r.path))
-        return clip(f'{sum(r.edits for r in done)} match(es) in {len(done)} file(s)\n' + '\n'.join(out), mx)
-
-    return [view_file, replace_text, edit_file, create_file, ast_edit, add_root]
+    return [view_file, replace_text, edit_file, create_file, add_root]
 
 # %% ../nbs/02_tools.ipynb #3c171dfb
 def notebook_tools(host, mx=MAX_TOOL_CHARS):
