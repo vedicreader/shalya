@@ -643,9 +643,10 @@ def image_tools(host, mx=MAX_TOOL_CHARS, session='', draws_itself=None, from_rep
         """
         if not image_available(): return err('image generation is unavailable', 'OPENAI_API_KEY is not set')
         if size not in IMAGE_SIZES: return err('unknown size', f'{size!r}; use one of {", ".join(IMAGE_SIZES)}')
-        own = bool(draws_itself and draws_itself() and from_reply and model_id)
+        mid = model_id() if callable(model_id) else model_id   # the turn's model, not the one it was built with
+        own = bool(draws_itself and draws_itself() and from_reply and mid)
         try:
-            if not model and own: media = from_reply(_post_responses(prompt, model_id))
+            if not model and own: media = from_reply(_post_responses(prompt, mid))
             else: media = [{'mime': 'image/png', 'data': b64decode(r['b64_json'])}
                 for r in _post_image(prompt, size, max(1, min(int(n or 1), 4)), model=api_model(model or IMAGE_MODEL)) if r.get('b64_json')]
         except Exception as e: return err('could not generate the image', e)

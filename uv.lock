@@ -1409,8 +1409,8 @@ name = "httpcore2"
 version = "2.12.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "h11" },
-    { name = "truststore" },
+    { name = "h11", marker = "sys_platform != 'emscripten'" },
+    { name = "truststore", marker = "sys_platform != 'emscripten'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/be/ad/f4f0e57345f1870f3e8cb624e058d7eca6e5a27d33bcc3311d9b618734cd/httpcore2-2.12.0.tar.gz", hash = "sha256:9293522bba0aa7c4c8e9e3f040c16575bd8868e155a77fa30c7a9085a5eae648", size = 67548, upload-time = "2026-08-18T13:22:08.211Z" }
 wheels = [
@@ -2963,7 +2963,7 @@ name = "pexpect"
 version = "4.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "ptyprocess" },
+    { name = "ptyprocess", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/42/92/cc564bf6381ff43ce1f4d06852fc19a2f11d180f23dc32d9588bee2f149d/pexpect-4.9.0.tar.gz", hash = "sha256:ee7d41123f3c9911050ea2c2dac107568dc43b2d3b0c7557a33212c398ead30f", size = 166450, upload-time = "2023-11-25T09:07:26.339Z" }
 wheels = [
@@ -4083,9 +4083,17 @@ dependencies = [
 
 [package.optional-dependencies]
 dev = [
+    { name = "fossick" },
+    { name = "litesearch" },
     { name = "nbdev" },
     { name = "notebook" },
     { name = "pytest" },
+]
+search = [
+    { name = "litesearch" },
+]
+web = [
+    { name = "fossick" },
 ]
 
 [package.dev-dependencies]
@@ -4099,14 +4107,18 @@ requires-dist = [
     { name = "exhash", specifier = ">=0.4.9" },
     { name = "fastcore", specifier = ">=2.1.16" },
     { name = "fastspec" },
+    { name = "fossick", marker = "extra == 'dev'", specifier = ">=0.1.17" },
+    { name = "fossick", marker = "extra == 'web'", specifier = ">=0.1.17" },
     { name = "gheasy" },
     { name = "jupyter-client" },
+    { name = "litesearch", marker = "extra == 'dev'", specifier = ">=0.1.34" },
+    { name = "litesearch", marker = "extra == 'search'", specifier = ">=0.1.34" },
     { name = "nbdev", marker = "extra == 'dev'", specifier = ">=3.3.11" },
     { name = "notebook", marker = "extra == 'dev'", specifier = ">=7.6.1" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0.0" },
     { name = "vishalakshi" },
 ]
-provides-extras = ["dev"]
+provides-extras = ["dev", "search", "web"]
 
 [package.metadata.requires-dev]
 dev = [{ name = "shalya", extras = ["dev"] }]
