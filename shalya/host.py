@@ -880,10 +880,10 @@ def web_search(self:LocalHost, query, n=20):
     return [AttrDict(title=str(r.get('title', '')), url=str(r.get('href') or r.get('url', ''))) for r in rows]
 
 # %% ../nbs/01_host.ipynb #b7f2f630
-MAX_PAGE_CHARS = 200_000   #: of one page kept. Past this it is a corpus, not a document
-THIN_PAGE = 800            #: chars below which a page is a shell worth re-fetching a harder way
+MAX_PAGE_CHARS = 200_000   #: chars of one page kept
+THIN_PAGE = 800            #: below this a page is a shell, worth fetching a harder way
 
-#: Where an article usually is, best first. Without `multi=True` a selector returns its first match.
+#: Where an article usually is, best first.
 CONTENT_SELECTORS = ('article', 'main', '[role="main"]', '.article-body', '.article-content',
                      '.post-content', '.entry-content')
 BLOCK_SELECTOR = ('article h1, article h2, article h3, article h4, article p, article pre, '
@@ -941,9 +941,8 @@ def _page_text(f, page, sel, mx):
     label, text = max(got, key=lambda r: _quality(r[1]))
     return text[:mx], label, sections
 
-
 # %% ../nbs/01_host.ipynb #5ec0ccfb
-#: url pattern -> (fossick reader, the kind it produces, the keys its answer carries the body under)
+#: (host, extra path, fossick reader, kind, the keys its answer holds the body under)
 READERS = (
     ('github.com', '/blob/', 'read_gh_file', 'repo', ()),
     ('arxiv.org', '', 'read_arxiv', 'paper', ('source', 'summary', 'md', 'abstract')),
@@ -967,12 +966,7 @@ def _reader(f, url, say):
     return '', '', ''
 
 def read_page(fossick, url, sel=None, note=None, mx=MAX_PAGE_CHARS):
-    """One target as markdown: the dedicated readers, then the page and everything it takes to get it.
-
-    A thin shell is re-fetched rendered, a bot wall stealthily, and an independent extraction is the
-    last resort. Repeated `<article>` elements come back as sections, because a feed is many
-    documents. JSON-LD is put in front of the text, where a product's price is the answer.
-    """
+    "One target as markdown: a dedicated reader where one fits, else the page, escalating past a shell."
     f, url = fossick, str(url or '').strip()
     say = note if callable(note) else (lambda m: None)
     if not url: return None
@@ -1012,7 +1006,6 @@ def _body(row):
     "One extraction row's text, whatever key it put it under."
     if isinstance(row, dict): return str(row.get('content') or row.get('body') or row.get('text') or '').strip()
     return str(row or '').strip()
-
 
 # %% ../nbs/01_host.ipynb #4acfcf1d
 @patch

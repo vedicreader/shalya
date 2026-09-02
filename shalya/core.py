@@ -156,7 +156,7 @@ WRITE_TOOLS = frozenset({'edit_file', 'replace_text', 'create_file', 'edit_cell'
                          'run_python', 'run_shell', 'memory_forget', 'create_skill',
                          'cancel_watch', 'add_root'}) | GIT_WRITE_TOOLS
 
-#: The same fact as `has_effect`, by name. `read_only(effects=False)` withholds these.
+#: The same fact as `has_effect`, by name.
 ACTING_TOOLS = frozenset({'inspect_python', 'api_call', 'generate_image', 'research', 'watch_url',
                           'set_reminder'})
 

@@ -31,11 +31,7 @@ def readable(host, path, must_exist=False):
     return host.check(path, must_exist=must_exist, reading=True)
 
 def resolved(host, path, writing=False, reading=False, must_exist=False):
-    """`(path, '')`, or `(None, err)` when the host refuses it.
-
-    Naming a path outside the open folders is the commonest mistake a model makes, and a refusal
-    that raises ends the turn instead of letting it try again. Every path tool answers with `err`.
-    """
+    "`(path, '')`, or `(None, err)` when the host refuses it: raising would end the turn."
     try:
         p = readable(host, path, must_exist) if reading else host.check(path, must_exist=must_exist)
         if writing and hasattr(host, 'check_write'): host.check_write(p)
@@ -460,7 +456,7 @@ def watch_tools(host, mx=MAX_TOOL_CHARS):
         except Exception as e: return err('poll failed', e)
 
     got = [remember, set_reminder, watch_url, list_watches, cancel_watch, poll_watches]
-    #: a host says which actions it will accept; offering one it refuses is a tool that only fails
+    #: a tool for an action the host refuses is a tool that only fails
     ok = getattr(host, 'watch_actions', None)
     return [t for t in got if ok is None or t.__name__ != 'watch_url' or 'url' in ok]
 
@@ -704,7 +700,7 @@ def save_media(m, session='', stem='image'):
     d = media_dir(session)
     seen = [int(g.group(1)) for p in d.glob(f'{stem}-*')
             if (g := re.match(rf'{re.escape(stem)}-(\d+)$', p.stem))]
-    n = 1 + max(seen, default=0)   # counting files reused a name as soon as one was deleted
+    n = 1 + max(seen, default=0)   # the highest used, not the count, so a delete frees no name
     p = d / f'{stem}-{n}{ext}'
     p.write_bytes(m['data'])
     return p
@@ -738,11 +734,7 @@ def _post_responses(prompt, model, timeout=300):
 # %% ../nbs/02_tools.ipynb #7a99e2b6
 def image_tools(host, mx=MAX_TOOL_CHARS, session='', draws_itself=None, from_reply=None, model_id='',
                 on_media=None):
-    """Drawing: by the turn's own model where it can, and by the images endpoint where it cannot.
-
-    `model_id` may be a callable. The turn's model can change under a built tool, and a caller that
-    reads it once hands this group a model the session has already moved off.
-    """
+    "Drawing: by the turn's own model where it can, and by the images endpoint where it cannot."
 
     @acts
     @summary(lambda a: f'Draw: {_1(a.get("prompt"), 100)}')
@@ -753,6 +745,7 @@ def image_tools(host, mx=MAX_TOOL_CHARS, session='', draws_itself=None, from_rep
         """
         if not image_available(): return err('image generation is unavailable', 'OPENAI_API_KEY is not set')
         if size not in IMAGE_SIZES: return err('unknown size', f'{size!r}; use one of {", ".join(IMAGE_SIZES)}')
+        # a callable `model_id` is re-read: the turn's model can change under a built tool
         mid = str((model_id() if callable(model_id) else model_id) or '')
         own = bool(draws_itself and draws_itself() and from_reply and mid)
         try:
@@ -835,12 +828,8 @@ def tools_for(host, get_skills=None, extra=(), mx=MAX_TOOL_CHARS, drop=(), image
     if image is not None and 'image' not in drop: tools += list(image)
     return tools + list(extra or ())
 
-
 class _AnyHost:
-    """Not a `Host`: just enough of one for a factory to say which tools it would build.
-
-    `tool_groups` needs the names, not a working backend, and no real host declares every group.
-    """
+    "Not a `Host`: just enough of one for a factory to say which tools it would build."
     indexed = True
     watch_actions = ('url', 'remind')
     roots = ()
@@ -861,8 +850,7 @@ def group_of(name):
     return tool_groups().get(str(name), '')
 
 # %% ../nbs/02_tools.ipynb #01e94cbe
-#: The mark or the name. A tool built somewhere that never marked it is still a write, and this is
-#: the gate that decides what an agent which must not act is handed: it fails safe on either fact.
+#: the mark or the name: a tool built elsewhere that never marked itself still counts
 def _writing(t): return is_write(t) or getattr(t, '__name__', '') in WRITE_TOOLS
 def _acting(t):  return has_effect(t) or getattr(t, '__name__', '') in ACTING_TOOLS
 
@@ -886,7 +874,6 @@ def read_only(tools, max_calls=None, writes=False, effects=True, block=()):
                 state['n'] += 1
                 over = state['n'] > max_calls
             if over:
-                #: any read-only surface reaches this, not only a sub-agent
                 return ('Tool budget exhausted. Stop calling tools and return the '
                         'best evidence-backed answer now.')
             return f(*args, **kw)
