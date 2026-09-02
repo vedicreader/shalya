@@ -441,8 +441,9 @@ def add_root(self:LocalHost, path):
     before = set(self._roots)
     p = str(self.sandbox.add_root(path))
     if p in before: return p                           # already open, or already inside one
-    self._added_roots = [r for r in self._added_roots if r in self._roots] + [p]
-    self._pending.append(p)
+    open_now = set(self._roots)                        # a new parent closes the roots inside it
+    self._added_roots = [r for r in self._added_roots if r in open_now] + [p]
+    self._pending = [r for r in self._pending if r in open_now] + [p]
     try: self.sync_index()
     except Exception as e: self._index_errors.append(host_err(e))
     return p

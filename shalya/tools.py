@@ -19,7 +19,8 @@ from fastcore.foundation import L
 from fastcore.xtras import detect_mime
 from .core import (Hit, ERR, MAX_TOOL_CHARS, MAX_HITS, MAX_GREP_HITS, MAX_API, GIT_TOOLS,
                          GIT_READ_TOOLS, GIT_WRITE_TOOLS, WRITE_TOOLS, clip, clip_lines, cmds,
-                         edits, apply_edits, diff_text, err, failed, is_write, writes)
+                         edits, apply_edits, diff_text, err, failed, is_write, writes, acts, has_effect,
+                         ACTING_TOOLS, summary, summarise, one_line as _1)
 from .host import Host, HostError, LocalHost, host_err
 from .skills import Skill, find, skill_index
 
@@ -32,10 +33,10 @@ def readable(host, path, must_exist=False):
 def code_tools(host, mx=MAX_TOOL_CHARS):
     "Code search and structure tools."
 
+    @summary(lambda a: f'Search {_1(a.get("query"))}')
     def search_code(query: str) -> str:
-        """Search the codebase and every installed package for `query`.
-        Semantic when the code index is built, a literal scan otherwise. Use this before
-        writing anything non-trivial: the answer is usually already in the environment.
+        """Search the codebase and installed packages for `query`.
+        Uses semantic search when an index is ready and literal search otherwise.
         """
         hits = host.search(query, limit=MAX_HITS)
         if not hits: return f'no matches ({host.search_note})'
@@ -47,34 +48,31 @@ def code_tools(host, mx=MAX_TOOL_CHARS):
             rows.append(f'{h.path}:{h.line}  {h.symbol or ""}  {h.text}\n  {target}')
         return clip(f'[{host.search_note}]\n' + '\n'.join(rows), mx)
 
+    @summary(lambda a: f'Similar to {a.get("path","")}:{a.get("line", 1)}')
     def similar_code(path: str, line: int = 1) -> str:
-        "Find code shaped like the function at `path`:`line`. Every place a pattern was already used."
+        "Find implementations similar to the function at `path`:`line`."
         hits = host.peers(str(readable(host, path)), int(line), limit=MAX_HITS)
         if not hits: return f'nothing similar ({host.search_note})'
         return clip('\n'.join(f'{h.path}:{h.line}  {h.symbol or ""}  {h.text}' for h in hits), mx)
 
+    @summary(lambda a: f'Outline {a.get("path","")}')
     def outline(path: str) -> str:
         "The defs and classes in one file, with line numbers."
         syms = host.symbols(str(readable(host, path)))
         if not syms: return f'no symbols in {path}'
         return clip('\n'.join(f'{int(getattr(s, "score", 0))*" "}{s.line}: {s.symbol}' for s in syms), mx)
 
+    @summary(lambda a: f'List files {_1(a.get("pattern","")) or "(all)"}')
     def list_files(pattern: str = '') -> str:
         "Files in the open folders, optionally filtered by a substring of the path."
         ps = [str(p) for p in host.walk()]
         if pattern: ps = [p for p in ps if pattern.lower() in p.lower()]
         return clip_lines(ps, n=mx, more='narrow `pattern`', empty='no matching files')
 
+    @summary(lambda a: f'Grep {_1(a.get("pattern",""))}' + (f' in {a["path_filter"]}' if a.get('path_filter') else ''))
     def grep(pattern: str, path_filter: str = '', regex: bool = True, ignore_case: bool = False) -> str:
-        """Find every line in the open folders matching `pattern`, exactly.
-        The literal counterpart to `search_code`, not a replacement. Use
-        `search_code` for "how does this work". It is a semantic index and it covers
-        installed packages. Use `grep` when you know the string: a symbol you are about to
-        rename, an error message, an import, a call site you must not miss. An index answers
-        with what is *like* the query. This answers with what *is* the query, which is what
-        a rename or an audit needs.
-        `path_filter` is a substring of the path (`tests/`, `.py`). Set `regex=False` to
-        match `pattern` literally when it contains regex punctuation.
+        """Find matching lines in the open folders.
+        `path_filter` is a path substring. Set `regex=False` for literal matching.
         """
         if not str(pattern or '').strip(): return err('grep needs a pattern')
         flags = re.IGNORECASE if ignore_case else 0
@@ -105,6 +103,7 @@ def code_tools(host, mx=MAX_TOOL_CHARS):
         head = f'{len(hits)}{"+" if capped else ""} match(es) in {scanned} file(s) searched'
         return clip_lines([head] + hits, n=mx, more='narrow `pattern` or set `path_filter`')
 
+    @summary(lambda a: f'List {a.get("path") or "(open folders)"}')
     def ls(path: str = '') -> str:
         "List one directory with subdirectories first and file sizes. Empty `path` lists each open root."
         roots = ([readable(host, path)] if str(path or '').strip() else [host.check(r) for r in host.roots])
@@ -121,6 +120,7 @@ def code_tools(host, mx=MAX_TOOL_CHARS):
                 except Exception: out.append(f'  {k.name}')
         return clip_lines(out, n=mx, more='name a subdirectory to list it', empty='(nothing)')
 
+    @summary(lambda a: f'Public API of {a.get("package","?")}')
     def public_api(package: str) -> str:
         "Every public name a package exports, with its docstring and where it is defined."
         if not str(package or '').strip(): return err('public_api needs a package name')
@@ -131,7 +131,9 @@ def code_tools(host, mx=MAX_TOOL_CHARS):
         return clip_lines([f'{len(rows)} public name(s) in {package}'] + rows, n=mx, more='read one with view_file')
 
     tools = [search_code, grep, ls, similar_code, outline, list_files]
-    if host.indexed: tools.append(public_api)   # with no index it could only ever refuse
+    #: `indexed` is `LocalHost`'s, not part of the code group's contract, so a host may declare
+    #: the group and not carry it. With no index `public_api` could only ever refuse.
+    if getattr(host, 'indexed', False): tools.append(public_api)
     return tools
 
 # %% ../nbs/02_tools.ipynb #6d65593d
@@ -139,19 +141,18 @@ def file_tools(host, mx=MAX_TOOL_CHARS):
     "Reading and editing files, by exact text or by hash-verified address."
 
     @writes
+    @summary(lambda a: f'Open folder {a.get("path","")}')
     def add_root(path: str) -> str:
-        """Open another folder, so it can be read and written like the ones already open.
-        Ask for this only when the user has named a folder outside the open ones. It widens what
-        you may change on their machine, so it goes to them for approval like any other write.
+        """Add an existing folder to the read and write boundary.
+        The user must name the folder. This write requires approval.
         """
         try: return f'opened {host.add_root(path)}. Open folders: ' + ', '.join(host.roots)
         except Exception as e: return err(f'could not open {path}', e)
 
+    @summary(lambda a: f'View {a.get("path","")}' + (f':{a.get("start","")}-{a.get("end","")}' if a.get('start') or a.get('end') else ''))
     def view_file(path: str, start: int = 0, end: int = 0) -> str:
-        """Read a file as `lineno|hash|content` lines. Optionally limit to lines `start`..`end`.
-
-        Always read this way before editing: `edit_file` addresses lines by the exact
-        hashes this returns. The view is also the address book.
+        """Read `path` as `lineno|hash|content` lines.
+        The hashes are addresses for `edit_file`. `start` and `end` limit the line range.
         """
         from exhash import lnhashview, lnhashview_file
         p = readable(host, path)
@@ -163,26 +164,10 @@ def file_tools(host, mx=MAX_TOOL_CHARS):
                           more='call view_file(path, start={next}) to continue')
 
     @writes
+    @summary(lambda a: f'Edit {a.get("path","")}')
     def replace_text(path: str, spec: str) -> str:
-        """Edit a file by exact text replacement, and return the diff. Usually the easier editor.
-        `edits` is a JSON array of objects, applied together:
-          [{"oldText": "def old(a):", "newText": "def new(a, b):"},
-           {"oldText": "return a", "newText": "return a + b"}]
-        Rules, all of them checked *before* anything is written. A rejected edit leaves
-        the file exactly as it was:
-        - Every `oldText` must appear **exactly once** in the file. If it appears twice,
-          include more surrounding lines until it is unique. Do not guess which one.
-        - Every `oldText` is matched against the file as it is **now**, not against the
-          result of the earlier edits in the same call. Overlapping or nested spans are
-          refused. Merge them into one edit instead.
-        - Keep `oldText` as short as it can be while still unique. Do not paste a whole
-          function to change one line of it.
-        - An empty `oldText` is refused. To create a file use `create_file`. To append,
-          include the last existing line in `oldText`.
-        This and `edit_file` do the same job by different addresses: `edit_file` names
-        lines by hash, which catches a stale read but costs a `view_file` before every
-        edit and again after each one. Prefer this for ordinary edits. Prefer `edit_file`
-        when you must be certain the line you are changing is the line you read.
+        """Apply exact-text replacements and return the diff.
+        `spec` is a JSON array of `oldText` and `newText` objects. Each non-empty `oldText` must occur once in the current file. Edits cannot overlap. A rejected edit writes nothing. Use `create_file` for new files.
         """
         p = host.check(path)
         if hasattr(host, 'check_write'): host.check_write(p)
@@ -200,15 +185,10 @@ def file_tools(host, mx=MAX_TOOL_CHARS):
         return clip(f'replaced {len(items)} block(s) in {p}\n' + diff_text(before, after, str(p)), mx)
 
     @writes
+    @summary(lambda a: f'Edit {a.get("path","")}')
     def edit_file(path: str, commands: str) -> str:
-        """Edit a file with hash-verified exhash commands, and return the diff.
-        `commands` is a JSON array of command arrays, each starting with an address taken
-        from `view_file`, e.g.
-          [["12|a1b2|", "s", "old text", "new text"],
-           ["30|9f3c|", "a", "a new line appended after line 30"]]
-        Every address's hash is checked immediately before it runs. An edit built on a
-        stale view fails instead of damaging the wrong line. Nothing is written unless
-        every command succeeds.
+        """Apply hash-verified exhash `commands` and return the diff.
+        Each command starts with an address from `view_file`. The tool writes only after all commands succeed.
         """
         from exhash import file_exhash
         p = host.check(path)
@@ -220,6 +200,7 @@ def file_tools(host, mx=MAX_TOOL_CHARS):
         except Exception as e: return err('edit failed', e)
 
     @writes
+    @summary(lambda a: f'Create {a.get("path","")}')
     def create_file(path: str, text: str = '') -> str:
         "Create (or overwrite) a whole file. For changes to an existing file prefer `replace_text`."
         try: return f'wrote {host.write(path, text)}'
@@ -231,6 +212,7 @@ def file_tools(host, mx=MAX_TOOL_CHARS):
 def notebook_tools(host, mx=MAX_TOOL_CHARS):
     "Notebooks, addressed by cell id rather than by line."
 
+    @summary(lambda a: f'Cells of {a.get("path","")}')
     def notebook_cells(path: str) -> str:
         "List a notebook's cells: id, type, and first line. Cell ids are what `edit_cell` addresses."
         try: rows = host.nb_cells(str(readable(host, path)))
@@ -238,6 +220,7 @@ def notebook_tools(host, mx=MAX_TOOL_CHARS):
         except Exception as e: return err('could not read notebook', e)
         return clip('\n'.join(f'{i}  {t:8} {(s or "").strip().splitlines()[0][:100] if (s or "").strip() else ""}' for i, t, s in rows) or '(empty notebook)')
 
+    @summary(lambda a: f'View {a.get("path","")} cell {a.get("cell_id","?")}')
     def view_cell(path: str, cell_id: str) -> str:
         "Read one notebook cell as `lineno|hash|content` lines, ready to address with `edit_cell`."
         from exhash import lnhashview_cell
@@ -245,6 +228,7 @@ def notebook_tools(host, mx=MAX_TOOL_CHARS):
         except Exception as e: return err('could not read cell', e)
 
     @writes
+    @summary(lambda a: f'Edit {a.get("path","")} cell {a.get("cell_id","?")}')
     def edit_cell(path: str, cell_id: str, commands: str) -> str:
         "Edit one notebook cell's source with exhash commands from `view_cell`. Same format as `edit_file`."
         from exhash import cell_exhash
@@ -254,6 +238,7 @@ def notebook_tools(host, mx=MAX_TOOL_CHARS):
         except Exception as e: return err('edit failed', e)
 
     @writes
+    @summary(lambda a: f'Add {a.get("cell_type","code")} cell to {a.get("path","")}')
     def add_cell(path: str, source: str, index: int = -1, cell_type: str = 'code') -> str:
         "Insert a new cell into a notebook at `index` (-1 appends). Creates the notebook if needed."
         try: return f'added cell {host.nb_add_cell(str(host.check(path)), source, int(index), cell_type)} to {path}'
@@ -266,18 +251,17 @@ def notebook_tools(host, mx=MAX_TOOL_CHARS):
 def web_tools(host, mx=MAX_TOOL_CHARS):
     "The web, for the questions whose answer depends on current documentation."
 
+    @summary(lambda a: f'Web search: {_1(a.get("query"))}')
     def web_search(query: str) -> str:
-        "Search the web. Returns titles and urls. Follow up with `read_url` on the useful ones."
+        "Search the web and return titles and URLs."
         docs = host.web_search(query, n=MAX_HITS)
         if not docs: return f'no results ({host.research_note})'
         return clip('\n'.join(f'{d.title}\n  {d.url}' for d in docs))
 
+    @summary(lambda a: f'Web fetch: {_1(a.get("url"), 120)}')
     def read_url(url: str, remember: bool = True) -> str:
-        """Read one web page as markdown. A GitHub file, an arxiv paper or a YouTube
-        transcript is read as what it is rather than as the page around it.
-
-        It enters durable research memory by default. Pass `remember=False` for sensitive,
-        obviously irrelevant, or exploratory results that should remain ephemeral.
+        """Read `url` as source-appropriate text.
+        Results enter durable memory unless `remember=False`.
         """
         d = host.read_url(url, remember=remember)
         return clip(d.text if d else f'could not read {url} ({host.research_note})')
@@ -288,8 +272,10 @@ def web_tools(host, mx=MAX_TOOL_CHARS):
     no_save_read.__name__ = 'read_url'
     read_url.read_only = no_save_read
 
+    @acts
+    @summary(lambda a: f'Research: {_1(a.get("query"))}')
     def research(query: str) -> str:
-        "Search the web and read the top results into one cited digest. Slower than `web_search`. Use for depth."
+        "Search the web and read the top results into a cited digest."
         return clip(host.research(query) or f'nothing found ({host.research_note})')
 
     return [web_search, read_url, research]
@@ -298,38 +284,37 @@ def web_tools(host, mx=MAX_TOOL_CHARS):
 def memory_tools(host, mx=MAX_TOOL_CHARS):
     "Durable pages and research recalled as document sections rather than flat snippets."
 
+    @summary(lambda a: f'Memory search: {_1(a.get("query"))}')
     def memory_search(query: str, limit: int = 8) -> str:
-        """Search pages remembered from earlier reads and research.
-        Returns whole operative sections with breadcrumbs plus related semantic paths. Use
-        this before searching the live web when the question may have been researched before.
-        """
+        "Search remembered pages and return matching sections with breadcrumbs."
         try: return clip(json.dumps(list(host.memory_search(query, int(limit))), default=str), MAX_TOOL_CHARS * 2)
         except Exception as e: return err('memory search failed', e)
 
+    @summary(lambda a: f'Memory tree {_1(a.get("document","")) or "(everything)"}')
     def memory_tree(document: str = '') -> str:
-        """Browse remembered document headings without embedding a query.
-
-        `document` may be a title substring or stable document id. Leave it empty to list
-        all remembered roots, then call again with the relevant document.
+        """Browse remembered document headings.
+        `document` is a title substring or document id. An empty value lists all roots.
         """
         try: return clip(json.dumps(host.memory_tree(document), default=str), MAX_TOOL_CHARS * 2)
         except Exception as e: return err('memory tree failed', e)
 
+    @summary(lambda a: f'Memory read {a.get("node_id","?")}')
     def memory_read(node_id: str) -> str:
         "Read one whole remembered section by the node id returned by memory_search/tree."
         try: return clip(json.dumps(host.memory_read(node_id), default=str), MAX_TOOL_CHARS * 3)
         except Exception as e: return err('memory read failed', e)
 
+    @summary(lambda a: 'Map remembered topics')
     def memory_topics(limit: int = 12) -> str:
         "Map remembered material into labelled semantic clusters and representative members."
         try: return clip(json.dumps(host.memory_topics(int(limit)), default=str), MAX_TOOL_CHARS * 2)
         except Exception as e: return err('memory topics failed', e)
 
     @writes
+    @summary(lambda a: f'Forget {a.get("doc_id","?")}')
     def memory_forget(doc_id: str) -> str:
-        """Purge one bad, sensitive, stale or irrelevant remembered document by id.
-
-        This removes its tree, chunks and ANN entries. Use only when the user requests it. Do not silently curate their memory.
+        """Delete a remembered document and its index data.
+        Call only at the user's request.
         """
         try: return 'forgot document' if host.memory_forget(doc_id) else 'document was not forgotten'
         except Exception as e: return err('memory purge failed', e)
@@ -340,9 +325,9 @@ def memory_tools(host, mx=MAX_TOOL_CHARS):
 def watch_tools(host, mx=MAX_TOOL_CHARS):
     "Standing interests: what to put back on the desk later, and what has come due now."
 
+    @summary(lambda a: f'Remember {_1(a.get("title") or a.get("text"))}')
     def remember(text: str, title: str = '', tags: str = '') -> str:
-        """Write a conclusion into durable memory so a later session finds it.
-        For what you worked out, not for what you read. `read_url` already files pages.
+        """Store a conclusion in durable memory.
         `tags` is a comma-separated list.
         """
         try:
@@ -350,25 +335,29 @@ def watch_tools(host, mx=MAX_TOOL_CHARS):
             return f"remembered {d.get('title')!r} as {d.get('doc_id')}"
         except Exception as e: return err('could not remember', e)
 
+    @acts
+    @summary(lambda a: f'Remind every {a.get("every","1w")}: {_1(a.get("text"))}')
     def set_reminder(text: str, every: str = '1w', note: str = '') -> str:
-        """Come back to `text` every `every` ('30m', '6h', '1d', '1w').
-        The reminder files itself into memory when it comes due. It surfaces in
-        `memory_search` and in `poll_watches` rather than needing a notification channel.
+        """Store `text` in memory every `every`.
+        Due reminders appear in `memory_search` and `poll_watches`.
         """
         try:
             w = host.watch(text, action='remind', every=every, note=note or None)
             return f"reminder {w['id']} set, every {every}"
         except Exception as e: return err('could not set reminder', e)
 
+    @acts
+    @summary(lambda a: f'Watch {_1(a.get("url"), 100)} every {a.get("every","1d")}')
     def watch_url(url: str, every: str = '1d', note: str = '') -> str:
-        "Re-read `url` every `every` and file each version in memory. Changes are visible over time."
+        "Read `url` every `every` and store each version in memory."
         try:
             w = host.watch(url, action='url', every=every, note=note or None)
             return f"watching {url} as {w['id']}, every {every}"
         except Exception as e: return err('could not watch', e)
 
+    @summary(lambda a: 'List watches')
     def list_watches(due_only: bool = False) -> str:
-        "Every standing watch and reminder, soonest first. `due_only` shows just what has come due."
+        "List watches and reminders, soonest first. `due_only` returns due entries."
         try:
             ws = host.watches(due_only=bool(due_only))
             if not ws: return 'nothing is being watched'
@@ -378,18 +367,17 @@ def watch_tools(host, mx=MAX_TOOL_CHARS):
         except Exception as e: return err('could not list watches', e)
 
     @writes
+    @summary(lambda a: f'Cancel watch {a.get("watch_id","?")}')
     def cancel_watch(watch_id: str) -> str:
-        "Delete one watch by id. Only when the user asks. Do not silently curate their reminders."
+        "Delete a watch by id at the user's request."
         try:
             host.unwatch(watch_id)
             return f'cancelled {watch_id}'
         except Exception as e: return err('could not cancel', e)
 
+    @summary(lambda a: 'Poll watches')
     def poll_watches() -> str:
-        """Run every watch that has come due, and report what fired.
-        Call this when the user asks what is outstanding, or at the start of a session.
-        Anything that fired is now in memory: follow up with `memory_search`.
-        """
+        "Run due watches and report what entered memory."
         try:
             r = host.poll()
             if not r.get('ran'): return f"nothing due ({r.get('checked', 0)} watched)"
@@ -403,13 +391,10 @@ def watch_tools(host, mx=MAX_TOOL_CHARS):
 def ask_tools(host, mx=MAX_TOOL_CHARS):
     "Model-backed answers from memory."
 
+    @summary(lambda a: f'Ask memory: {_1(a.get("question"))}')
     def ask_memory(question: str, document: str = '', instruction: str = '') -> str:
-        """Ask remembered research for a short cited answer.
-        Use `memory_search` when you need source sections. `document` narrows this call to one
-        remembered document.
-        Private material is answered by a local model that withholds identifying details. The
-        result may report counts, totals, comparisons or a yes/no answer. Use `instruction` to
-        request one of those forms. Never request or relay details the local model withheld.
+        """Answer a question from remembered research with citations.
+        `document` limits the source. Private sources withhold identifying details. Use `instruction` to request a count, total, comparison, or yes/no answer. Never request withheld details.
         """
         try: r = host.ask(question, ref=document or None, instruction=instruction)
         except NotImplementedError: raise
@@ -429,50 +414,34 @@ def ask_tools(host, mx=MAX_TOOL_CHARS):
 def session_tools(host, mx=MAX_TOOL_CHARS):
     "The live kernel the user is working in, and the terminal they are looking at."
 
+    @summary(lambda a: 'List variables')
     def list_vars() -> str:
         "List the variables visible in the user's live session: name, type, and a short value."
         return clip(host.list_vars() or '(empty session)')
 
     @writes
+    @summary(lambda a: f'Run python: {_1((a.get("code") or "").strip().splitlines()[0] if a.get("code") else "")}')
     def run_python(code: str) -> str:
-        """Run Python in the user's live kernel namespace.
-
-        Read any variable freely. Bind results to NEW names so they survive to the next
-        call. Mutating or deleting the user's variables is refused. Rebind instead
-        (`df2 = df.drop(...)`). Call `list_vars` first if you do not know what is there.
+        """Run Python in the user's live namespace.
+        Bind results to new names. Mutating or deleting user variables is refused.
         """
         try: return clip(host.run_python(code))
         except NotImplementedError: raise
         except Exception as e: return err('run failed', e)
 
+    @acts
+    @summary(lambda a: f'Inspect: {_1((a.get("code") or "").strip().splitlines()[0] if a.get("code") else "")}' + ('' if (a.get('scope') or 'isolated') == 'isolated' else f'  [{a["scope"]}]'))
     def inspect_python(code: str, scope: str = 'isolated') -> str:
-        """Look at the user's live variables by running Python that cannot change them.
-
-        Two scopes. Both leave the user's variables exactly as they were. They differ in
-        how much Python you get. Pick by what the question needs:
-
-        - `scope='isolated'` (default) runs in an allowlist sandbox on a copy. Attribute
-          reads and builtins work. `df.shape`, `len(df)`, `type(x).__name__`. And most
-          library method calls are refused. Costs nothing to be wrong about.
-        - `scope='overlay'` runs the real interpreter against the real namespace. Library
-          calls work: `list(df.columns)`, `df.head(3).to_dict()`, `model.summary()`. Names
-          you bind persist into your own layer for later calls. You still cannot delete,
-          rebind or mutate anything the user made. That is refused, with an explanation.
-
-        Start isolated. Move to overlay when the sandbox refuses something you need. Neither
-        needs approval, and both run while one of the user's cells is still going. For work
-        that must land in the *user's* namespace, use `run_python` instead.
+        """Inspect live variables without changing them.
+        `isolated` runs allowlisted Python on a copy. `overlay` permits library calls and stores new names in a private layer. Neither scope can mutate user variables. Use `run_python` to write to the user's namespace.
         """
         try: return clip(host.inspect_python(code, scope=scope))
         except NotImplementedError: raise
         except Exception as e: return err('inspection failed', e)
 
+    @summary(lambda a: 'Read terminal')
     def read_terminal(lines: int = 200) -> str:
-        """Read what the IDE's terminal has printed. A failing build, a stack trace, a test run.
-
-        This is *read only*: it shows what the user ran, and cannot run anything. Use it
-        when they mention an error they are looking at rather than asking them to paste it.
-        """
+        "Read recent IDE terminal output without running a command."
         return clip(host.terminal_text(int(lines)) or 'the terminal has printed nothing yet')
 
     # No tool per recipe: `run_python` composes one in a line. See `coding_patterns`.
@@ -483,21 +452,10 @@ def shell_tools(host, mx=MAX_TOOL_CHARS):
     "Shell command tools."
 
     @writes
+    @summary(lambda a: f'Run {_1(a.get("command"), 110)}')
     def run_shell(command: str, cwd: str = '', timeout: int = 120) -> str:
         """Run one terminating project command and return its exit code and output.
-
-        Use this to verify edits before reporting success.
-
-        - stdout and stderr come back interleaved, as a person would see them, with the
-          exit code on the first line. A non-zero exit is a *result*: read the output and
-          fix the cause, do not run it again unchanged.
-        - `cwd` defaults to the first open folder and must stay inside the open folders.
-        - `timeout` is in seconds. The command is killed when it expires. Do not start
-          servers, watchers, REPLs, or anything else that does not exit on its own.
-        - Use the project's own commands. The ones in its README, `pyproject.toml`, or
-          `Makefile`. Rather than a global tool that may not be what it uses.
-        - This may be put to the user for approval. Send one purposeful command rather
-          than a chain of exploratory ones.
+        `cwd` must be in the open folders. `timeout` kills expired commands. Do not start servers, watchers, or REPLs. Use the project's documented commands. One call may require approval.
         """
         cmd = str(command or '').strip()
         if not cmd: return err('no command given')
@@ -515,19 +473,16 @@ def shell_tools(host, mx=MAX_TOOL_CHARS):
 def api_tools(host, mx=MAX_TOOL_CHARS):
     "Read an API specification, browse what it declares, and call one operation."
 
+    @summary(lambda a: f'Load API spec {_1(a.get("src"), 80)}')
     def api_load(src: str, name: str = '') -> str:
-        """Load an OpenAPI or discovery document from a url or a path.
-        Do this before `api_ops` or `api_call`. `src` is often `<host>/openapi.json`. Returns
-        the operation count and the groups, which is what to narrow by next.
-        """
+        "Load an OpenAPI or discovery document and return its operation count and groups."
         try: return clip(json.dumps(host.api_load(src, name), default=str), mx)
         except Exception as e: return err('could not load the spec', e)
 
+    @summary(lambda a: 'API operations' + (f' in {a["group"]}' if a.get('group') else '') + (f' matching {_1(a["match"], 40)}' if a.get('match') else ''))
     def api_ops(group: str = '', name: str = '', match: str = '', offset: int = 0) -> str:
-        """List the operations a loaded spec declares, with their signatures.
-        Narrow with `group` or `match` first: a real API has hundreds of operations, and
-        reading all of them is not how you find the one you want. One page comes back at a
-        time. `api_load` says how many there are in total, and `offset` walks the rest.
+        """List loaded API operations and signatures.
+        Filter with `group` or `match`. Use `offset` for later pages.
         """
         try:
             rows = host.api_ops(group, name, match, offset=offset)
@@ -539,12 +494,10 @@ def api_tools(host, mx=MAX_TOOL_CHARS):
             return clip(json.dumps(out, default=str), mx)
         except Exception as e: return err('could not read the operations', e)
 
+    @acts
+    @summary(lambda a: f'API call {a.get("operation","?")}')
     def api_call(operation: str, name: str = '', params: dict = None) -> str:
-        """Call one operation, passing `params` under the names `api_ops` reported.
-
-        A parameter the operation does not declare is an error rather than an extra query
-        field, which is what makes a wrong call fail loudly instead of quietly.
-        """
+        "Call `operation` with the declared `params`. Undeclared parameters are errors."
         try: return clip(json.dumps(host.api_call(operation, name, **(params or {})), default=str), mx)
         except Exception as e: return err(f'{operation} failed', e)
 
@@ -554,12 +507,9 @@ def api_tools(host, mx=MAX_TOOL_CHARS):
 def skill_tools(host, get_skills, mx=MAX_TOOL_CHARS):
     "Reading discovered skills and creating project-local Agent Skills."
 
+    @summary(lambda a: f'Read skill {a.get("name","?")}')
     def read_skill(name: str) -> str:
-        """Read one skill in full: how to use a tool or a library that is already installed here.
-
-        The skill list in your briefing gives names and one-line descriptions. Read the
-        matching one *before* doing the work it describes, not after it has gone wrong.
-        """
+        "Read a discovered skill in full before doing the work it covers."
         ss = get_skills()
         s = find(ss, name)
         if s is None:
@@ -567,13 +517,10 @@ def skill_tools(host, get_skills, mx=MAX_TOOL_CHARS):
         return clip(f'<skill name="{s.name}" from="{s.where}">\n{s.text()}\n</skill>', MAX_TOOL_CHARS * 3)
 
     @writes
+    @summary(lambda a: f'Create skill {a.get("name","?")}')
     def create_skill(name: str, description: str, instructions: str) -> str:
-        """Create a reusable project skill at `.agents/skills/NAME/SKILL.md`.
-
-        Use this only when the user asks to preserve repeatable project know-how as a
-        skill, not for ordinary task notes. `name` must be lowercase kebab-case. `description` says when it applies. `instructions` is the complete Markdown body.
-        Existing skills are never overwritten. Run `/reload` after creation to make the
-        current agent advertise it immediately.
+        """Create `.agents/skills/NAME/SKILL.md` without overwriting an existing skill.
+        `name` must use lowercase kebab-case. `description` states when the skill applies. `instructions` is its Markdown body. Run `/reload` to advertise the new skill.
         """
         from pathlib import Path
         name = str(name or '').strip()
@@ -659,10 +606,11 @@ def image_tools(host, mx=MAX_TOOL_CHARS, session='', draws_itself=None, from_rep
                 on_media=None):
     "Drawing: by the turn's own model where it can, and by the images endpoint where it cannot."
 
+    @acts
+    @summary(lambda a: f'Draw: {_1(a.get("prompt"), 100)}')
     def generate_image(prompt: str, size: str = '1024x1024', n: int = 1, model: str = '') -> str:
-        """Generate a picture from a description and save it. Returns the paths written.
-        Use whenever the user asks for an image. `size` is one of 1024x1024, 1536x1024,
-        1024x1536, or auto. Set `model` to use the dedicated images endpoint.
+        """Generate and save images.
+        `size` is 1024x1024, 1536x1024, 1024x1536, or auto. A non-empty `model` uses the images endpoint.
         """
         if not image_available(): return err('image generation is unavailable', 'OPENAI_API_KEY is not set')
         if size not in IMAGE_SIZES: return err('unknown size', f'{size!r}; use one of {", ".join(IMAGE_SIZES)}')
@@ -702,21 +650,26 @@ def git_tools(host, mx=MAX_TOOL_CHARS):
         stops, replayed, _ = r._replay(oid, list(reversed(r.history(limit=250, ref=f'{oid}..HEAD'))))
         return ({k: v for k, v in r.rebase_preview(onto).items() if k != 'review'}
                 | {'stops_at': stops, 'replayed': replayed})
+    @summary(lambda a: 'Git status')
     def git_status(path: str = '') -> str:
         "Repository status: branch, upstream, local and remote branches, and changed files."
         return answer('git status', path, state)
+    @summary(lambda a: 'Git divergence')
     def git_divergence(path: str = '', upstream: str = '') -> str:
         "How far this branch has run from its upstream each way, and every way back, rehearsed."
         return answer('git divergence', path, lambda r: r.divergence(upstream))
+    @summary(lambda a: 'Rehearse a rebase')
     def git_rebase_preview(onto: str, path: str = '') -> str:
         "What replaying this branch onto `onto` would hit, without rewriting anything."
         return answer('git rebase preview', path, lambda r: preview(r, onto))
     @writes
+    @summary(lambda a: f'Git {a.get("op","fetch")}')
     def git_remote(op: str = 'fetch', path: str = '') -> str:
         "Talk to the remote: `fetch`, `pull` (fast-forward only), or `push`."
         if op not in REMOTE_OPS: return err('git remote', ValueError(f'op must be one of {", ".join(REMOTE_OPS)}'))
         return answer(f'git {op}', path, lambda r: state(r, _said(getattr(r, op)())))
     @writes
+    @summary(lambda a: f'Git checkout {a.get("branch","?")}')
     def git_checkout(branch: str, path: str = '') -> str:
         "Switch to a local branch, or create a local tracking branch from `REMOTE/BRANCH`."
         return answer('git checkout', path, lambda r: state(r, _said(r.checkout(str(branch or '').strip()))))
@@ -743,15 +696,19 @@ def tools_for(host, get_skills=None, extra=(), mx=MAX_TOOL_CHARS, drop=(), image
     return tools + list(extra or ())
 
 # %% ../nbs/02_tools.ipynb #01e94cbe
-def read_only(tools, max_calls=None, writes=False, block=()):
-    "The tools a sub-agent may have, optionally behind a hard per-task call budget."
+def _writing(t): return is_write(t) or getattr(t, '__name__', '') in WRITE_TOOLS
+def _acting(t):  return has_effect(t) or getattr(t, '__name__', '') in ACTING_TOOLS
+
+def read_only(tools, max_calls=None, writes=False, effects=True, block=()):
+    "The tools an agent may have when it must not act, optionally behind a hard call budget."
     blocked = set(block or ())
     allowed = []
     for t in tools:
         if getattr(t, '__name__', '') in blocked: continue
+        if not effects and _acting(t): continue
         if writes: allowed.append(t)
         elif (safe := getattr(t, 'read_only', None)) is not None: allowed.append(safe)
-        elif not is_write(t): allowed.append(t)
+        elif not _writing(t): allowed.append(t)
     if max_calls is None: return allowed
     state, lock = {'n': 0}, threading.Lock()
 
@@ -762,7 +719,7 @@ def read_only(tools, max_calls=None, writes=False, block=()):
                 state['n'] += 1
                 over = state['n'] > max_calls
             if over:
-                return ('Sub-agent tool budget exhausted. Stop calling tools and return the '
+                return ('Tool budget exhausted. Stop calling tools and return the '
                         'best evidence-backed answer now.')
             return f(*args, **kw)
         return call

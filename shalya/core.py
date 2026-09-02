@@ -6,9 +6,10 @@ Docs: https://vedicreader.github.io/shalya/core.html.md"""
 
 # %% auto #0
 __all__ = ['MAX_TOOL_CHARS', 'MAX_HITS', 'MAX_GREP_HITS', 'MAX_API', 'MAX_FILE', 'ERR', 'SANDBOX', 'SECRET', 'NO_ROOTS', 'DENY',
-           'GIT_READ_TOOLS', 'GIT_WRITE_TOOLS', 'GIT_TOOLS', 'WRITE_TOOLS', 'Hit', 'HostError', 'host_err', 'err',
-           'failed', 'Unsafe', 'denied', 'Sandbox', 'clip', 'clip_lines', 'cmds', 'edits', 'apply_edits', 'diff_text',
-           'writes', 'is_write']
+           'SUMMARIES', 'GIT_READ_TOOLS', 'GIT_WRITE_TOOLS', 'GIT_TOOLS', 'WRITE_TOOLS', 'ACTING_TOOLS', 'Hit',
+           'HostError', 'host_err', 'err', 'failed', 'Unsafe', 'denied', 'Sandbox', 'clip', 'clip_lines', 'cmds',
+           'edits', 'apply_edits', 'diff_text', 'writes', 'is_write', 'acts', 'has_effect', 'one_line', 'summary',
+           'summarise']
 
 # %% ../nbs/00_core.ipynb #8ff4e050
 import json, os
@@ -205,12 +206,44 @@ def is_write(t):
     "Whether `t` is a tool that changes something."
     return bool(getattr(t, 'writes', False))
 
-#: Rehearsing a merge is not approving one, so the git tools split before the write set uses them.
+def acts(f):
+    "Mark a tool that acts without writing a file the user owns."
+    f.acts = True
+    return f
+
+def has_effect(t):
+    "Whether `t` acts. Orthogonal to `is_write`: these are the effects approval does not gate."
+    return bool(getattr(t, 'acts', False))
+
+def one_line(v, n=90):
+    "One line of a value, short enough to sit in a list."
+    t = ' '.join(str(v or '').split())
+    return t if len(t) <= n else t[:n - 1] + '…'
+
+SUMMARIES = {}
+def summary(fn):
+    "Mark the one line a person reads after this tool runs. `fn` is given the call's arguments."
+    def _mark(t):
+        t.summary = fn
+        SUMMARIES[t.__name__] = fn
+        return t
+    return _mark
+
+def summarise(tool, args=None):
+    "The imperative one-liner for a call: what a person would say they just did."
+    a = args if isinstance(args, dict) else {}
+    nm = tool if isinstance(tool, str) else getattr(tool, '__name__', '')
+    fn = getattr(tool, 'summary', None) or SUMMARIES.get(nm)
+    if fn is not None:
+        try: return fn(a)
+        except Exception: pass
+    return f'{nm}({", ".join(f"{k}={one_line(v, 30)!r}" for k, v in a.items())})'
+
 GIT_READ_TOOLS = ('git_status', 'git_divergence', 'git_rebase_preview')
 GIT_WRITE_TOOLS = frozenset({'git_remote', 'git_checkout'})
 GIT_TOOLS = (*GIT_READ_TOOLS, *sorted(GIT_WRITE_TOOLS))
 
-#: The same fact as `is_write`, by name, for callers that only have a name.
-WRITE_TOOLS = frozenset({'edit_file', 'replace_text', 'create_file', 'edit_cell', 'add_cell',
-                         'run_python', 'run_shell', 'memory_forget', 'create_skill',
-                         'cancel_watch', 'add_root'}) | GIT_WRITE_TOOLS
+WRITE_TOOLS = frozenset({'edit_file', 'replace_text', 'create_file', 'edit_cell', 'add_cell', 'run_python', 'run_shell', 'memory_forget',
+                         'create_skill', 'cancel_watch', 'add_root'}) | GIT_WRITE_TOOLS
+
+ACTING_TOOLS = frozenset({'inspect_python', 'api_call', 'generate_image', 'research', 'watch_url', 'set_reminder'})
