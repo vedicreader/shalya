@@ -2,6 +2,23 @@
 
 <!-- do not remove -->
 
+## 0.0.6
+
+- `read_page` is the whole of reading one url: the site readers, the fetch, the extraction that
+  decides which part of the page is the article, the escalation for a page that answered with a
+  shell, and the JSON-LD on top. `LocalHost.read_url` is now four lines over it, and takes a `sel`
+  selector. It returns `title`, `kind`, `sections` and `strategy` beside `text` and `url`.
+  Leela's `Research.read` was a second implementation of the same dispatch; the two had diverged in
+  both directions, so this is the union: Leela's candidate scoring, repeated-`<article>` sectioning
+  and independent-extraction fallback, with shalya's structured data and stealthy retry.
+- `READERS` rows carry a fourth field, the `kind` their result is: `repo`, `paper` or `page`.
+- `THIN_PAGE` is 800 rather than 400: the larger threshold catches strictly more shells, at the
+  cost of one more fetch on a page that was going to be thin anyway.
+- `md_title`, `CONTENT_SEL`, `BLOCK_SEL`, `MAX_PAGE` and `MIN_SECTION` are public with it.
+- `tool_groups` and `group_of` name the group every tool belongs to without a host, built from the
+  factories rather than listed beside them, so the table cannot go stale. `image` and `skill` are
+  in it. A checkpoint form drawing a saved call has the tool's name and nothing else.
+
 ## 0.0.5
 make tools succinct
 

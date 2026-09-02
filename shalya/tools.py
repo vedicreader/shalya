@@ -8,7 +8,7 @@ Docs: https://vedicreader.github.io/shalya/tools.html.md"""
 __all__ = ['RESPONSES_API', 'IMAGE_API', 'IMAGE_MODEL', 'IMAGE_SIZES', 'API_VENDORS', 'GROUPS', 'readable', 'code_tools',
            'file_tools', 'notebook_tools', 'web_tools', 'memory_tools', 'watch_tools', 'ask_tools', 'session_tools',
            'shell_tools', 'api_tools', 'skill_tools', 'media_dir', 'mime_for', 'save_media', 'image_available',
-           'api_model', 'image_tools', 'git_tools', 'tools_for', 'read_only']
+           'api_model', 'image_tools', 'git_tools', 'tools_for', 'tool_groups', 'group_of', 'read_only']
 
 # %% ../nbs/02_tools.ipynb #a71f9b84
 import functools, json, mimetypes, os, re, threading, uuid
@@ -694,6 +694,20 @@ def tools_for(host, get_skills=None, extra=(), mx=MAX_TOOL_CHARS, drop=(), image
     if get_skills is not None and 'skill' not in drop: tools += skill_tools(host, get_skills, mx)
     if image is not None and 'image' not in drop: tools += list(image)
     return tools + list(extra or ())
+
+# %% ../nbs/02_tools.ipynb #d6587fa0
+@functools.cache
+def tool_groups():
+    "Every tool name shalya can build, mapped to the group that owns it. `image` and `skill` included."
+    out = {}
+    for group, factory in (*GROUPS, ('image', image_tools)):
+        for t in factory(None): out[t.__name__] = group
+    for t in skill_tools(None, lambda: ()): out[t.__name__] = 'skill'
+    return out
+
+def group_of(name, default=''):
+    "Which group a tool belongs to, or `default` for a name shalya does not build."
+    return tool_groups().get(str(name), default)
 
 # %% ../nbs/02_tools.ipynb #01e94cbe
 def _writing(t): return is_write(t) or getattr(t, '__name__', '') in WRITE_TOOLS
