@@ -6,10 +6,14 @@
 
 ### New
 
-- `read_page` reads any target fossick knows: a page, an arXiv id, a YouTube link, a GitHub file, a
-  PDF, a local path. `fossick.read` picks the reader and escalates past bot walls, so the reader
-  table and the thin-page retry that lived here are gone. `md_title` and `md_sections` come with it,
-  and `LocalHost.read_url` is now one line over it.
+- `read_page` is one page reader where there were two, and it is the union of both. Leela had the
+  extraction fallback and the repeated-`<article>` sectioning; this package had the JSON-LD block and
+  the stealthy retry; each was worse than the union and they had diverged in both directions. It
+  dispatches the readers by URL, picks the best of several extractions, re-fetches a thin shell
+  rendered and a bot wall stealthily, falls back to an independent extraction, and returns the
+  articles a feed holds as sections. A reader that gives up falls through to the page rather than
+  ending the read. `md_title` and `md_sections` come with it, and `LocalHost.read_url` is one line
+  over it.
 - `tool_groups` and `group_of` answer which group a tool name belongs to, read off the factories
   rather than a second list a caller has to keep in step.
 - `summary` marks the one line a person reads after a tool runs, `summarise` renders it, and
