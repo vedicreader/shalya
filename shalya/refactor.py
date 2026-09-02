@@ -13,6 +13,8 @@ from itertools import accumulate
 from fastcore.basics import first
 from fastcore.xtras import Path
 
+_BUILTINS = frozenset(dir(builtins))
+
 # %% auto #0
 __all__ = ['is_texty', 'FileEdit', 'replace_plan', 'extract', 'inline', 'module_of', 'top_symbols', 'move_plan']
 
@@ -108,7 +110,7 @@ def extract(path, source, start, end, kind, name):
     if any(isinstance(n, (ast.Return, ast.Yield, ast.YieldFrom)) for node in selected for n in ast.walk(node)):
         raise ValueError('a selection that returns or yields cannot be lifted into its own function')
     params, stores = _reads_before_writes(selected), _writes(selected)
-    params = [p for p in params if p not in set(dir(builtins))]
+    params = [p for p in params if p not in _BUILTINS]
     returns = sorted(n for n in stores if n in _reads(source[end:]))
     body = ''.join(indent + '    ' + line if line.strip() else line for line in block.splitlines(True))
     if not body.endswith('\n'): body += '\n'   # a selection can end mid-line; a body cannot
@@ -152,8 +154,6 @@ def _offset_after(source, node):
 def _writes(nodes):
     "Every name the selection binds."
     return {n.id for node in nodes for n in ast.walk(node)
-            if isinstance(n, ast.Name) and isinstance(n.ctx, (ast.Store, ast.AugStore))} | {
-            n.id for node in nodes for n in ast.walk(node)
             if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Store)}
 
 def _reads(text):
@@ -247,8 +247,6 @@ def inline(path, source, pos):
     return FileEdit(path, source, after[:lstart] + after[lend:], len(uses))
 
 # %% ../nbs/04_refactor.ipynb #b6da165b
-_BUILTINS = frozenset(dir(builtins))
-
 def module_of(path):
     "Dotted module name for a file, from the top of its `__init__.py` chain."
     p = Path(path)
@@ -433,8 +431,9 @@ def _gained(path, before, after):
     return sorted(_free([_parse(path, after)]) - _free([_parse(path, before or '')]))
 
 # %% ../nbs/04_refactor.ipynb #e6c86abc
-def move_plan(read, src, names, dest, others=(), shim=True):
-    "Move `names` from `src` into `dest` and repoint every file in `others` that imported them. `read(path)` gives a file's text, or None."
+def move_plan(read,          # gives a file's text, or None where there is no such file
+              src, names, dest, others=(), shim=True):
+    "Move `names` from `src` into `dest`, and repoint every file in `others` that imported them."
     src, dest, names, notes = str(src), str(dest), list(names), []
     if not names: raise ValueError('choose a function or class to move')
     if Path(src).resolve() == Path(dest).resolve(): raise ValueError('choose a different file to move into')
