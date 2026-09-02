@@ -6,8 +6,9 @@ Docs: https://vedicreader.github.io/shalya/core.html.md"""
 
 # %% auto #0
 __all__ = ['MAX_TOOL_CHARS', 'MAX_HITS', 'MAX_GREP_HITS', 'MAX_API', 'MAX_FILE', 'ERR', 'GIT_READ_TOOLS', 'GIT_WRITE_TOOLS',
-           'GIT_TOOLS', 'WRITE_TOOLS', 'Hit', 'HostError', 'host_err', 'err', 'failed', 'clip', 'clip_lines', 'cmds',
-           'edits', 'apply_edits', 'diff_text', 'writes', 'is_write']
+           'GIT_TOOLS', 'WRITE_TOOLS', 'ACTING_TOOLS', 'SUMMARIES', 'Hit', 'HostError', 'host_err', 'err', 'failed',
+           'clip', 'clip_lines', 'cmds', 'edits', 'apply_edits', 'diff_text', 'writes', 'is_write', 'acts',
+           'has_effect', 'one_line', 'summary', 'summarise']
 
 # %% ../nbs/00_core.ipynb #8ff4e050
 import json
@@ -47,7 +48,7 @@ def failed(result):
 # %% ../nbs/00_core.ipynb #a2c88077
 def clip(s, n=MAX_TOOL_CHARS, more=''):
     "Truncate a tool result to `n` chars. A caller with a way to resume passes it as `more`."
-    s = str(s)
+    s, n = str(s), max(1, int(n))   # a caller subtracting a margin can arrive at zero or less
     if len(s) <= n: return s
     cut = s[:n]
     nl = cut.rfind('\n')
@@ -136,6 +137,15 @@ def is_write(t):
     "Whether `t` is a tool that changes something."
     return bool(getattr(t, 'writes', False))
 
+def acts(f):
+    "Mark a tool that acts without writing a file the user owns."
+    f.acts = True
+    return f
+
+def has_effect(t):
+    "Whether `t` acts. Orthogonal to `is_write`: these are the effects approval does not gate."
+    return bool(getattr(t, 'acts', False))
+
 #: Rehearsing a merge is not approving one, so the git tools split before the write set uses them.
 GIT_READ_TOOLS = ('git_status', 'git_divergence', 'git_rebase_preview')
 GIT_WRITE_TOOLS = frozenset({'git_remote', 'git_checkout'})
@@ -145,3 +155,33 @@ GIT_TOOLS = (*GIT_READ_TOOLS, *sorted(GIT_WRITE_TOOLS))
 WRITE_TOOLS = frozenset({'edit_file', 'replace_text', 'create_file', 'edit_cell', 'add_cell',
                          'run_python', 'run_shell', 'memory_forget', 'create_skill',
                          'cancel_watch', 'add_root'}) | GIT_WRITE_TOOLS
+
+#: The same fact as `has_effect`, by name. `read_only(effects=False)` withholds these.
+ACTING_TOOLS = frozenset({'inspect_python', 'api_call', 'generate_image', 'research', 'watch_url',
+                          'set_reminder'})
+
+# %% ../nbs/00_core.ipynb #643f2b47
+def one_line(v, n=90):
+    "One line of a value, short enough to sit in a list."
+    t = ' '.join(str(v or '').split())
+    return t if len(t) <= n else t[:n - 1] + '…'
+
+SUMMARIES = {}
+
+def summary(fn):
+    "Mark the one line a person reads after this tool runs. `fn` is given the call's arguments."
+    def _mark(t):
+        t.summary = fn
+        SUMMARIES[t.__name__] = fn
+        return t
+    return _mark
+
+def summarise(tool, args=None):
+    "The imperative one-liner for a call: what a person would say they just did."
+    a = args if isinstance(args, dict) else {}
+    nm = tool if isinstance(tool, str) else getattr(tool, '__name__', '')
+    fn = getattr(tool, 'summary', None) or SUMMARIES.get(nm)
+    if fn is not None:
+        try: return fn(a)
+        except Exception: pass
+    return f'{nm}({", ".join(f"{k}={one_line(v, 30)!r}" for k, v in a.items())})'

@@ -7,7 +7,8 @@ Docs: https://vedicreader.github.io/shalya/host.html.md"""
 # %% auto #0
 __all__ = ['SANDBOX', 'SECRET', 'NO_ROOTS', 'DENY', 'SKIP_DIRS', 'SKIP_SUFFIXES', 'MAX_VARS', 'LD_CHARS', 'Capability', 'Host',
            'CodeHost', 'WebHost', 'NotebookHost', 'MemoryHost', 'AskHost', 'WatchHost', 'SessionHost', 'ShellHost',
-           'ApiHost', 'GitHost', 'denied', 'ld_json', 'LocalHost', 'implemented']
+           'ApiHost', 'GitHost', 'denied', 'ld_json', 'LocalHost', 'md_title', 'md_sections', 'read_page',
+           'implemented']
 
 # %% ../nbs/01_host.ipynb #2f4ef978
 import ast, json, os, re, uuid
@@ -354,7 +355,6 @@ def _fuse(legs, limit):
     legs = [list(l) for l in legs if l]
     if not legs: return []
     if len(legs) == 1: return legs[0][:limit]
-    from litesearch import rrf_all
     by_key, lists = {}, []
     for leg in legs:
         rows = []
@@ -363,7 +363,9 @@ def _fuse(legs, limit):
             by_key.setdefault(key, h)
             rows.append({'_fid': key})
         lists.append(rows)
-    try: fused = rrf_all(lists, id_key='_fid', limit=limit)
+    try:   # litesearch arrives with vishalakshi rather than declared here, so guard the import too
+        from litesearch import rrf_all
+        fused = rrf_all(lists, id_key='_fid', limit=limit)
     except Exception: return legs[0][:limit]
     return [by_key[r['_fid']] for r in fused if r.get('_fid') in by_key]
 
@@ -832,7 +834,8 @@ def list_vars(self:LocalHost):
 @patch
 def terminal_text(self:LocalHost, lines=200):
     "What this process has printed, when the application records it in `transcript`."
-    return '\n'.join(str(x) for x in self.transcript[-int(lines):])
+    n = max(0, int(lines))                      # `transcript[-0:]` is the whole transcript
+    return '\n'.join(str(x) for x in (self.transcript[-n:] if n else []))
 
 # %% ../nbs/01_host.ipynb #da3261d6
 @patch
@@ -877,30 +880,54 @@ def web_search(self:LocalHost, query, n=20):
     return [AttrDict(title=str(r.get('title', '')), url=str(r.get('href') or r.get('url', ''))) for r in rows]
 
 # %% ../nbs/01_host.ipynb #b7f2f630
+def md_title(text, fallback=''):
+    "The first heading, the first non-empty line, or `fallback`. fossick's rule, where it is absent."
+    try:
+        from fossick import md_title as _title
+        return _title(text, fallback)
+    except ImportError: pass
+    for ln in str(text or '').splitlines():
+        if (t := ln.strip()).startswith('#'): return t.lstrip('# ').strip()[:120]
+    return next((l.strip()[:120] for l in str(text or '').splitlines() if l.strip()), fallback)
+
+def md_sections(text):
+    "Every markdown heading, as `{level, title, line}`, for a reader that wants the shape first."
+    out = []
+    for i, line in enumerate(str(text or '').splitlines(), 1):
+        s = line.strip()
+        if not s.startswith('#'): continue
+        lvl = len(s) - len(s.lstrip('#'))
+        if (t := s.lstrip('#').strip()) and lvl <= 6: out.append({'level': lvl, 'title': t, 'line': i})
+    return out
+
+def read_page(fossick, url, sel=None, note=None, mx=None):
+    """One target as markdown, whatever kind it is.
+
+    `fossick.read` picks the reader from the target, escalates past bot walls and reports its own
+    refusals, so the only things left here are the JSON-LD block and the shape of the answer.
+    """
+    say = note if callable(note) else (lambda m: None)
+    url = str(url)
+    try: got = fossick.read(url, sel=sel)
+    except Exception as e:
+        say(f'could not read {url} ({host_err(e)})')
+        return None
+    if not got.ok:
+        say(f'{url}: {got.skipped or "nothing to read"}')
+        return None
+    text = str(got.text or '')
+    if got.kind == 'web' and (ld := ld_json((got.meta or {}).get('html_content') or '')):
+        text = f'<structured-data>\n{json.dumps(ld)[:LD_CHARS]}\n</structured-data>\n\n{text}'
+    if mx and len(text) > int(mx): text = text[:int(mx)]
+    if not text.strip(): return None
+    return AttrDict(text=text, url=got.source or url, kind='page', strategy=got.kind,
+                    title=got.title or md_title(text, url), sections=md_sections(text))
+
+# %% ../nbs/01_host.ipynb #4acfcf1d
 @patch
 def read_url(self:LocalHost, url, remember=True):
-    "Page as markdown via fossick: `READERS`, then `fetch(auto=True)`, thin-page escalate, JSON-LD."
-    fossick = self._fossick()
-    for rx, name, kw in self.READERS:
-        if not rx.search(str(url)) or (reader := getattr(fossick, name, None)) is None: continue
-        try: text = _md_doc(reader(str(url), **kw))
-        except Exception as e:   # a reader that cannot answer is not a URL that cannot be read
-            self.note(f'{name} could not read {url} ({host_err(e)}); fetching the page')
-            break
-        if text.strip(): return AttrDict(text=text, url=str(url))
-        break
-    page = fossick.fetch(str(url), auto=True)
-    text = str(fossick.to_md(page) or '') if page is not None else ''
-    if len(text.strip()) < self.THIN_PAGE:
-        for opts in ({'heavy': True}, {'stealthy': True}):
-            try: heavy = fossick.fetch(str(url), **opts)
-            except Exception: continue
-            if len((got := str(fossick.to_md(heavy) or '')).strip()) >= self.THIN_PAGE:
-                page, text = heavy, got
-                break
-    if (ld := ld_json(getattr(page, 'html_content', '') or '')):
-        text = f'<structured-data>\n{json.dumps(ld)[:LD_CHARS]}\n</structured-data>\n\n{text}'
-    return None if not text.strip() else AttrDict(text=text, url=str(url))
+    "One page as markdown. The reader, the escalation and the JSON-LD are `read_page`'s."
+    return read_page(self._fossick(), url, note=self.note)
 
 # %% ../nbs/01_host.ipynb #85171ef8
 @patch
@@ -912,12 +939,6 @@ def research(self:LocalHost, query):
 @patch(as_prop=True)
 def research_note(self:LocalHost): return 'fossick' if self.web else 'web access is switched off'
 
-LocalHost.THIN_PAGE = 400
-LocalHost.READERS = (
-        (re.compile(r'https?://(www\.)?github\.com/[^/]+/[^/]+/(blob|raw)/', re.I), 'read_gh_file', {}),
-        (re.compile(r'https?://(www\.)?arxiv\.org/(abs|pdf)/', re.I), 'read_arxiv', dict(save_pdf=False, source=True)),
-        (re.compile(r'https?://(www\.)?(youtube\.com/watch|youtu\.be/)', re.I), 'read_yt', {}),
-    )
 
 # %% ../nbs/01_host.ipynb #3feed41c
 def _needs(host, what):
