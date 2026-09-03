@@ -2,6 +2,9 @@
 
 <!-- do not remove -->
 
+## 0.0.6
+dep fix release
+
 ## 0.0.5
 make tools succinct
 
