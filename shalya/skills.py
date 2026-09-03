@@ -154,6 +154,7 @@ class Registry:
         self.hooks = {e: [] for e in EVENTS}
         self.approve = None
         self.notes = []          # one line per extension: loaded, or why not
+        self._base = None        # the span the extension files registered inside
 
 
     def tool(self, f):
@@ -185,6 +186,34 @@ class Registry:
         return fn
 
 
+    @property
+    def loaded(self):
+        "Whether the extension files have been read into this registry."
+        return self._base is not None
+
+    def mark(self):
+        "What is registered right now. `load` brackets itself with two of these."
+        return (len(self.tools), len(self.skills), len(self.notes), dict(self.commands),
+                {e: len(v) for e, v in self.hooks.items()}, self.approve)
+
+    def mark_loaded(self, before):
+        "Record the span the extension files registered inside, from the `mark` taken before them."
+        self._base = (before, self.mark())
+        return self
+
+    def drop_loaded(self):
+        "Forget what the extension files registered, keeping what was registered outside that span."
+        if self._base is None: return self
+        (bt, bs, bn, bc, bh, ba), (at, as_, an, ac, ah, aa) = self._base
+        self.tools, self.skills = self.tools[:bt] + self.tools[at:], self.skills[:bs] + self.skills[as_:]
+        self.notes = self.notes[:bn] + self.notes[an:]
+        self.hooks = {e: v[:bh.get(e, 0)] + v[ah.get(e, 0):] for e, v in self.hooks.items()}
+        # a name the files added, unless something has replaced their entry since
+        self.commands = {k: v for k, v in self.commands.items() if k in bc or v is not ac.get(k)}
+        if self.approve is aa: self.approve = ba
+        self._base = None
+        return self
+
     def fire(self, event, *args, **kw):
         "Run hooks for `event`, recording failures. Return the success count."
         n = 0
@@ -202,8 +231,8 @@ def ext_dirs(roots=(), cfg=None, project=False):
     return ds
 
 def load(reg, roots=(), cfg=None, project=False, paths=()):
-    "Load extensions and call each `setup(reg)`."
-    files = []
+    "Load extensions and call each `setup(reg)`. Re-runnable: `drop_loaded` takes back one load."
+    mark, files = reg.mark(), []
     for d in ext_dirs(roots, cfg, project):
         if Path(d).is_dir(): files += sorted(p for p in Path(d).glob('*.py') if not p.name.startswith('_'))
     for p in paths or ():
@@ -225,4 +254,4 @@ def load(reg, roots=(), cfg=None, project=False, paths=()):
             continue
         d = [n - b for n, b in zip((len(reg.tools), len(reg.skills), len(reg.commands)), before)]
         reg.notes.append(f'{f.name}: {d[0]} tool(s), {d[1]} skill(s), {d[2]} command(s)')
-    return reg
+    return reg.mark_loaded(mark)
