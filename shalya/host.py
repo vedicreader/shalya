@@ -29,6 +29,7 @@ class Host(ABC):
 
     group = 'file'          #: every host has the path boundary the file tools need
     without = frozenset()   #: groups this instance cannot do, whatever its class declares
+    writes = True           #: whether `write` works. A host that cannot is given no write tools
 
     @property
     def provides(self):

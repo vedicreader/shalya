@@ -138,7 +138,7 @@ def code_tools(host, mx=MAX_TOOL_CHARS):
 
 # %% ../nbs/02_tools.ipynb #6d65593d
 def file_tools(host, mx=MAX_TOOL_CHARS):
-    "Reading and editing files, by exact text or by hash-verified address."
+    "Reading and editing files, by exact text or by hash-verified address. Read-only where the host cannot write."
 
     @writes
     @summary(lambda a: f'Open folder {a.get("path","")}')
@@ -206,6 +206,7 @@ def file_tools(host, mx=MAX_TOOL_CHARS):
         try: return f'wrote {host.write(path, text)}'
         except Exception as e: return err('write failed', e)
 
+    if not host.writes: return [view_file]   # an editor that can only raise is worse than no editor
     return [view_file, replace_text, edit_file, create_file, add_root]
 
 # %% ../nbs/02_tools.ipynb #3c171dfb
