@@ -1,0 +1,1466 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="description" content="Every tool an agent is given, and which of them one host can actually support.">
+
+<title>tools – shalya</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2" crossorigin="anonymous"></script><script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-d63a2c9c8df14b07662b36303925c8cc.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script src="https://cdn.jsdelivr.net/npm/requirejs@2.3.6/require.min.js" integrity="sha384-c9c+LnTbwQ3aujuU7ULEPVvgLs+Fn6fJUvIGTsuu1ZcCf11fiEubah0ttpca4ntM sha384-6V1/AdqZRWk1KAlWbKBlGhN7VG4iE/yAZcO6NZPMF8od0vukrvr0tg4qY6NSrItx" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+
+
+<link rel="stylesheet" href="styles.css">
+<meta property="og:title" content="tools – shalya">
+<meta property="og:description" content="Every tool an agent is given, and which of them one host can actually support.">
+<meta property="og:site_name" content="shalya">
+<meta name="twitter:title" content="tools – shalya">
+<meta name="twitter:description" content="Every tool an agent is given, and which of them one host can actually support.">
+<meta name="twitter:card" content="summary">
+</head>
+
+<body class="nav-sidebar floating nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="./index.html">
+    <span class="navbar-title">shalya</span>
+    </a>
+  </div>
+        <div class="quarto-navbar-tools tools-end">
+</div>
+          <div id="quarto-search" class="" title="Search"></div>
+      </div> <!-- /container-fluid -->
+    </nav>
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./tools.html">tools</a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">shalya</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./core.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">core</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./host.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">host</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./tools.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">tools</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./skills.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">skills</span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#seeing-the-code" id="toc-seeing-the-code" class="nav-link active" data-scroll-target="#seeing-the-code">Seeing the code</a></li>
+  <li><a href="#files" id="toc-files" class="nav-link" data-scroll-target="#files">Files</a></li>
+  <li><a href="#notebooks" id="toc-notebooks" class="nav-link" data-scroll-target="#notebooks">Notebooks</a></li>
+  <li><a href="#the-web-and-what-was-read-before" id="toc-the-web-and-what-was-read-before" class="nav-link" data-scroll-target="#the-web-and-what-was-read-before">The web, and what was read before</a></li>
+  <li><a href="#the-live-session-and-the-shell" id="toc-the-live-session-and-the-shell" class="nav-link" data-scroll-target="#the-live-session-and-the-shell">The live session and the shell</a></li>
+  <li><a href="#an-api-specification" id="toc-an-api-specification" class="nav-link" data-scroll-target="#an-api-specification">An API specification</a></li>
+  <li><a href="#skills-as-tools" id="toc-skills-as-tools" class="nav-link" data-scroll-target="#skills-as-tools">Skills as tools</a></li>
+  <li><a href="#pictures" id="toc-pictures" class="nav-link" data-scroll-target="#pictures">Pictures</a></li>
+  <li><a href="#git" id="toc-git" class="nav-link" data-scroll-target="#git">Git</a></li>
+  <li><a href="#which-tools-a-host-gets" id="toc-which-tools-a-host-gets" class="nav-link" data-scroll-target="#which-tools-a-host-gets">Which tools a host gets</a></li>
+  <li><a href="#what-a-sub-agent-may-have" id="toc-what-a-sub-agent-may-have" class="nav-link" data-scroll-target="#what-a-sub-agent-may-have">What a sub-agent may have</a></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/vedicreader/shalya/issues/new" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div><div class="quarto-alternate-formats"><h2>Other Formats</h2><ul><li><a href="tools.html.md"><i class="bi bi-file-code"></i>Markdown</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">tools</h1>
+</div>
+
+<div>
+  <div class="description">
+    Every tool an agent is given, and which of them one host can actually support.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<!-- WARNING: THIS FILE WAS AUTOGENERATED! DO NOT EDIT! -->
+<p>A tool is a typed function whose docstring guides model calls. Each factory binds tools to a host. <code>mx</code> sets the result budget for the calling model.</p>
+<div id="fd9d9c98" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-09-03T22:58:27.252844+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-09-03T22:58:28.369967+00:00&quot;,&quot;total&quot;:1.1171281239999757}}" data-execution_count="5">
+<pre><code>/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/usearch/__init__.py:131: UserWarning: Will download `usearch_sqlite` binary from GitHub.
+  warnings.warn("Will download `usearch_sqlite` binary from GitHub.", UserWarning)</code></pre>
+<hr>
+<p><a href="https://github.com/vedicreader/shalya/blob/main/shalya/tools.py#L28" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="readable" class="level3">
+<h3 class="anchored" data-anchor-id="readable">readable</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> readable(</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    host, path, must_exist:<span class="bu">bool</span><span class="op">=</span><span class="va">False</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Resolve a path a tool is only going to read. <code>reading=True</code> is the read-outside allowance.</em></p>
+</section>
+</div>
+<p>All read-only tools resolve paths through <a href="https://vedicreader.github.io/shalya/tools.html#readable"><code>readable</code></a> and <code>check(reading=True)</code>. The host controls read access outside its roots.</p>
+<section id="seeing-the-code" class="level2">
+<h2 class="anchored" data-anchor-id="seeing-the-code">Seeing the code</h2>
+<div id="2f6a6850" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-09-03T22:58:28.382003+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-09-03T22:58:28.393911+00:00&quot;,&quot;total&quot;:0.01191194099999393}}" data-execution_count="7">
+<hr>
+<p><a href="https://github.com/vedicreader/shalya/blob/main/shalya/tools.py#L33" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="code_tools" class="level3">
+<h3 class="anchored" data-anchor-id="code_tools">code_tools</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> code_tools(</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    host, mx:<span class="bu">int</span><span class="op">=</span><span class="dv">6000</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Code search and structure tools.</em></p>
+</section>
+</div>
+<p>A real folder, a real host, and the tools closed over it. With no Kosha index, <code>search_code</code> is ripgrep and <code>outline</code> is the parser.</p>
+<div id="a3748354" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>root <span class="op">=</span> Path(tempfile.mkdtemp()).resolve()<span class="op">/</span><span class="st">'proj'</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>(root<span class="op">/</span><span class="st">'pkg'</span>).mkdir(parents<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>(root<span class="op">/</span><span class="st">'pkg'</span><span class="op">/</span><span class="st">'sizes.py'</span>).write_text(<span class="st">'def threshold(n):</span><span class="ch">\n</span><span class="st">    "Half of n."</span><span class="ch">\n</span><span class="st">    return n // 2</span><span class="ch">\n</span><span class="st">'</span>)</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>(root<span class="op">/</span><span class="st">'pkg'</span><span class="op">/</span><span class="st">'use.py'</span>).write_text(<span class="st">'from .sizes import threshold</span><span class="ch">\n\n</span><span class="st">def budget(): return threshold(8192)</span><span class="ch">\n</span><span class="st">'</span>)</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>host <span class="op">=</span> LocalHost([root], index<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>ct <span class="op">=</span> {t.<span class="va">__name__</span>: t <span class="cf">for</span> t <span class="kw">in</span> code_tools(host)}</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="bu">sorted</span>(ct)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<pre><code>['grep', 'list_files', 'ls', 'outline', 'search_code', 'similar_code']</code></pre>
+</div>
+</div>
+<div id="2289bbdf" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>test_eq(<span class="bu">sorted</span>(ct), [<span class="st">'grep'</span>, <span class="st">'list_files'</span>, <span class="st">'ls'</span>, <span class="st">'outline'</span>, <span class="st">'search_code'</span>, <span class="st">'similar_code'</span>])</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="st">'public_api'</span> <span class="kw">not</span> <span class="kw">in</span> ct, <span class="st">'no index, so nothing to list a public surface from'</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="st">'threshold'</span> <span class="kw">in</span> ct[<span class="st">'search_code'</span>](<span class="st">'threshold'</span>)</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="st">'sizes.py'</span> <span class="kw">in</span> ct[<span class="st">'list_files'</span>](<span class="st">'sizes'</span>)</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="st">'threshold'</span> <span class="kw">in</span> ct[<span class="st">'outline'</span>](<span class="st">'pkg/sizes.py'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>A no-match result names the search engine. This distinguishes no matches from an unavailable index.</p>
+<div id="4c769f14" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>ct[<span class="st">'search_code'</span>](<span class="st">'nonexistent_symbol_xyz'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<pre><code>'no matches (Kosha sync in progress; literal fallback via ripgrep)'</code></pre>
+</div>
+</div>
+<div id="a71b8ef0" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>miss <span class="op">=</span> ct[<span class="st">'search_code'</span>](<span class="st">'nonexistent_symbol_xyz'</span>)</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="st">'no matches'</span> <span class="kw">in</span> miss.lower(), miss</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="st">'ripgrep'</span> <span class="kw">in</span> miss <span class="kw">or</span> <span class="st">'fallback'</span> <span class="kw">in</span> miss, miss</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The fallback above must work before indexing finishes. A second host below builds a real Kosha index over a small package. It checks semantic retrieval, indexed exports and references across files.</p>
+<div id="eefb9602" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-09-03T22:58:28.394837+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-09-03T22:58:28.395450+00:00&quot;,&quot;total&quot;:0.0006156609999834473}}" data-execution_count="8">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> litesearch <span class="im">import</span> repo_root</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div id="8b459d0a" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>repo_root()</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>indexed_host <span class="op">=</span> LocalHost([repo_root()], rerank<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> indexed_host.wait_index(<span class="dv">180</span>), indexed_host.search_note</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>indexed_tools <span class="op">=</span> {t.<span class="va">__name__</span>: t <span class="cf">for</span> t <span class="kw">in</span> code_tools(indexed_host)}<span class="op">;</span> indexed_tools</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>/Users/71293/code/personal/orgs/shalya/.venv/lib/python3.13/site-packages/tqdm/auto.py:21: TqdmWarning: IProgress not found. Please update jupyter and ipywidgets. See https://ipywidgets.readthedocs.io/en/stable/user_install.html
+  from .autonotebook import tqdm as notebook_tqdm
+
+parse files from /Users/71293/code/personal/orgs/shalya:   0%|          | 0/6 [00:00&lt;?, ?it/s]</code></pre>
+</div>
+<div class="cell-output cell-output-display">
+
+<style>
+    progress { appearance: none; border: none; border-radius: 4px; width: 300px;
+        height: 20px; vertical-align: middle; background: #e0e0e0; }
+
+    progress::-webkit-progress-bar { background: #e0e0e0; border-radius: 4px; }
+    progress::-webkit-progress-value { background: #2196F3; border-radius: 4px; }
+    progress::-moz-progress-bar { background: #2196F3; border-radius: 4px; }
+
+    progress:not([value]) {
+        background: repeating-linear-gradient(45deg, #7e7e7e, #7e7e7e 10px, #5c5c5c 10px, #5c5c5c 20px); }
+
+    progress.progress-bar-interrupted::-webkit-progress-value { background: #F44336; }
+    progress.progress-bar-interrupted::-moz-progress-value { background: #F44336; }
+    progress.progress-bar-interrupted::-webkit-progress-bar { background: #F44336; }
+    progress.progress-bar-interrupted::-moz-progress-bar { background: #F44336; }
+    progress.progress-bar-interrupted { background: #F44336; }    
+
+    table.fastprogress { border-collapse: collapse; margin: 1em 0; font-size: 0.9em; }
+    table.fastprogress th, table.fastprogress td { padding: 8px 12px; border: 1px solid #ddd; text-align: left; }
+    table.fastprogress thead tr { background: #f8f9fa; font-weight: bold; }
+    table.fastprogress tbody tr:nth-of-type(even) { background: #f8f9fa; }
+</style>
+</div>
+<div class="cell-output cell-output-display">
+<div><progress max="3" value="0"></progress> </div>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>
+parse files from /Users/71293/code/personal/orgs/shalya: 100%|██████████| 6/6 [00:00&lt;00:00, 281.78it/s]</code></pre>
+</div>
+<div class="cell-output cell-output-display">
+<pre><code>{'search_code': &lt;function __main__.code_tools.&lt;locals&gt;.search_code(query: str) -&gt; str&gt;,
+ 'grep': &lt;function __main__.code_tools.&lt;locals&gt;.grep(pattern: str, path_filter: str = '', regex: bool = True, ignore_case: bool = False) -&gt; str&gt;,
+ 'ls': &lt;function __main__.code_tools.&lt;locals&gt;.ls(path: str = '') -&gt; str&gt;,
+ 'similar_code': &lt;function __main__.code_tools.&lt;locals&gt;.similar_code(path: str, line: int = 1) -&gt; str&gt;,
+ 'outline': &lt;function __main__.code_tools.&lt;locals&gt;.outline(path: str) -&gt; str&gt;,
+ 'list_files': &lt;function __main__.code_tools.&lt;locals&gt;.list_files(pattern: str = '') -&gt; str&gt;,
+ 'public_api': &lt;function __main__.code_tools.&lt;locals&gt;.public_api(package: str) -&gt; str&gt;}</code></pre>
+</div>
+</div>
+<div id="38fcb40a" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>indexed_tools[<span class="st">'search_code'</span>](<span class="st">'code tools'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<pre><code>'[Kosha semantic + keyword index over 1 folder(s) and environment fused with ripgrep]\n/Users/71293/code/personal/orgs/shalya/shalya/tools.py:785  shalya.tools.tools_for  def tools_for(host, get_skills=None, extra=(), mx=MAX_TOOL_CHARS, drop=(), image=None): """Every tool this host declares it can support, plus whatever else was registered. `image` is a built image group, or None. It needs to know what the t\n  FILE -- use this exact path with view_file/edit_file\n/Users/71293/code/personal/orgs/shalya/nbs/02_tools.ipynb:524    "\'[Kosha semantic + keyword index over 1 folder(s) and environment fused with ripgrep]\\\\n/Users/71293/code/personal/orgs/shalya/nbs/02_tools.ipynb:473    \\"\\\\\'[Kosha semantic + keyword index over 1 fo\n  NOTEBOOK -- use this exact path with notebook_cells, then view_cell/edit_cell\n/Users/71293/code/personal/orgs/rishi/.venv/lib/python3.13/site-packages/matplotlib/backend_tools.py:982  matplotlib.backend_tools.add_tools_to_container  def add_tools_to_container(container, tools=None): """ Add multiple tools to the container. Parameters ---------- container : Container `.backend_bases.ToolContainerBase` object that will get the tools added. tools : list, optional List in \n  FILE -- use this exact path with view_file/edit_file\n/Users/71293/code/personal/orgs/shalya/nbs/02_tools.ipynb:533    "indexed_tools[\'search_code\'](\'code tools\')"\n  NOTEBOOK -- use this exact path with notebook_cells, then view_cell/edit_cell\n/Users/71293/Library/Application Support/uv/tools/koshas/lib/python3.13/site-packages/mcp/server/mcpserver/tools/tool_manager.py:19  mcp.server.mcpserver.tools.tool_manager.ToolManager  class ToolManager: """Manages MCPServer tools.""" def __init__(self, warn_on_duplicate_tools: bool = True, *, tools: list[Tool] | None = None): self._tools: dict[str, Tool] = {} for tool in tools or (): if warn_on_duplicate_tools and tool.n\n  FILE -- use this exact path with view_file/edit_file\n/Users/71293/code/personal/orgs/shalya/shalya/skills.py:161  shalya.skills.Registry.tool  def tool(self, f): "Register a tool." self.tools.append(f) return f\n  FILE -- use this exact path with view_file/edit_file\n/Users/71293/code/personal/orgs/rishi/.venv/lib/python3.13/site-packages/mlx_audio/tts/models/qwen3_tts/qwen3_tts.py:957  mlx_audio.tts.models.qwen3_tts.qwen3_tts.Model._predict_code_tokens  def _predict_code_tokens( self, first_token: mx.array, hidden: mx.array, *, temperature: float, top_k: int, top_p: float, code_cache=None, ) -&gt; Tuple[List[mx.array], mx.array]: if code_cache is None: code_cache = self.talker.code_predictor.\n  FILE -- use this exact path with view_file/edit_file\n/Users/71293/code/personal/orgs/shalya/shalya/core.py:38  shalya.core.err  def err(what, e=None): "One tool failure, spelled the way every other tool spells it." return f\'{ERR}{what}\' + (f\': {host_err(e)}\' if e is not None else \'\')\n  FILE -- use this exact path with view_file/edit_file\n/Users/71293/code/personal/orgs/leela/.venv/lib/python3.13/site-packages/executing/executing.py:731  executing.executing.SentinelNodeFinder.compile_instructions  def compile_instructions(self): # type: () -&gt; List[EnhancedInstruction] module_code = compile_similar_to(self.tree, self.code) code = only(self.find_codes(module_code)) return self.clean_instructions(code)\n  FILE -- use this exact path with view_file/edit_file\n/Users/71293/code/personal/orgs/rishi/.venv/lib/python3.13/site-packages/matplotlib/backend_bases.py:3478  matplotlib.backend_bases.ToolContainerBase.add_tool  def add_tool(self, tool, group, position=-1): """ Add a tool to this container. Parameters ---------- tool : tool_like The tool to add, see `.ToolManager.get_tool`. group : str The name of the group to add this tool to. position : int, defa\n  FILE -- use this exact path with view_file/edit_file\n/Users/71293/code/personal/orgs/kosha/.venv/lib/python3.13/site-packages/spacy/cli/_util.py:186  spacy.cli._util.import_code  def import_code(code_path: Optional[Union[Path, str]]) -&gt; None: """Helper to import Python file provided in training commands / commands using the config. This makes custom registered functions available. """ if code_path is not None: if no\n  FILE -- use this exact path with view_file/edit_file\n/Users/71293/code/personal/orgs/leela/.venv/lib/python3.13/site-packages/debugpy/_vendored/pydevd/_pydevd_frame_eval/vendored/bytecode/concrete.py:170  debugpy._vendored.pydevd._pydevd_frame_eval.vendored.bytecode.concrete.ConcreteBytecode.from_code  def from_code(code, *, extended_arg=False): line_starts = dict(entry for entry in dis.findlinestarts(code) if entry[1] is not None) # find block starts instructions = [] offset = 0 lineno = code.co_firstlineno while offset &lt; (len(code.co_co\n  FILE -- use this exact path with view_file/edit_file\n/Users/71293/code/personal/orgs/leela/.venv/lib/python3.13/site-packages/rich/control.py:58  rich.control.Control.__init__  def __init__(self, *codes: Union[ControlType, ControlCode]) -&gt; None: control_codes: List[ControlCode] = [ (code,) if isinstance(code, ControlType) else code for code in codes ] _format_map = CONTROL_CODES_FORMAT rendered_codes = "".join( _f\n  FILE -- use this exact path with view_file/edit_file\n/Users/71293/code/personal/orgs/rishi/.venv/lib/python3.13/site-packages/matplotlib/backend_managers.py:215  matplotlib.backend_managers.ToolManager.add_tool  def add_tool(self, name, tool, *args, **kwargs): """ Add *tool* to `ToolManager`. If successful, adds a new event ``tool_trigger_{name}`` where ``{name}`` is the *name* of the tool; the event is fired every time the tool is triggered. Param\n  FILE -- use this exact path with view_file/edit_file\n/Users/71293/code/personal/orgs/rishi/.venv/lib/python3.13/site-packages/transformers/models/xcodec2/modular_xcodec2.py:244  transformers.models.xcodec2.modular_xcodec2.Xcodec2DecoderLayer  class Xcodec2DecoderLayer(LlamaDecoderLayer): pass\n  FILE -- use this exact path with view_file/edit_file…[truncated: 5939 of 7996 chars shown]'</code></pre>
+</div>
+</div>
+<div id="c6e4e939" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>indexed_tools[<span class="st">'public_api'</span>](<span class="st">'shalya.host'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<pre><code>"125 public name(s) in shalya.host\nshalya.host.ApiHost  /Users/71293/code/personal/orgs/shalya/shalya/host.py:311  Reading an API specification and calling what it describes.\nshalya.host.AskHost  /Users/71293/code/personal/orgs/shalya/shalya/host.py:184  Model-backed answers from memory.\nshalya.host.Capability  /Users/71293/code/personal/orgs/shalya/shalya/host.py:21  One capability group. A host declares the group by inheriting the class that names it.\nshalya.host.CodeHost  /Users/71293/code/personal/orgs/shalya/shalya/host.py:87  Code search and structure.\nshalya.host.GitHost  /Users/71293/code/personal/orgs/shalya/shalya/host.py:312  Git operations on a working tree inside `roots`.\nshalya.host.Host  /Users/71293/code/personal/orgs/shalya/shalya/host.py:27  The application under an agent: the folders it may touch, and what it declares it can do.\nshalya.host.LocalHost  /Users/71293/code/personal/orgs/shalya/shalya/host.py:403  Reference host for local folders.\nshalya.host.MemoryHost  /Users/71293/code/personal/orgs/shalya/shalya/host.py:155  Durable memory organized as document sections.\nshalya.host.NotebookHost  /Users/71293/code/personal/orgs/shalya/shalya/host.py:142  Notebook cell listing and insertion.\nshalya.host.SessionHost  /Users/71293/code/personal/orgs/shalya/shalya/host.py:239  The live namespace, and the terminal beside it.\nshalya.host.ShellHost  /Users/71293/code/personal/orgs/shalya/shalya/host.py:288  Running a command on the machine.\nshalya.host.WatchHost  /Users/71293/code/personal/orgs/shalya/shalya/host.py:193  Recurring watches and reminders.\nshalya.host.WebHost  /Users/71293/code/personal/orgs/shalya/shalya/host.py:122  Current web search and page retrieval.\nshalya.host._defs  /Users/71293/code/personal/orgs/shalya/shalya/host.py:757  Every def/class in one file as `(line, qualified_name, depth)`, by parsing rather than grepping.\nshalya.host._exec  /Users/71293/code/personal/orgs/shalya/shalya/host.py:783  Run `code` in `ns`, returning printed output plus the last expression's value.\nshalya.host._fossick  /Users/71293/code/personal/orgs/shalya/shalya/host.py:910  \nshalya.host._ranked  /Users/71293/code/personal/orgs/shalya/shalya/host.py:626  Call Kosha with optional cross-encoder reranking.\nshalya.host._rg  /Users/71293/code/personal/orgs/shalya/shalya/host.py:591  Search with rgapi; `every_file=True` matches `walk`.\nshalya.host._scan  /Users/71293/code/personal/orgs/shalya/shalya/host.py:666  Find literal matches by reading files.\nshalya.host._semantic  /Users/71293/code/personal/orgs/shalya/shalya/host.py:637  Kosha hybrid results (repo + env + graph) as the Host's stable `Hit` shape.\nshalya.host._walk  /Users/71293/code/personal/orgs/shalya/shalya/host.py:478  Files under `root`, skipping the same generated dirs/suffixes `grep` covers.\nshalya.host.add_root  /Users/71293/code/personal/orgs/shalya/shalya/host.py:442  return resolved folders for read/write. does not create folders\nshalya.host.added_roots  /Users/71293/code/personal/orgs/shalya/shalya/host.py:462  Roots opened after construction. `/resume` lapses these, and says that it did.\nshalya.host.api_call  /Users/71293/code/personal/orgs/shalya/shalya/host.py:1060  \nshalya.host.api_count  /Users/71293/code/personal/orgs/shalya/shalya/host.py:1054  \nshalya.host.api_load  /Users/71293/code/personal/orgs/shalya/shalya/host.py:1042  \nshalya.host.api_ops  /Users/71293/code/personal/orgs/shalya/shalya/host.py:1048  \nshalya.host.approvals  /Users/71293/code/personal/orgs/shalya/shalya/host.py:566  \nshalya.host.ask  /Users/71293/code/personal/orgs/shalya/shalya/host.py:1012  \nshalya.host.check  /Users/71293/code/personal/orgs/shalya/shalya/host.py:456  Resolve `path`. Refuse outside `roots` (unless `read_outside` and `reading`). Walks stay confined.\nshalya.host.denied  /Users/71293/code/personal/orgs/shalya/shalya/host.py:361  Whether `path` matches a refused credential path.\nshalya.host.grep  /Users/71293/code/personal/orgs/shalya/shalya/host.py:654  Exact matching through ripgrep. None when `rgapi` is unavailable. The tool then reads files itself.\nshalya.host.implemented  /Users/71293/code/personal/orgs/shalya/shalya/host.py:1018  Recompute what `cls` is still missing, after `@patch` filled some of it in.\nshalya.host.index_ready  /Users/71293/code/personal/orgs/shalya/shalya/host.py:572  Whether all open roots are indexed.\nshalya.host.indexed  /Users/71293/code/personal/orgs/shalya/shalya/host.py:578  Indexed root paths.\nshalya.host.inspect_python  /Users/71293/code/personal/orgs/shalya/shalya/host.py:842  Run `code` without rebinding anything the user made. A kernel enforces this; a copy approximates it.\nshalya.host.kernel_kind  /Users/71293/code/personal/orgs/shalya/shalya/host.py:817  \nshalya.host.ld_json  /Users/71293/code/personal/orgs/shalya/shalya/host.py:394  Parse `schema.org` JSON-LD blocks from `html`.\nshalya.host.list_vars  /Users/71293/code/personal/orgs/shalya/shalya/host.py:862  \nshalya.host.memory_forget  /Users/71293/code/personal/orgs/shalya/shalya/host.py:1000  \nshalya.host.memory_read  /Users/71293/code/personal/orgs/shalya/shalya/host.py:988  \nshalya.host.memory_search  /Users/71293/code/personal/orgs/shalya/shalya/host.py:976  \nshalya.host.memory_topics  /Users/71293/code/personal/orgs/shalya/shalya/host.py:947  \nshalya.host.memory_tree  /Users/71293/code/personal/orgs/shalya/shalya/host.py:935  \nshalya.host.nb_add_cell  /Users/71293/code/personal/orgs/shalya/shalya/host.py:806  \nshalya.host.nb_cells  /Users/71293/code/personal/orgs/shalya/shalya/host.py:799  \nshalya.host.note  /Users/71293/code/personal/orgs/shalya/shalya/host.py:570  \nshalya.host.peers  /Users/71293/code/personal/orgs/shalya/shalya/host.py:751  Find references to the symbol defined at `path`:`line`.\nshalya.host.poll  /Users/71293/code/personal/orgs/shalya/shalya/host.py:1036  \n…[76 more line(s) not shown. read one with view_file]"</code></pre>
+</div>
+</div>
+<div id="fd282c97" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>indexed_tools[<span class="st">'similar_code'</span>](<span class="st">'shalya/host.py'</span>, <span class="dv">32</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<pre><code>'/Users/71293/code/personal/orgs/shalya/shalya/host.py:27  shalya.host.Host  class Host(ABC): "The application under an agent: the folders it may touch, and what it declares it can do." group = \'file\' #: every host has the path boundary the file tools need without = frozenset() #: groups this instance cannot do, wha\n/Users/71293/code/personal/orgs/shalya/shalya/core.py:34  shalya.core.host_err  def host_err(e): "A caught exception, for a user-facing surface." return f\'{type(e).__name__}: {e}\'\n/Users/71293/code/personal/orgs/shalya/README.md:16    from shalya.host import LocalHost\n/Users/71293/code/personal/orgs/shalya/shalya/tools.py:785  shalya.tools.tools_for  def tools_for(host, get_skills=None, extra=(), mx=MAX_TOOL_CHARS, drop=(), image=None): """Every tool this host declares it can support, plus whatever else was registered. `image` is a built image group, or None. It needs to know what the t\n/Users/71293/code/personal/orgs/shalya/README.md:23    [`LocalHost`](https://vedicreader.github.io/shalya/host.html#localhost) touches only the folders you open, and reports the capability groups it can serve. A group with no installed backend goes absent\n/Users/71293/code/personal/orgs/leela/.venv/lib/python3.13/site-packages/mlx/_distributed_utils/config.py:434  _distributed_utils.config.prepare_ethernet_hostfile  def prepare_ethernet_hostfile(args, hosts): log(args.verbose, f"Preparing an ethernet hostfile") add_ips(hosts, args.verbose) hostfile = Hostfile( [Host(i, h.ssh_hostname, h.ips, []) for i, h in enumerate(hosts)], "", args.env ) save_hostfi\n/Users/71293/code/personal/orgs/shalya/README.md:33    host = LocalHost(roots=[d], index=False, web=False)\n/Users/71293/code/personal/orgs/shalya/shalya/core.py:33  shalya.core.HostError  class HostError(Exception): "A host refusal."\n/Users/71293/code/personal/orgs/shalya/tests/test_summaries.py:15    from shalya.host import LocalHost\n/Users/71293/code/personal/orgs/kosha/.venv/lib/python3.13/site-packages/fasthtml/core.py:643  fasthtml.core.HostRoute  class HostRoute(Route): "Route with optional host-header constraint using Starlette\'s {param} pattern syntax" def __init__(self, path, endpoint, *, host=None, **kwargs): super().__init__(path, endpoint, **kwargs) self.host = host if host: s\n/Users/71293/code/personal/orgs/shalya/tests/test_summaries.py:21    class AnyHost:\n/Users/71293/code/personal/orgs/kosha/.venv/lib/python3.13/site-packages/curl_cffi/requests/cookies.py:171  curl_cffi.requests.cookies.Cookies._eff_request_host  def _eff_request_host(self, request) -&gt; str: """ Almost equivalent to the eff_request_host function in: https://github.com/python/cpython/blob/3.11/Lib/http/cookiejar.py#L636 """ host = urlparse(request.url)[1] if host == "": host = request\n/Users/71293/code/personal/orgs/shalya/tests/test_summaries.py:31    h = AnyHost()\n/Users/71293/code/personal/orgs/leela/.venv/lib/python3.13/site-packages/pydantic/v1/networks.py:439  pydantic.v1.networks.MultiHostDsn._build_url  def _build_url(cls, m: Match[str], url: str, parts: \'Parts\') -&gt; \'MultiHostDsn\': hosts_parts: List[\'HostParts\'] = [] host_re = host_regex() for host in m.groupdict()[\'hosts\'].split(\',\'): d: Parts = host_re.match(host).groupdict() # type: ign\n/Users/71293/code/personal/orgs/shalya/tests/test_summaries.py:32    out = list(code_tools(LocalHost([tmp_path], index=False, web=False)))\n/Users/71293/code/personal/orgs/leela/.venv/lib/python3.13/site-packages/huggingface_hub/_sandbox.py:1625  huggingface_hub._sandbox.SandboxPool._save_cache  def _save_cache(self) -&gt; None: """Persist the pool config + current hosts (with their live counts) for next time.""" with self._lock: hosts = [ CachedHost( job_id=host.job_id, owner=host.owner, base_url=host.base_url, nonce=host.nonce, capa\n/Users/71293/code/personal/orgs/shalya/nbs/01_host.ipynb:59    "from shalya.core import Hit, HostError, MAX_API, MAX_FILE, MAX_GREP_HITS, host_err"\n/Users/71293/Library/Application Support/uv/tools/koshas/lib/python3.13/site-packages/mcp/server/transport_security.py:50  mcp.server.transport_security.TransportSecurityMiddleware._validate_host  def _validate_host(self, host: str | None) -&gt; bool: """Validate the Host header against allowed values.""" if not host: logger.warning("Missing Host header in request") return False # Check exact match first if host in self.settings.allowed\n/Users/71293/code/personal/orgs/shalya/nbs/01_host.ipynb:94    "The path boundary is not a capability. Every group needs it, so it is `Host` itself."\n/Users/71293/code/personal/orgs/kosha/.venv/lib/python3.13/site-packages/jupyter_server/base/handlers.py:556  jupyter_server.base.handlers.JupyterHandler.check_host  def check_host(self) -&gt; bool: """Check the host header if remote access disallowed. Returns True if the request should continue, False otherwise. """ if self.settings.get("allow_remote_access", False): return True # Remove port (e.g. \':8888'</code></pre>
+</div>
+</div>
+</section>
+<section id="files" class="level2">
+<h2 class="anchored" data-anchor-id="files">Files</h2>
+<p><code>view_file</code> returns <code>lineno|hash|content</code>. Edits must quote a current address. A stale hash is refused, preventing edits to unseen content.</p>
+<div id="d821f126" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-09-03T22:58:28.401699+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-09-03T22:58:28.409053+00:00&quot;,&quot;total&quot;:0.007356877000006534}}" data-execution_count="10">
+<hr>
+<p><a href="https://github.com/vedicreader/shalya/blob/main/shalya/tools.py#L140" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="file_tools" class="level3">
+<h3 class="anchored" data-anchor-id="file_tools">file_tools</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> file_tools(</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>    host, mx:<span class="bu">int</span><span class="op">=</span><span class="dv">6000</span></span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Reading and editing files, by exact text or by hash-verified address.</em></p>
+</section>
+</div>
+<p>All commands succeed or nothing is written.</p>
+<div id="738dddb9" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>ft <span class="op">=</span> {t.<span class="va">__name__</span>: t <span class="cf">for</span> t <span class="kw">in</span> file_tools(host)}</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>p <span class="op">=</span> root<span class="op">/</span><span class="st">'pkg'</span><span class="op">/</span><span class="st">'greet.py'</span></span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>p.write_text(<span class="st">'def greet(name):</span><span class="ch">\n</span><span class="st">    return "hello " + name</span><span class="ch">\n</span><span class="st">'</span>)</span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(ft[<span class="st">'view_file'</span>](<span class="bu">str</span>(p)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>1|2337|def greet(name):
+2|709e|    return "hello " + name</code></pre>
+</div>
+</div>
+<div id="15efadca" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>line2 <span class="op">=</span> ft[<span class="st">'view_file'</span>](<span class="bu">str</span>(p)).splitlines()[<span class="dv">1</span>]</span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>addr <span class="op">=</span> line2.split(<span class="st">'|'</span>)[<span class="dv">0</span>] <span class="op">+</span> <span class="st">'|'</span> <span class="op">+</span> line2.split(<span class="st">'|'</span>)[<span class="dv">1</span>] <span class="op">+</span> <span class="st">'|'</span></span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>ft[<span class="st">'edit_file'</span>](<span class="bu">str</span>(p), json.dumps([[addr, <span class="st">'s'</span>, <span class="st">'hello'</span>, <span class="st">'howdy'</span>]]))</span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>test_eq(p.read_text(), <span class="st">'def greet(name):</span><span class="ch">\n</span><span class="st">    return "howdy " + name</span><span class="ch">\n</span><span class="st">'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div id="72c775b8" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>stale <span class="op">=</span> ft[<span class="st">'edit_file'</span>](<span class="bu">str</span>(p), json.dumps([[<span class="st">'2|0000|'</span>, <span class="st">'s'</span>, <span class="st">'howdy'</span>, <span class="st">'hi'</span>]]))</span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> failed(stale), stale</span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>test_eq(p.read_text(), <span class="st">'def greet(name):</span><span class="ch">\n</span><span class="st">    return "howdy " + name</span><span class="ch">\n</span><span class="st">'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p><code>replace_text</code> is the same write through the exact-text vocabulary, and it refuses for the same reasons <a href="https://vedicreader.github.io/shalya/core.html#apply_edits"><code>apply_edits</code></a> refuses.</p>
+<div id="c9280128" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>ft[<span class="st">'replace_text'</span>](<span class="bu">str</span>(p), json.dumps([{<span class="st">'oldText'</span>: <span class="st">'howdy'</span>, <span class="st">'newText'</span>: <span class="st">'hey'</span>}]))</span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>test_eq(p.read_text(), <span class="st">'def greet(name):</span><span class="ch">\n</span><span class="st">    return "hey " + name</span><span class="ch">\n</span><span class="st">'</span>)</span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> failed(ft[<span class="st">'replace_text'</span>](<span class="bu">str</span>(p), json.dumps([[<span class="st">'name'</span>, <span class="st">'who'</span>]])))   <span class="co"># matches twice</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Every write tool carries its own mark, and the frozenset of names says the same thing for a caller that only has a name.</p>
+<div id="3072d044" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>writers <span class="op">=</span> {t.<span class="va">__name__</span> <span class="cf">for</span> t <span class="kw">in</span> file_tools(host) <span class="cf">if</span> is_write(t)}</span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>test_eq(writers, {<span class="st">'edit_file'</span>, <span class="st">'replace_text'</span>, <span class="st">'create_file'</span>, <span class="st">'add_root'</span>})</span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> writers <span class="op">&lt;=</span> WRITE_TOOLS, writers <span class="op">-</span> WRITE_TOOLS</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="notebooks" class="level2">
+<h2 class="anchored" data-anchor-id="notebooks">Notebooks</h2>
+<div id="338d0a4e" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-09-03T22:58:28.414167+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-09-03T22:58:28.419729+00:00&quot;,&quot;total&quot;:0.005565428000011252}}" data-execution_count="12">
+<hr>
+<p><a href="https://github.com/vedicreader/shalya/blob/main/shalya/tools.py#L212" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="notebook_tools" class="level3">
+<h3 class="anchored" data-anchor-id="notebook_tools">notebook_tools</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> notebook_tools(</span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>    host, mx:<span class="bu">int</span><span class="op">=</span><span class="dv">6000</span></span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Notebooks, addressed by cell id rather than by line.</em></p>
+</section>
+</div>
+<p>The two operations that need to know what a notebook is, and the two that only need a cell id.</p>
+<div id="87cab654" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>nt <span class="op">=</span> {t.<span class="va">__name__</span>: t <span class="cf">for</span> t <span class="kw">in</span> notebook_tools(host)}</span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>said <span class="op">=</span> nt[<span class="st">'add_cell'</span>](<span class="st">'nb/demo.ipynb'</span>, <span class="st">'x = 1'</span>)</span>
+<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a>cid <span class="op">=</span> said.split()[<span class="dv">2</span>]</span>
+<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a>said, nt[<span class="st">'notebook_cells'</span>](<span class="st">'nb/demo.ipynb'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<pre><code>('added cell 75ea04d7 to nb/demo.ipynb', '75ea04d7  code     x = 1')</code></pre>
+</div>
+</div>
+<div id="84ce8d27" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> cid <span class="kw">in</span> nt[<span class="st">'notebook_cells'</span>](<span class="st">'nb/demo.ipynb'</span>)</span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="st">'x = 1'</span> <span class="kw">in</span> nt[<span class="st">'view_cell'</span>](<span class="st">'nb/demo.ipynb'</span>, cid)</span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>line <span class="op">=</span> nt[<span class="st">'view_cell'</span>](<span class="st">'nb/demo.ipynb'</span>, cid).splitlines()[<span class="dv">0</span>]</span>
+<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a>nt[<span class="st">'edit_cell'</span>](<span class="st">'nb/demo.ipynb'</span>, cid, json.dumps([[<span class="st">'|'</span>.join(line.split(<span class="st">'|'</span>)[:<span class="dv">2</span>]) <span class="op">+</span> <span class="st">'|'</span>, <span class="st">'s'</span>, <span class="st">'x = 1'</span>, <span class="st">'x = 2'</span>]]))</span>
+<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="st">'x = 2'</span> <span class="kw">in</span> nt[<span class="st">'view_cell'</span>](<span class="st">'nb/demo.ipynb'</span>, cid), nt[<span class="st">'view_cell'</span>](<span class="st">'nb/demo.ipynb'</span>, cid)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="the-web-and-what-was-read-before" class="level2">
+<h2 class="anchored" data-anchor-id="the-web-and-what-was-read-before">The web, and what was read before</h2>
+<p>Two groups, and the split is the point. The web tools go out now. The memory tools recall what going out already found, without going out again.</p>
+<div id="c8fd6ee7" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-09-03T22:58:28.422903+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-09-03T22:58:28.427215+00:00&quot;,&quot;total&quot;:0.004315540000050078}}" data-execution_count="14">
+<hr>
+<p><a href="https://github.com/vedicreader/shalya/blob/main/shalya/tools.py#L251" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="web_tools" class="level3">
+<h3 class="anchored" data-anchor-id="web_tools">web_tools</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb32"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> web_tools(</span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a>    host, mx:<span class="bu">int</span><span class="op">=</span><span class="dv">6000</span></span>
+<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>The web, for the questions whose answer depends on current documentation.</em></p>
+</section>
+</div>
+<p>A result provider isolates the tool contract. These checks cover model-facing text and argument forwarding; <code>host</code> covers fossick itself.</p>
+<div id="8f6da719" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> WebResults:</span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>    research_note <span class="op">=</span> <span class="st">'fixture'</span></span>
+<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> web_search(<span class="va">self</span>, query, n<span class="op">=</span><span class="dv">20</span>):</span>
+<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> [AttrDict(title<span class="op">=</span><span class="st">'Python'</span>, url<span class="op">=</span><span class="st">'https://python.org'</span>)] <span class="cf">if</span> query <span class="cf">else</span> []</span>
+<span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> read_url(<span class="va">self</span>, url, remember<span class="op">=</span><span class="va">True</span>):</span>
+<span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.remember <span class="op">=</span> remember</span>
+<span id="cb33-7"><a href="#cb33-7" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> AttrDict(text<span class="op">=</span><span class="st">'# Python'</span>, url<span class="op">=</span>url)</span>
+<span id="cb33-8"><a href="#cb33-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> research(<span class="va">self</span>, query): <span class="cf">return</span> <span class="st">'Python is a programming language.'</span></span>
+<span id="cb33-9"><a href="#cb33-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-10"><a href="#cb33-10" aria-hidden="true" tabindex="-1"></a>web_results <span class="op">=</span> WebResults()</span>
+<span id="cb33-11"><a href="#cb33-11" aria-hidden="true" tabindex="-1"></a>wt <span class="op">=</span> {t.<span class="va">__name__</span>: t <span class="cf">for</span> t <span class="kw">in</span> web_tools(web_results)}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div id="66866983" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb34"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a>test_eq(<span class="bu">sorted</span>(wt), [<span class="st">'read_url'</span>, <span class="st">'research'</span>, <span class="st">'web_search'</span>])</span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>test_eq(wt[<span class="st">'web_search'</span>](<span class="st">'python'</span>), <span class="st">'Python</span><span class="ch">\n</span><span class="st">  https://python.org'</span>)</span>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a>test_eq(wt[<span class="st">'web_search'</span>](<span class="st">''</span>), <span class="st">'no results (fixture)'</span>)</span>
+<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a>test_eq(wt[<span class="st">'read_url'</span>](<span class="st">'https://python.org'</span>, remember<span class="op">=</span><span class="va">False</span>), <span class="st">'# Python'</span>)</span>
+<span id="cb34-5"><a href="#cb34-5" aria-hidden="true" tabindex="-1"></a>test_eq(web_results.remember, <span class="va">False</span>)</span>
+<span id="cb34-6"><a href="#cb34-6" aria-hidden="true" tabindex="-1"></a>test_eq(wt[<span class="st">'research'</span>](<span class="st">'python'</span>), <span class="st">'Python is a programming language.'</span>)</span>
+<span id="cb34-7"><a href="#cb34-7" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="kw">not</span> <span class="bu">any</span>(is_write(t) <span class="cf">for</span> t <span class="kw">in</span> wt.values())</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div id="e522b210" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-09-03T22:58:28.431367+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-09-03T22:58:28.436328+00:00&quot;,&quot;total&quot;:0.004964499999971395}}" data-execution_count="16">
+<hr>
+<p><a href="https://github.com/vedicreader/shalya/blob/main/shalya/tools.py#L284" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="memory_tools" class="level3">
+<h3 class="anchored" data-anchor-id="memory_tools">memory_tools</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb35"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> memory_tools(</span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>    host, mx:<span class="bu">int</span><span class="op">=</span><span class="dv">6000</span></span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Durable pages and research recalled as document sections rather than flat snippets.</em></p>
+</section>
+</div>
+<div id="15712e22" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb36"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a>m<span class="op">=</span>memory_tools(host)</span>
+<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a>summarise(m[<span class="op">-</span><span class="dv">2</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<pre><code>'Map remembered topics'</code></pre>
+</div>
+</div>
+<div id="f45de8ab" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-09-03T22:58:28.442137+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-09-03T22:58:28.448686+00:00&quot;,&quot;total&quot;:0.006552462000001924}}" data-execution_count="18">
+<hr>
+<p><a href="https://github.com/vedicreader/shalya/blob/main/shalya/tools.py#L325" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="watch_tools" class="level3">
+<h3 class="anchored" data-anchor-id="watch_tools">watch_tools</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb38"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> watch_tools(</span>
+<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a>    host, mx:<span class="bu">int</span><span class="op">=</span><span class="dv">6000</span></span>
+<span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Standing interests: what to put back on the desk later, and what has come due now.</em></p>
+</section>
+</div>
+<p>A watch is registered, listed, polled and cancelled, and a reminder is a watch that files its own text.</p>
+<p>Answering out of memory is its own group. It takes a model, and a host can remember pages and search them without having anything to ask them with.</p>
+<div id="9022975e" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-09-03T22:58:28.450570+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-09-03T22:58:28.453168+00:00&quot;,&quot;total&quot;:0.0026155460000154562}}" data-execution_count="20">
+<hr>
+<p><a href="https://github.com/vedicreader/shalya/blob/main/shalya/tools.py#L391" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="ask_tools" class="level3">
+<h3 class="anchored" data-anchor-id="ask_tools">ask_tools</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb39"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> ask_tools(</span>
+<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a>    host, mx:<span class="bu">int</span><span class="op">=</span><span class="dv">6000</span></span>
+<span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Model-backed answers from memory.</em></p>
+</section>
+</div>
+<p>A deterministic result provider covers JSON rendering, citations, watch summaries, errors and write marks. <code>host</code> covers storage adapters.</p>
+<div id="2e185c63" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb40"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> MemoryResults:</span>
+<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> memory_search(<span class="va">self</span>, query, limit<span class="op">=</span><span class="dv">8</span>):</span>
+<span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> query <span class="op">==</span> <span class="st">'fail'</span>: <span class="cf">raise</span> <span class="pp">RuntimeError</span>(<span class="st">'vault unavailable'</span>)</span>
+<span id="cb40-4"><a href="#cb40-4" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> [{<span class="st">'id'</span>: <span class="st">'d1'</span>, <span class="st">'title'</span>: <span class="st">'Kettles'</span>, <span class="st">'text'</span>: <span class="st">'boils at 100C'</span>}][:limit]</span>
+<span id="cb40-5"><a href="#cb40-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> memory_tree(<span class="va">self</span>, document<span class="op">=</span><span class="st">''</span>): <span class="cf">return</span> [{<span class="st">'id'</span>: <span class="st">'d1'</span>, <span class="st">'title'</span>: <span class="st">'Kettles'</span>}]</span>
+<span id="cb40-6"><a href="#cb40-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> memory_read(<span class="va">self</span>, node_id): <span class="cf">return</span> {<span class="st">'id'</span>: node_id, <span class="st">'text'</span>: <span class="st">'boils at 100C'</span>}</span>
+<span id="cb40-7"><a href="#cb40-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> memory_topics(<span class="va">self</span>, limit<span class="op">=</span><span class="dv">12</span>): <span class="cf">return</span> [{<span class="st">'topic'</span>: <span class="st">'home'</span>}][:limit]</span>
+<span id="cb40-8"><a href="#cb40-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> memory_forget(<span class="va">self</span>, doc_id): <span class="cf">return</span> doc_id <span class="op">==</span> <span class="st">'d1'</span></span>
+<span id="cb40-9"><a href="#cb40-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> remember(<span class="va">self</span>, text, title<span class="op">=</span><span class="va">None</span>, tags<span class="op">=</span>()): <span class="cf">return</span> {<span class="st">'doc_id'</span>: <span class="st">'d2'</span>, <span class="st">'title'</span>: title <span class="kw">or</span> text}</span>
+<span id="cb40-10"><a href="#cb40-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> watch(<span class="va">self</span>, target, action<span class="op">=</span><span class="st">'remind'</span>, every<span class="op">=</span><span class="st">'1d'</span>, note<span class="op">=</span><span class="va">None</span>):</span>
+<span id="cb40-11"><a href="#cb40-11" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> {<span class="st">'id'</span>: <span class="st">'w1'</span>, <span class="st">'target'</span>: target, <span class="st">'action'</span>: action, <span class="st">'every'</span>: <span class="dv">86400</span>, <span class="st">'runs'</span>: <span class="dv">0</span>}</span>
+<span id="cb40-12"><a href="#cb40-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> watches(<span class="va">self</span>, due_only<span class="op">=</span><span class="va">False</span>):</span>
+<span id="cb40-13"><a href="#cb40-13" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> [] <span class="cf">if</span> due_only <span class="cf">else</span> [{<span class="st">'id'</span>: <span class="st">'w1'</span>, <span class="st">'target'</span>: <span class="st">'renew domain'</span>, <span class="st">'action'</span>: <span class="st">'remind'</span>,</span>
+<span id="cb40-14"><a href="#cb40-14" aria-hidden="true" tabindex="-1"></a>                                     <span class="st">'every'</span>: <span class="dv">86400</span>, <span class="st">'runs'</span>: <span class="dv">0</span>, <span class="st">'last_status'</span>: <span class="va">None</span>}]</span>
+<span id="cb40-15"><a href="#cb40-15" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> unwatch(<span class="va">self</span>, watch_id): <span class="cf">return</span> watch_id <span class="op">==</span> <span class="st">'w1'</span></span>
+<span id="cb40-16"><a href="#cb40-16" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> poll(<span class="va">self</span>):</span>
+<span id="cb40-17"><a href="#cb40-17" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> {<span class="st">'ran'</span>: <span class="dv">1</span>, <span class="st">'checked'</span>: <span class="dv">1</span>,</span>
+<span id="cb40-18"><a href="#cb40-18" aria-hidden="true" tabindex="-1"></a>                <span class="st">'results'</span>: [{<span class="st">'status'</span>: <span class="st">'ok'</span>, <span class="st">'action'</span>: <span class="st">'remind'</span>, <span class="st">'target'</span>: <span class="st">'renew domain'</span>}]}</span>
+<span id="cb40-19"><a href="#cb40-19" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> ask(<span class="va">self</span>, question, ref<span class="op">=</span><span class="va">None</span>, instruction<span class="op">=</span><span class="st">''</span>):</span>
+<span id="cb40-20"><a href="#cb40-20" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> {<span class="st">'answer'</span>: <span class="st">'Water boils at 100C.'</span>,</span>
+<span id="cb40-21"><a href="#cb40-21" aria-hidden="true" tabindex="-1"></a>                <span class="st">'cited'</span>: [{<span class="st">'n'</span>: <span class="dv">1</span>, <span class="st">'breadcrumb'</span>: <span class="st">'Kettles'</span>, <span class="st">'node_id'</span>: <span class="st">'d1'</span>}]}</span>
+<span id="cb40-22"><a href="#cb40-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-23"><a href="#cb40-23" aria-hidden="true" tabindex="-1"></a>memory_results <span class="op">=</span> MemoryResults()</span>
+<span id="cb40-24"><a href="#cb40-24" aria-hidden="true" tabindex="-1"></a>mt <span class="op">=</span> {t.<span class="va">__name__</span>: t <span class="cf">for</span> t <span class="kw">in</span> memory_tools(memory_results)}</span>
+<span id="cb40-25"><a href="#cb40-25" aria-hidden="true" tabindex="-1"></a>wa <span class="op">=</span> {t.<span class="va">__name__</span>: t <span class="cf">for</span> t <span class="kw">in</span> watch_tools(memory_results)}</span>
+<span id="cb40-26"><a href="#cb40-26" aria-hidden="true" tabindex="-1"></a>at <span class="op">=</span> {t.<span class="va">__name__</span>: t <span class="cf">for</span> t <span class="kw">in</span> ask_tools(memory_results)}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div id="37baf234" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb41"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a>test_eq(<span class="bu">sorted</span>(mt), [<span class="st">'memory_forget'</span>, <span class="st">'memory_read'</span>, <span class="st">'memory_search'</span>, <span class="st">'memory_topics'</span>, <span class="st">'memory_tree'</span>])</span>
+<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a>test_eq(<span class="bu">sorted</span>(wa), [<span class="st">'cancel_watch'</span>, <span class="st">'list_watches'</span>, <span class="st">'poll_watches'</span>, <span class="st">'remember'</span>, <span class="st">'set_reminder'</span>, <span class="st">'watch_url'</span>])</span>
+<span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a>test_eq(<span class="bu">sorted</span>(at), [<span class="st">'ask_memory'</span>])</span>
+<span id="cb41-4"><a href="#cb41-4" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="st">'boils at 100C'</span> <span class="kw">in</span> mt[<span class="st">'memory_search'</span>](<span class="st">'kettle'</span>)</span>
+<span id="cb41-5"><a href="#cb41-5" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> failed(mt[<span class="st">'memory_search'</span>](<span class="st">'fail'</span>)) <span class="kw">and</span> <span class="st">'vault unavailable'</span> <span class="kw">in</span> mt[<span class="st">'memory_search'</span>](<span class="st">'fail'</span>)</span>
+<span id="cb41-6"><a href="#cb41-6" aria-hidden="true" tabindex="-1"></a>test_eq(mt[<span class="st">'memory_forget'</span>](<span class="st">'d1'</span>), <span class="st">'forgot document'</span>)</span>
+<span id="cb41-7"><a href="#cb41-7" aria-hidden="true" tabindex="-1"></a>test_eq(wa[<span class="st">'remember'</span>](<span class="st">'fact'</span>, title<span class="op">=</span><span class="st">'Facts'</span>, tags<span class="op">=</span><span class="st">'one, two'</span>), <span class="st">"remembered 'Facts' as d2"</span>)</span>
+<span id="cb41-8"><a href="#cb41-8" aria-hidden="true" tabindex="-1"></a>test_eq(wa[<span class="st">'set_reminder'</span>](<span class="st">'renew domain'</span>), <span class="st">'reminder w1 set, every 1w'</span>)</span>
+<span id="cb41-9"><a href="#cb41-9" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="st">'every 86400s'</span> <span class="kw">in</span> wa[<span class="st">'list_watches'</span>]() <span class="kw">and</span> <span class="st">'renew domain'</span> <span class="kw">in</span> wa[<span class="st">'list_watches'</span>]()</span>
+<span id="cb41-10"><a href="#cb41-10" aria-hidden="true" tabindex="-1"></a>test_eq(wa[<span class="st">'poll_watches'</span>](), <span class="st">'1 of 1 fired</span><span class="ch">\n</span><span class="st">ok      remind   renew domain'</span>)</span>
+<span id="cb41-11"><a href="#cb41-11" aria-hidden="true" tabindex="-1"></a>test_eq(wa[<span class="st">'cancel_watch'</span>](<span class="st">'w1'</span>), <span class="st">'cancelled w1'</span>)</span>
+<span id="cb41-12"><a href="#cb41-12" aria-hidden="true" tabindex="-1"></a>answer <span class="op">=</span> at[<span class="st">'ask_memory'</span>](<span class="st">'boiling point'</span>)</span>
+<span id="cb41-13"><a href="#cb41-13" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="st">'Water boils at 100C.'</span> <span class="kw">in</span> answer <span class="kw">and</span> <span class="st">'[1] Kettles  (d1)'</span> <span class="kw">in</span> answer</span>
+<span id="cb41-14"><a href="#cb41-14" aria-hidden="true" tabindex="-1"></a>test_eq({t.<span class="va">__name__</span> <span class="cf">for</span> t <span class="kw">in</span> mt.values() <span class="cf">if</span> is_write(t)}, {<span class="st">'memory_forget'</span>})</span>
+<span id="cb41-15"><a href="#cb41-15" aria-hidden="true" tabindex="-1"></a>test_eq({t.<span class="va">__name__</span> <span class="cf">for</span> t <span class="kw">in</span> wa.values() <span class="cf">if</span> is_write(t)}, {<span class="st">'cancel_watch'</span>})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="the-live-session-and-the-shell" class="level2">
+<h2 class="anchored" data-anchor-id="the-live-session-and-the-shell">The live session and the shell</h2>
+<div id="f961d541" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-09-03T22:58:28.456446+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-09-03T22:58:28.459946+00:00&quot;,&quot;total&quot;:0.003504155000030096}}" data-execution_count="22">
+<hr>
+<p><a href="https://github.com/vedicreader/shalya/blob/main/shalya/tools.py#L414" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="session_tools" class="level3">
+<h3 class="anchored" data-anchor-id="session_tools">session_tools</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb42"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> session_tools(</span>
+<span id="cb42-2"><a href="#cb42-2" aria-hidden="true" tabindex="-1"></a>    host, mx:<span class="bu">int</span><span class="op">=</span><span class="dv">6000</span></span>
+<span id="cb42-3"><a href="#cb42-3" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>The live kernel the user is working in, and the terminal they are looking at.</em></p>
+</section>
+</div>
+<div id="8b273842" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-09-03T22:58:28.462188+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-09-03T22:58:28.466040+00:00&quot;,&quot;total&quot;:0.003856421000023147}}" data-execution_count="24">
+<hr>
+<p><a href="https://github.com/vedicreader/shalya/blob/main/shalya/tools.py#L451" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="shell_tools" class="level3">
+<h3 class="anchored" data-anchor-id="shell_tools">shell_tools</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb43"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> shell_tools(</span>
+<span id="cb43-2"><a href="#cb43-2" aria-hidden="true" tabindex="-1"></a>    host, mx:<span class="bu">int</span><span class="op">=</span><span class="dv">6000</span></span>
+<span id="cb43-3"><a href="#cb43-3" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Shell command tools.</em></p>
+</section>
+</div>
+<p>The session tools reach the live namespace, and the shell tool reaches the machine. Both are write tools, and both come back as text rather than raising.</p>
+<div id="2f46f17a" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb44"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a>st <span class="op">=</span> {t.<span class="va">__name__</span>: t <span class="cf">for</span> t <span class="kw">in</span> session_tools(host)}</span>
+<span id="cb44-2"><a href="#cb44-2" aria-hidden="true" tabindex="-1"></a>sh <span class="op">=</span> {t.<span class="va">__name__</span>: t <span class="cf">for</span> t <span class="kw">in</span> shell_tools(host)}</span>
+<span id="cb44-3"><a href="#cb44-3" aria-hidden="true" tabindex="-1"></a>st[<span class="st">'run_python'</span>](<span class="st">'total = 6 * 7'</span>), st[<span class="st">'run_python'</span>](<span class="st">'total'</span>), sh[<span class="st">'run_shell'</span>](<span class="st">'echo hi'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<pre><code>('(no output)', '42', 'exit 0\nhi')</code></pre>
+</div>
+</div>
+<div id="15ed7da1" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb46"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb46-1"><a href="#cb46-1" aria-hidden="true" tabindex="-1"></a>test_eq(st[<span class="st">'run_python'</span>](<span class="st">'total'</span>), <span class="st">'42'</span>)</span>
+<span id="cb46-2"><a href="#cb46-2" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="st">'total'</span> <span class="kw">in</span> st[<span class="st">'list_vars'</span>]()</span>
+<span id="cb46-3"><a href="#cb46-3" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="st">'hi'</span> <span class="kw">in</span> sh[<span class="st">'run_shell'</span>](<span class="st">'echo hi'</span>)</span>
+<span id="cb46-4"><a href="#cb46-4" aria-hidden="true" tabindex="-1"></a>host.note(<span class="st">'a status line'</span>)</span>
+<span id="cb46-5"><a href="#cb46-5" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="st">'a status line'</span> <span class="kw">in</span> st[<span class="st">'read_terminal'</span>](), st[<span class="st">'read_terminal'</span>]()</span>
+<span id="cb46-6"><a href="#cb46-6" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> is_write(st[<span class="st">'run_python'</span>]) <span class="kw">and</span> is_write(sh[<span class="st">'run_shell'</span>])</span>
+<span id="cb46-7"><a href="#cb46-7" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="kw">not</span> is_write(st[<span class="st">'inspect_python'</span>]) <span class="kw">and</span> <span class="kw">not</span> is_write(st[<span class="st">'read_terminal'</span>])</span>
+<span id="cb46-8"><a href="#cb46-8" aria-hidden="true" tabindex="-1"></a>test_eq(<span class="bu">sorted</span>(st), [<span class="st">'inspect_python'</span>, <span class="st">'list_vars'</span>, <span class="st">'read_terminal'</span>, <span class="st">'run_python'</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="an-api-specification" class="level2">
+<h2 class="anchored" data-anchor-id="an-api-specification">An API specification</h2>
+<div id="a645fa90" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-09-03T22:58:28.470461+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-09-03T22:58:28.475621+00:00&quot;,&quot;total&quot;:0.005163874000004398}}" data-execution_count="26">
+<hr>
+<p><a href="https://github.com/vedicreader/shalya/blob/main/shalya/tools.py#L473" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="api_tools" class="level3">
+<h3 class="anchored" data-anchor-id="api_tools">api_tools</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb47"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> api_tools(</span>
+<span id="cb47-2"><a href="#cb47-2" aria-hidden="true" tabindex="-1"></a>    host, mx:<span class="bu">int</span><span class="op">=</span><span class="dv">6000</span></span>
+<span id="cb47-3"><a href="#cb47-3" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Read an API specification, browse what it declares, and call one operation.</em></p>
+</section>
+</div>
+<p>A deterministic result provider covers JSON rendering, pagination, parameter forwarding and errors. <code>host</code> covers API backends.</p>
+<div id="19d01624" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb48"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb48-1"><a href="#cb48-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> ApiResults:</span>
+<span id="cb48-2"><a href="#cb48-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> api_load(<span class="va">self</span>, src, name<span class="op">=</span><span class="st">''</span>): <span class="cf">return</span> {<span class="st">'name'</span>: name <span class="kw">or</span> <span class="st">'petstore'</span>, <span class="st">'operations'</span>: <span class="dv">3</span>}</span>
+<span id="cb48-3"><a href="#cb48-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> api_ops(<span class="va">self</span>, group<span class="op">=</span><span class="st">''</span>, name<span class="op">=</span><span class="st">''</span>, match<span class="op">=</span><span class="st">''</span>, offset<span class="op">=</span><span class="dv">0</span>):</span>
+<span id="cb48-4"><a href="#cb48-4" aria-hidden="true" tabindex="-1"></a>        rows <span class="op">=</span> [{<span class="st">'name'</span>: <span class="st">'listPets'</span>}, {<span class="st">'name'</span>: <span class="st">'getPet'</span>}, {<span class="st">'name'</span>: <span class="st">'createPet'</span>}]</span>
+<span id="cb48-5"><a href="#cb48-5" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> match: rows <span class="op">=</span> [r <span class="cf">for</span> r <span class="kw">in</span> rows <span class="cf">if</span> match.lower() <span class="kw">in</span> r[<span class="st">'name'</span>].lower()]</span>
+<span id="cb48-6"><a href="#cb48-6" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> rows[offset:offset <span class="op">+</span> <span class="dv">1</span>]</span>
+<span id="cb48-7"><a href="#cb48-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> api_count(<span class="va">self</span>, group<span class="op">=</span><span class="st">''</span>, name<span class="op">=</span><span class="st">''</span>, match<span class="op">=</span><span class="st">''</span>):</span>
+<span id="cb48-8"><a href="#cb48-8" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="bu">len</span>([n <span class="cf">for</span> n <span class="kw">in</span> (<span class="st">'listPets'</span>, <span class="st">'getPet'</span>, <span class="st">'createPet'</span>) <span class="cf">if</span> <span class="kw">not</span> match <span class="kw">or</span> match.lower() <span class="kw">in</span> n.lower()])</span>
+<span id="cb48-9"><a href="#cb48-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> api_call(<span class="va">self</span>, operation, name<span class="op">=</span><span class="st">''</span>, <span class="op">**</span>params):</span>
+<span id="cb48-10"><a href="#cb48-10" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> operation <span class="op">==</span> <span class="st">'fail'</span>: <span class="cf">raise</span> <span class="pp">RuntimeError</span>(<span class="st">'service unavailable'</span>)</span>
+<span id="cb48-11"><a href="#cb48-11" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> {<span class="st">'called'</span>: operation, <span class="st">'with'</span>: params}</span>
+<span id="cb48-12"><a href="#cb48-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb48-13"><a href="#cb48-13" aria-hidden="true" tabindex="-1"></a>api_results <span class="op">=</span> ApiResults()</span>
+<span id="cb48-14"><a href="#cb48-14" aria-hidden="true" tabindex="-1"></a>apit <span class="op">=</span> {t.<span class="va">__name__</span>: t <span class="cf">for</span> t <span class="kw">in</span> api_tools(api_results)}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div id="2eff4e85" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb49"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a>test_eq(<span class="bu">sorted</span>(apit), [<span class="st">'api_call'</span>, <span class="st">'api_load'</span>, <span class="st">'api_ops'</span>])</span>
+<span id="cb49-2"><a href="#cb49-2" aria-hidden="true" tabindex="-1"></a>test_eq(json.loads(apit[<span class="st">'api_load'</span>](<span class="st">'spec.json'</span>)), {<span class="st">'name'</span>: <span class="st">'petstore'</span>, <span class="st">'operations'</span>: <span class="dv">3</span>})</span>
+<span id="cb49-3"><a href="#cb49-3" aria-hidden="true" tabindex="-1"></a>page <span class="op">=</span> json.loads(apit[<span class="st">'api_ops'</span>]())</span>
+<span id="cb49-4"><a href="#cb49-4" aria-hidden="true" tabindex="-1"></a>test_eq(page[<span class="st">'operations'</span>], [{<span class="st">'name'</span>: <span class="st">'listPets'</span>}])</span>
+<span id="cb49-5"><a href="#cb49-5" aria-hidden="true" tabindex="-1"></a>test_eq((page[<span class="st">'matched'</span>], page[<span class="st">'showing'</span>], page[<span class="st">'more'</span>]), (<span class="dv">3</span>, <span class="st">'1-1'</span>, <span class="st">'call again with offset=1'</span>))</span>
+<span id="cb49-6"><a href="#cb49-6" aria-hidden="true" tabindex="-1"></a>test_eq(json.loads(apit[<span class="st">'api_ops'</span>](match<span class="op">=</span><span class="st">'get'</span>))[<span class="st">'operations'</span>], [{<span class="st">'name'</span>: <span class="st">'getPet'</span>}])</span>
+<span id="cb49-7"><a href="#cb49-7" aria-hidden="true" tabindex="-1"></a>test_eq(json.loads(apit[<span class="st">'api_call'</span>](<span class="st">'getPet'</span>, params<span class="op">=</span>{<span class="st">'id'</span>: <span class="dv">7</span>})),</span>
+<span id="cb49-8"><a href="#cb49-8" aria-hidden="true" tabindex="-1"></a>        {<span class="st">'called'</span>: <span class="st">'getPet'</span>, <span class="st">'with'</span>: {<span class="st">'id'</span>: <span class="dv">7</span>}})</span>
+<span id="cb49-9"><a href="#cb49-9" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> failed(apit[<span class="st">'api_call'</span>](<span class="st">'fail'</span>)) <span class="kw">and</span> <span class="st">'service unavailable'</span> <span class="kw">in</span> apit[<span class="st">'api_call'</span>](<span class="st">'fail'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="skills-as-tools" class="level2">
+<h2 class="anchored" data-anchor-id="skills-as-tools">Skills as tools</h2>
+<div id="5a828031" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-09-03T22:58:28.480592+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-09-03T22:58:28.485775+00:00&quot;,&quot;total&quot;:0.00518654699999388}}" data-execution_count="28">
+<hr>
+<p><a href="https://github.com/vedicreader/shalya/blob/main/shalya/tools.py#L507" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="skill_tools" class="level3">
+<h3 class="anchored" data-anchor-id="skill_tools">skill_tools</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb50"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb50-1"><a href="#cb50-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> skill_tools(</span>
+<span id="cb50-2"><a href="#cb50-2" aria-hidden="true" tabindex="-1"></a>    host, get_skills, mx:<span class="bu">int</span><span class="op">=</span><span class="dv">6000</span></span>
+<span id="cb50-3"><a href="#cb50-3" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Reading discovered skills and creating project-local Agent Skills.</em></p>
+</section>
+</div>
+<p>The system prompt lists skill names and descriptions. <code>read_skill</code> fetches a body when the agent needs it.</p>
+<div id="6cc31095" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-09-03T22:58:28.485882+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-09-03T22:58:28.486457+00:00&quot;,&quot;total&quot;:0.00057785500001728}}" data-execution_count="29">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb51"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb51-1"><a href="#cb51-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> shalya.skills <span class="im">import</span> discover</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div id="eca77a18" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb52"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb52-1"><a href="#cb52-1" aria-hidden="true" tabindex="-1"></a>skill_path <span class="op">=</span> root<span class="op">/</span><span class="st">'.agents'</span><span class="op">/</span><span class="st">'skills'</span><span class="op">/</span><span class="st">'house-style'</span><span class="op">/</span><span class="st">'SKILL.md'</span></span>
+<span id="cb52-2"><a href="#cb52-2" aria-hidden="true" tabindex="-1"></a>skill_path.parent.mkdir(parents<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb52-3"><a href="#cb52-3" aria-hidden="true" tabindex="-1"></a>skill_path.write_text(</span>
+<span id="cb52-4"><a href="#cb52-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">'---</span><span class="ch">\n</span><span class="st">name: house-style</span><span class="ch">\n</span><span class="st">description: How code is written here.</span><span class="ch">\n</span><span class="st">---</span><span class="ch">\n\n</span><span class="st">Dense lines. Short names.</span><span class="ch">\n</span><span class="st">'</span>)</span>
+<span id="cb52-5"><a href="#cb52-5" aria-hidden="true" tabindex="-1"></a>skills <span class="op">=</span> discover(roots<span class="op">=</span>[root])</span>
+<span id="cb52-6"><a href="#cb52-6" aria-hidden="true" tabindex="-1"></a>skt <span class="op">=</span> {t.<span class="va">__name__</span>: t <span class="cf">for</span> t <span class="kw">in</span> skill_tools(host, <span class="kw">lambda</span>: skills)}</span>
+<span id="cb52-7"><a href="#cb52-7" aria-hidden="true" tabindex="-1"></a>skt[<span class="st">'read_skill'</span>](<span class="st">'house-style'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<pre><code>'&lt;skill name="house-style" from="/private/var/folders/kg/9vdw4mdd1fs58svgh4k1qhr09x7dqh/T/tmp0nwf2kip/proj/.agents/skills/house-style/SKILL.md"&gt;\n\nDense lines. Short names.\n\n&lt;/skill&gt;'</code></pre>
+</div>
+</div>
+<div id="ca03260b" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb54"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb54-1"><a href="#cb54-1" aria-hidden="true" tabindex="-1"></a>test_eq(<span class="bu">sorted</span>(skt), [<span class="st">'create_skill'</span>, <span class="st">'read_skill'</span>])</span>
+<span id="cb54-2"><a href="#cb54-2" aria-hidden="true" tabindex="-1"></a>body <span class="op">=</span> skt[<span class="st">'read_skill'</span>](<span class="st">'house-style'</span>)</span>
+<span id="cb54-3"><a href="#cb54-3" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> body.startswith(<span class="st">'&lt;skill name="house-style"'</span>) <span class="kw">and</span> <span class="st">'Dense lines.'</span> <span class="kw">in</span> body</span>
+<span id="cb54-4"><a href="#cb54-4" aria-hidden="true" tabindex="-1"></a>test_eq(skt[<span class="st">'read_skill'</span>](<span class="st">'house'</span>), body)                 <span class="co"># unique prefix resolves to the same skill</span></span>
+<span id="cb54-5"><a href="#cb54-5" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="st">"no skill matching 'nope'"</span> <span class="kw">in</span> skt[<span class="st">'read_skill'</span>](<span class="st">'nope'</span>)</span>
+<span id="cb54-6"><a href="#cb54-6" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="st">'house-style'</span> <span class="kw">in</span> skt[<span class="st">'read_skill'</span>](<span class="st">'nope'</span>)</span>
+<span id="cb54-7"><a href="#cb54-7" aria-hidden="true" tabindex="-1"></a>test_eq({t.<span class="va">__name__</span> <span class="cf">for</span> t <span class="kw">in</span> skill_tools(host, <span class="kw">lambda</span>: skills) <span class="cf">if</span> is_write(t)}, {<span class="st">'create_skill'</span>})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p><code>create_skill</code> writes under the first open folder in the layout <a href="https://vedicreader.github.io/shalya/skills.html#discover"><code>discover</code></a> reads, and refuses rather than overwriting one that is already there.</p>
+<div id="2885c058" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb55"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb55-1"><a href="#cb55-1" aria-hidden="true" tabindex="-1"></a>skt[<span class="st">'create_skill'</span>](<span class="st">'notebook-tests'</span>, <span class="st">'when testing'</span>, <span class="st">'Put the readable case in the notebook.'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<pre><code>'created /private/var/folders/kg/9vdw4mdd1fs58svgh4k1qhr09x7dqh/T/tmp0nwf2kip/proj/.agents/skills/notebook-tests/SKILL.md; run /reload to load it into the current agent'</code></pre>
+</div>
+</div>
+<div id="7b2a66af" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb57"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb57-1"><a href="#cb57-1" aria-hidden="true" tabindex="-1"></a>made <span class="op">=</span> root<span class="op">/</span><span class="st">'.agents'</span><span class="op">/</span><span class="st">'skills'</span><span class="op">/</span><span class="st">'notebook-tests'</span><span class="op">/</span><span class="st">'SKILL.md'</span></span>
+<span id="cb57-2"><a href="#cb57-2" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> made.exists(), made</span>
+<span id="cb57-3"><a href="#cb57-3" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="st">'when testing'</span> <span class="kw">in</span> made.read_text() <span class="kw">and</span> <span class="st">'readable case'</span> <span class="kw">in</span> made.read_text()</span>
+<span id="cb57-4"><a href="#cb57-4" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> skt[<span class="st">'create_skill'</span>](<span class="st">'notebook-tests'</span>, <span class="st">'again'</span>, <span class="st">'body'</span>).startswith(<span class="st">'refusing to overwrite'</span>)</span>
+<span id="cb57-5"><a href="#cb57-5" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="st">'kebab-case'</span> <span class="kw">in</span> skt[<span class="st">'create_skill'</span>](<span class="st">'Notebook Tests'</span>, <span class="st">'x'</span>, <span class="st">'y'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="pictures" class="level2">
+<h2 class="anchored" data-anchor-id="pictures">Pictures</h2>
+<p>Image generation uses the current model when it can draw, then a dedicated image endpoint. <code>draws_itself</code> and <code>from_reply</code> provide the model-specific operations.</p>
+<div id="ff13f81b" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-09-03T22:58:28.492087+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-09-03T22:58:28.494955+00:00&quot;,&quot;total&quot;:0.0028718259999891416}}" data-execution_count="32">
+<hr>
+<p><a href="https://github.com/vedicreader/shalya/blob/main/shalya/tools.py#L589" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="api_model" class="level3">
+<h3 class="anchored" data-anchor-id="api_model">api_model</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb58"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb58-1"><a href="#cb58-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> api_model(</span>
+<span id="cb58-2"><a href="#cb58-2" aria-hidden="true" tabindex="-1"></a>    model</span>
+<span id="cb58-3"><a href="#cb58-3" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Strip a supported API-vendor prefix from a model id.</em></p>
+</section>
+</div>
+<div id="15c5be08" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-09-03T22:58:28.495052+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-09-03T22:58:28.497629+00:00&quot;,&quot;total&quot;:0.0025806749999901513}}" data-execution_count="33">
+<hr>
+<p><a href="https://github.com/vedicreader/shalya/blob/main/shalya/tools.py#L578" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="image_available" class="level3">
+<h3 class="anchored" data-anchor-id="image_available">image_available</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb59"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb59-1"><a href="#cb59-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> image_available():</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Call self as a function.</em></p>
+</section>
+</div>
+<div id="89e59306" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-09-03T22:58:28.497722+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-09-03T22:58:28.500919+00:00&quot;,&quot;total&quot;:0.0032002110000348694}}" data-execution_count="34">
+<hr>
+<p><a href="https://github.com/vedicreader/shalya/blob/main/shalya/tools.py#L568" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="save_media" class="level3">
+<h3 class="anchored" data-anchor-id="save_media">save_media</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb60"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb60-1"><a href="#cb60-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> save_media(</span>
+<span id="cb60-2"><a href="#cb60-2" aria-hidden="true" tabindex="-1"></a>    m, session:<span class="bu">str</span><span class="op">=</span><span class="st">''</span>, stem:<span class="bu">str</span><span class="op">=</span><span class="st">'image'</span></span>
+<span id="cb60-3"><a href="#cb60-3" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Save one media item under the session and return its path.</em></p>
+</section>
+</div>
+<div id="53625add" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-09-03T22:58:28.501012+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-09-03T22:58:28.503156+00:00&quot;,&quot;total&quot;:0.0021466629999622455}}" data-execution_count="35">
+<hr>
+<p><a href="https://github.com/vedicreader/shalya/blob/main/shalya/tools.py#L562" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="mime_for" class="level3">
+<h3 class="anchored" data-anchor-id="mime_for">mime_for</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb61"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb61-1"><a href="#cb61-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> mime_for(</span>
+<span id="cb61-2"><a href="#cb61-2" aria-hidden="true" tabindex="-1"></a>    path</span>
+<span id="cb61-3"><a href="#cb61-3" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Detect a file’s MIME type from bytes, then its suffix.</em></p>
+</section>
+</div>
+<div id="41defe0d" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-09-03T22:58:28.503252+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-09-03T22:58:28.505053+00:00&quot;,&quot;total&quot;:0.0018036310000297817}}" data-execution_count="36">
+<hr>
+<p><a href="https://github.com/vedicreader/shalya/blob/main/shalya/tools.py#L556" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="media_dir" class="level3">
+<h3 class="anchored" data-anchor-id="media_dir">media_dir</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb62"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb62-1"><a href="#cb62-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> media_dir(</span>
+<span id="cb62-2"><a href="#cb62-2" aria-hidden="true" tabindex="-1"></a>    session:<span class="bu">str</span><span class="op">=</span><span class="st">''</span></span>
+<span id="cb62-3"><a href="#cb62-3" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Return the session’s media directory.</em></p>
+</section>
+</div>
+<p><a href="https://vedicreader.github.io/shalya/tools.html#save_media"><code>save_media</code></a> chooses the path and name for a generated picture. A frontend can locate the result from its session.</p>
+<div id="4ed4455c" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb63"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb63-1"><a href="#cb63-1" aria-hidden="true" tabindex="-1"></a>png <span class="op">=</span> {<span class="st">'mime'</span>: <span class="st">'image/png'</span>, <span class="st">'data'</span>: <span class="st">b'</span><span class="ch">\x89</span><span class="st">PNG</span><span class="ch">\r\n\x1a\n</span><span class="st">'</span> <span class="op">+</span> <span class="st">b'0'</span> <span class="op">*</span> <span class="dv">20</span>}</span>
+<span id="cb63-2"><a href="#cb63-2" aria-hidden="true" tabindex="-1"></a>saved <span class="op">=</span> save_media(png, session<span class="op">=</span>root<span class="op">/</span><span class="st">'s1'</span>, stem<span class="op">=</span><span class="st">'generated'</span>)</span>
+<span id="cb63-3"><a href="#cb63-3" aria-hidden="true" tabindex="-1"></a>saved, mime_for(saved)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<pre><code>(Path('/private/var/folders/kg/9vdw4mdd1fs58svgh4k1qhr09x7dqh/T/tmp0nwf2kip/proj/s1/media/generated-1.png'),
+ 'image/png')</code></pre>
+</div>
+</div>
+<div id="b0049270" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb65"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb65-1"><a href="#cb65-1" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> saved.exists() <span class="kw">and</span> saved.suffix <span class="op">==</span> <span class="st">'.png'</span></span>
+<span id="cb65-2"><a href="#cb65-2" aria-hidden="true" tabindex="-1"></a>test_eq(saved.parent, media_dir(root<span class="op">/</span><span class="st">'s1'</span>))</span>
+<span id="cb65-3"><a href="#cb65-3" aria-hidden="true" tabindex="-1"></a>test_eq(saved.read_bytes(), png[<span class="st">'data'</span>])</span>
+<span id="cb65-4"><a href="#cb65-4" aria-hidden="true" tabindex="-1"></a>test_eq(mime_for(saved), <span class="st">'image/png'</span>)</span>
+<span id="cb65-5"><a href="#cb65-5" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> saved.name.startswith(<span class="st">'generated'</span>), saved.name</span>
+<span id="cb65-6"><a href="#cb65-6" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> save_media(png, session<span class="op">=</span>root<span class="op">/</span><span class="st">'s1'</span>, stem<span class="op">=</span><span class="st">'generated'</span>).name <span class="op">!=</span> saved.name</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div id="3bc59253" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-09-03T22:58:28.507374+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-09-03T22:58:28.510581+00:00&quot;,&quot;total&quot;:0.0032109119999859104}}" data-execution_count="38">
+<hr>
+<p><a href="https://github.com/vedicreader/shalya/blob/main/shalya/tools.py#L605" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="image_tools" class="level3">
+<h3 class="anchored" data-anchor-id="image_tools">image_tools</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb66"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb66-1"><a href="#cb66-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> image_tools(</span>
+<span id="cb66-2"><a href="#cb66-2" aria-hidden="true" tabindex="-1"></a>    host, mx:<span class="bu">int</span><span class="op">=</span><span class="dv">6000</span>, session:<span class="bu">str</span><span class="op">=</span><span class="st">''</span>, draws_itself:NoneType<span class="op">=</span><span class="va">None</span>, from_reply:NoneType<span class="op">=</span><span class="va">None</span>, model_id:<span class="bu">str</span><span class="op">=</span><span class="st">''</span>,</span>
+<span id="cb66-3"><a href="#cb66-3" aria-hidden="true" tabindex="-1"></a>    on_media:NoneType<span class="op">=</span><span class="va">None</span></span>
+<span id="cb66-4"><a href="#cb66-4" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Drawing: by the turn’s own model where it can, and by the images endpoint where it cannot.</em></p>
+</section>
+</div>
+<p>The image group is credentialled rather than declared: a key is either there or it is not, and <a href="https://vedicreader.github.io/shalya/tools.html#tools_for"><code>tools_for</code></a> never probes for one. Without a key the tool says so and reaches nothing.</p>
+<div id="b108abb1" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb67"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb67-1"><a href="#cb67-1" aria-hidden="true" tabindex="-1"></a>image_available(), api_model(<span class="st">'gpt-image-1'</span>), api_model(<span class="st">'openai/gpt-image-1'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<pre><code>(True, 'gpt-image-1', 'gpt-image-1')</code></pre>
+</div>
+</div>
+<div id="adbffd0e" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb69"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb69-1"><a href="#cb69-1" aria-hidden="true" tabindex="-1"></a>test_eq(image_available(), <span class="bu">bool</span>(os.environ.get(<span class="st">'OPENAI_API_KEY'</span>)))</span>
+<span id="cb69-2"><a href="#cb69-2" aria-hidden="true" tabindex="-1"></a>test_eq(api_model(<span class="st">'openai/gpt-image-1'</span>), <span class="st">'gpt-image-1'</span>)   <span class="co"># a vendor prefix is stripped</span></span>
+<span id="cb69-3"><a href="#cb69-3" aria-hidden="true" tabindex="-1"></a>test_eq(api_model(<span class="st">'gpt-image-1'</span>), <span class="st">'gpt-image-1'</span>)</span>
+<span id="cb69-4"><a href="#cb69-4" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="st">'1024x1024'</span> <span class="kw">in</span> IMAGE_SIZES <span class="kw">and</span> <span class="st">'auto'</span> <span class="kw">in</span> IMAGE_SIZES</span>
+<span id="cb69-5"><a href="#cb69-5" aria-hidden="true" tabindex="-1"></a>test_eq(IMAGE_MODEL, <span class="st">'gpt-image-1'</span>)</span>
+<span id="cb69-6"><a href="#cb69-6" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> RESPONSES_API.startswith(<span class="st">'https://'</span>) <span class="kw">and</span> IMAGE_API.startswith(<span class="st">'https://'</span>)</span>
+<span id="cb69-7"><a href="#cb69-7" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="bu">all</span>(v.endswith(<span class="st">'/'</span>) <span class="cf">for</span> v <span class="kw">in</span> API_VENDORS)</span>
+<span id="cb69-8"><a href="#cb69-8" aria-hidden="true" tabindex="-1"></a>gen <span class="op">=</span> image_tools(host)[<span class="dv">0</span>]</span>
+<span id="cb69-9"><a href="#cb69-9" aria-hidden="true" tabindex="-1"></a>test_eq(gen.<span class="va">__name__</span>, <span class="st">'generate_image'</span>)</span>
+<span id="cb69-10"><a href="#cb69-10" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="kw">not</span> image_available():</span>
+<span id="cb69-11"><a href="#cb69-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">assert</span> <span class="st">'OPENAI_API_KEY'</span> <span class="kw">in</span> gen(<span class="st">'a kettle'</span>)            <span class="co"># it says so rather than reaching the wire</span></span>
+<span id="cb69-12"><a href="#cb69-12" aria-hidden="true" tabindex="-1"></a><span class="cf">else</span>: <span class="cf">assert</span> failed(gen(<span class="st">'a kettle'</span>, size<span class="op">=</span><span class="st">'3x3'</span>))          <span class="co"># and an unknown size never gets sent</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The live image check calls the configured OpenAI image endpoint and verifies that the returned file is a non-empty image. It is excluded from the default suite because it spends credentials.</p>
+<div id="3b7a7938" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb70"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb70-1"><a href="#cb70-1" aria-hidden="true" tabindex="-1"></a>image_root <span class="op">=</span> Path(tempfile.mkdtemp())</span>
+<span id="cb70-2"><a href="#cb70-2" aria-hidden="true" tabindex="-1"></a>image_host <span class="op">=</span> LocalHost([image_root], index<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb70-3"><a href="#cb70-3" aria-hidden="true" tabindex="-1"></a>generate_image <span class="op">=</span> image_tools(image_host, session<span class="op">=</span>image_root)[<span class="dv">0</span>]</span>
+<span id="cb70-4"><a href="#cb70-4" aria-hidden="true" tabindex="-1"></a>image_result <span class="op">=</span> generate_image(<span class="st">'A simple black circle centered on a white background'</span>, n<span class="op">=</span><span class="dv">1</span>)</span>
+<span id="cb70-5"><a href="#cb70-5" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="kw">not</span> image_result.startswith(<span class="st">'ERROR:'</span>), image_result</span>
+<span id="cb70-6"><a href="#cb70-6" aria-hidden="true" tabindex="-1"></a>image_path <span class="op">=</span> Path(image_result.strip())</span>
+<span id="cb70-7"><a href="#cb70-7" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> image_path.exists() <span class="kw">and</span> image_path.stat().st_size <span class="op">&gt;</span> <span class="dv">1000</span></span>
+<span id="cb70-8"><a href="#cb70-8" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> mime_for(image_path).startswith(<span class="st">'image/'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="git" class="level2">
+<h2 class="anchored" data-anchor-id="git">Git</h2>
+<p>Git tools delegate to <code>gheasy</code>. A repository found by walking above a supplied path must still be inside the host’s roots.</p>
+<div id="13cf8dc3" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-09-03T22:58:28.597762+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-09-03T22:58:28.604165+00:00&quot;,&quot;total&quot;:0.006405970999992405}}" data-execution_count="41">
+<hr>
+<p><a href="https://github.com/vedicreader/shalya/blob/main/shalya/tools.py#L635" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="git_tools" class="level3">
+<h3 class="anchored" data-anchor-id="git_tools">git_tools</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb71"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb71-1"><a href="#cb71-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> git_tools(</span>
+<span id="cb71-2"><a href="#cb71-2" aria-hidden="true" tabindex="-1"></a>    host, mx:<span class="bu">int</span><span class="op">=</span><span class="dv">6000</span></span>
+<span id="cb71-3"><a href="#cb71-3" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Git bound to one open repository, kept inside the host’s roots.</em></p>
+</section>
+</div>
+<p>A real repository, with one commit and one untracked file.</p>
+<div id="5df014f8" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb72"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb72-1"><a href="#cb72-1" aria-hidden="true" tabindex="-1"></a>repo <span class="op">=</span> Path(tempfile.mkdtemp()).resolve()<span class="op">/</span><span class="st">'repo'</span></span>
+<span id="cb72-2"><a href="#cb72-2" aria-hidden="true" tabindex="-1"></a>repo.mkdir(parents<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb72-3"><a href="#cb72-3" aria-hidden="true" tabindex="-1"></a>(repo<span class="op">/</span><span class="st">'a.py'</span>).write_text(<span class="st">'x = 1</span><span class="ch">\n</span><span class="st">'</span>)</span>
+<span id="cb72-4"><a href="#cb72-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> c <span class="kw">in</span> ([<span class="st">'init'</span>, <span class="st">'-q'</span>, <span class="st">'-b'</span>, <span class="st">'main'</span>], [<span class="st">'add'</span>, <span class="st">'a.py'</span>],</span>
+<span id="cb72-5"><a href="#cb72-5" aria-hidden="true" tabindex="-1"></a>          [<span class="st">'-c'</span>, <span class="st">'user.email=t@e'</span>, <span class="st">'-c'</span>, <span class="st">'user.name=T'</span>, <span class="st">'commit'</span>, <span class="st">'-qm'</span>, <span class="st">'first'</span>]):</span>
+<span id="cb72-6"><a href="#cb72-6" aria-hidden="true" tabindex="-1"></a>    subprocess.run([<span class="st">'git'</span>, <span class="st">'-C'</span>, <span class="bu">str</span>(repo)] <span class="op">+</span> c, check<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb72-7"><a href="#cb72-7" aria-hidden="true" tabindex="-1"></a>(repo<span class="op">/</span><span class="st">'b.py'</span>).write_text(<span class="st">'y = 2</span><span class="ch">\n</span><span class="st">'</span>)</span>
+<span id="cb72-8"><a href="#cb72-8" aria-hidden="true" tabindex="-1"></a>ghost <span class="op">=</span> LocalHost([repo], index<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb72-9"><a href="#cb72-9" aria-hidden="true" tabindex="-1"></a>gt <span class="op">=</span> {t.<span class="va">__name__</span>: t <span class="cf">for</span> t <span class="kw">in</span> git_tools(ghost)}</span>
+<span id="cb72-10"><a href="#cb72-10" aria-hidden="true" tabindex="-1"></a>status <span class="op">=</span> json.loads(gt[<span class="st">'git_status'</span>]())</span>
+<span id="cb72-11"><a href="#cb72-11" aria-hidden="true" tabindex="-1"></a>status[<span class="st">'branch'</span>], status[<span class="st">'clean'</span>], [c[<span class="st">'path'</span>] <span class="cf">for</span> c <span class="kw">in</span> status[<span class="st">'changes'</span>]]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<pre><code>('main', False, ['b.py'])</code></pre>
+</div>
+</div>
+<div id="9b6d50af" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb74"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb74-1"><a href="#cb74-1" aria-hidden="true" tabindex="-1"></a>test_eq(status[<span class="st">'branch'</span>], <span class="st">'main'</span>)</span>
+<span id="cb74-2"><a href="#cb74-2" aria-hidden="true" tabindex="-1"></a>test_eq(status[<span class="st">'clean'</span>], <span class="va">False</span>)</span>
+<span id="cb74-3"><a href="#cb74-3" aria-hidden="true" tabindex="-1"></a>test_eq([c[<span class="st">'path'</span>] <span class="cf">for</span> c <span class="kw">in</span> status[<span class="st">'changes'</span>]], [<span class="st">'b.py'</span>])</span>
+<span id="cb74-4"><a href="#cb74-4" aria-hidden="true" tabindex="-1"></a>test_eq(<span class="bu">sorted</span>(gt), <span class="bu">sorted</span>(GIT_TOOLS))</span>
+<span id="cb74-5"><a href="#cb74-5" aria-hidden="true" tabindex="-1"></a>test_eq({t.<span class="va">__name__</span> <span class="cf">for</span> t <span class="kw">in</span> git_tools(ghost) <span class="cf">if</span> is_write(t)}, <span class="bu">set</span>(GIT_WRITE_TOOLS))</span>
+<span id="cb74-6"><a href="#cb74-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb74-7"><a href="#cb74-7" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> failed(gt[<span class="st">'git_divergence'</span>]()) <span class="kw">and</span> <span class="st">'tracks nothing'</span> <span class="kw">in</span> gt[<span class="st">'git_divergence'</span>]()</span>
+<span id="cb74-8"><a href="#cb74-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb74-9"><a href="#cb74-9" aria-hidden="true" tabindex="-1"></a>prev <span class="op">=</span> json.loads(gt[<span class="st">'git_rebase_preview'</span>](<span class="st">'main'</span>))</span>
+<span id="cb74-10"><a href="#cb74-10" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> {<span class="st">'current'</span>, <span class="st">'onto'</span>, <span class="st">'clean'</span>, <span class="st">'merge_base'</span>} <span class="op">&lt;=</span> <span class="bu">set</span>(prev), <span class="bu">sorted</span>(prev)</span>
+<span id="cb74-11"><a href="#cb74-11" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="st">'stops_at'</span> <span class="kw">in</span> prev <span class="kw">and</span> <span class="st">'replayed'</span> <span class="kw">in</span> prev, <span class="bu">sorted</span>(prev)</span>
+<span id="cb74-12"><a href="#cb74-12" aria-hidden="true" tabindex="-1"></a>test_eq(subprocess.run([<span class="st">'git'</span>, <span class="st">'-C'</span>, <span class="bu">str</span>(repo), <span class="st">'status'</span>, <span class="st">'--porcelain'</span>],</span>
+<span id="cb74-13"><a href="#cb74-13" aria-hidden="true" tabindex="-1"></a>                       capture_output<span class="op">=</span><span class="va">True</span>, text<span class="op">=</span><span class="va">True</span>).stdout.strip(), <span class="st">'?? b.py'</span>)</span>
+<span id="cb74-14"><a href="#cb74-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb74-15"><a href="#cb74-15" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> failed(gt[<span class="st">'git_checkout'</span>](<span class="st">'no-such-branch'</span>))</span>
+<span id="cb74-16"><a href="#cb74-16" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="st">'op must be one of'</span> <span class="kw">in</span> gt[<span class="st">'git_remote'</span>](<span class="st">'nonsense'</span>)   <span class="co"># never reaches the network</span></span>
+<span id="cb74-17"><a href="#cb74-17" aria-hidden="true" tabindex="-1"></a>fetched <span class="op">=</span> gt[<span class="st">'git_remote'</span>](<span class="st">'fetch'</span>)                          <span class="co"># no remote, so it is a no-op not a lie</span></span>
+<span id="cb74-18"><a href="#cb74-18" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> failed(fetched) <span class="kw">or</span> json.loads(fetched)[<span class="st">'branch'</span>] <span class="op">==</span> <span class="st">'main'</span>, fetched</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="which-tools-a-host-gets" class="level2">
+<h2 class="anchored" data-anchor-id="which-tools-a-host-gets">Which tools a host gets</h2>
+<p><a href="https://vedicreader.github.io/shalya/host.html#host.provides"><code>Host.provides</code></a> selects tool groups. <code>drop</code> removes groups from that selection.</p>
+<div id="1da65402" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-09-03T22:58:28.607210+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-09-03T22:58:28.610595+00:00&quot;,&quot;total&quot;:0.003389281000011124}}" data-execution_count="43">
+<hr>
+<p><a href="https://github.com/vedicreader/shalya/blob/main/shalya/tools.py#L686" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="tools_for" class="level3">
+<h3 class="anchored" data-anchor-id="tools_for">tools_for</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb75"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb75-1"><a href="#cb75-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> tools_for(</span>
+<span id="cb75-2"><a href="#cb75-2" aria-hidden="true" tabindex="-1"></a>    host, get_skills:NoneType<span class="op">=</span><span class="va">None</span>, extra:<span class="bu">tuple</span><span class="op">=</span>(), mx:<span class="bu">int</span><span class="op">=</span><span class="dv">6000</span>, drop:<span class="bu">tuple</span><span class="op">=</span>(), image:NoneType<span class="op">=</span><span class="va">None</span></span>
+<span id="cb75-3"><a href="#cb75-3" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>Every tool this host declares it can support, plus whatever else was registered.</em></p>
+<p><code>image</code> is a built image group, or None. It needs to know what the turn’s model can do, and a host does not, so the frontend that knows builds it and passes it in.</p>
+</section>
+</div>
+<p><a href="https://vedicreader.github.io/shalya/tools.html#tools_for"><code>tools_for</code></a> maps declared group names to factories. Tests require the table and capability classes to use the same names.</p>
+<div id="e61381b4" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb76"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb76-1"><a href="#cb76-1" aria-hidden="true" tabindex="-1"></a>[g <span class="cf">for</span> g, _ <span class="kw">in</span> GROUPS]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<pre><code>['code',
+ 'file',
+ 'notebook',
+ 'web',
+ 'memory',
+ 'ask',
+ 'watch',
+ 'api',
+ 'session',
+ 'shell',
+ 'git']</code></pre>
+</div>
+</div>
+<div id="740f59d7" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-09-03T22:58:28.611211+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-09-03T22:58:28.612965+00:00&quot;,&quot;total&quot;:0.0017567419999977574}}" data-execution_count="44">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb78"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb78-1"><a href="#cb78-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> shalya.host <span class="im">import</span> (ApiHost, AskHost, CodeHost, GitHost, MemoryHost, NotebookHost,</span>
+<span id="cb78-2"><a href="#cb78-2" aria-hidden="true" tabindex="-1"></a>                         SessionHost, ShellHost, WatchHost, WebHost)</span>
+<span id="cb78-3"><a href="#cb78-3" aria-hidden="true" tabindex="-1"></a>declared <span class="op">=</span> {c.group <span class="cf">for</span> c <span class="kw">in</span> (CodeHost, WebHost, NotebookHost, MemoryHost, AskHost, WatchHost,</span>
+<span id="cb78-4"><a href="#cb78-4" aria-hidden="true" tabindex="-1"></a>                              SessionHost, ShellHost, ApiHost, GitHost)} <span class="op">|</span> {<span class="st">'file'</span>}</span>
+<span id="cb78-5"><a href="#cb78-5" aria-hidden="true" tabindex="-1"></a>test_eq({g <span class="cf">for</span> g, _ <span class="kw">in</span> GROUPS}, declared)</span>
+<span id="cb78-6"><a href="#cb78-6" aria-hidden="true" tabindex="-1"></a>test_eq(<span class="bu">len</span>(GROUPS), <span class="bu">len</span>(declared))                       <span class="co"># named once each</span></span>
+<span id="cb78-7"><a href="#cb78-7" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="bu">all</span>(<span class="bu">callable</span>(f) <span class="cf">for</span> _, f <span class="kw">in</span> GROUPS)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>A host over a git repository gets ten groups’ worth of tools, and the groups it declared it could not do are simply absent.</p>
+<div id="2e568b4b" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb79"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb79-1"><a href="#cb79-1" aria-hidden="true" tabindex="-1"></a>ts <span class="op">=</span> tools_for(ghost)</span>
+<span id="cb79-2"><a href="#cb79-2" aria-hidden="true" tabindex="-1"></a><span class="bu">sorted</span>(t.<span class="va">__name__</span> <span class="cf">for</span> t <span class="kw">in</span> ts)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<pre><code>['add_cell',
+ 'add_root',
+ 'create_file',
+ 'edit_cell',
+ 'edit_file',
+ 'git_checkout',
+ 'git_divergence',
+ 'git_rebase_preview',
+ 'git_remote',
+ 'git_status',
+ 'grep',
+ 'inspect_python',
+ 'list_files',
+ 'list_vars',
+ 'ls',
+ 'notebook_cells',
+ 'outline',
+ 'read_terminal',
+ 'read_url',
+ 'replace_text',
+ 'research',
+ 'run_python',
+ 'run_shell',
+ 'search_code',
+ 'similar_code',
+ 'view_cell',
+ 'view_file',
+ 'web_search']</code></pre>
+</div>
+</div>
+<div id="0353b787" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb81"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb81-1"><a href="#cb81-1" aria-hidden="true" tabindex="-1"></a>names <span class="op">=</span> {t.<span class="va">__name__</span> <span class="cf">for</span> t <span class="kw">in</span> ts}</span>
+<span id="cb81-2"><a href="#cb81-2" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> {<span class="st">'search_code'</span>, <span class="st">'view_file'</span>, <span class="st">'run_shell'</span>, <span class="st">'git_status'</span>} <span class="op">&lt;=</span> names, names</span>
+<span id="cb81-3"><a href="#cb81-3" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="kw">not</span> (names <span class="op">&amp;</span> {<span class="st">'memory_search'</span>, <span class="st">'api_load'</span>, <span class="st">'list_watches'</span>}), <span class="st">'no vault and no specs'</span></span>
+<span id="cb81-4"><a href="#cb81-4" aria-hidden="true" tabindex="-1"></a>test_eq(names, {t.<span class="va">__name__</span> <span class="cf">for</span> t <span class="kw">in</span> tools_for(ghost)})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div id="3ae9900b" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb82"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb82-1"><a href="#cb82-1" aria-hidden="true" tabindex="-1"></a>fewer <span class="op">=</span> {t.<span class="va">__name__</span> <span class="cf">for</span> t <span class="kw">in</span> tools_for(ghost, drop<span class="op">=</span>[<span class="st">'shell'</span>, <span class="st">'git'</span>])}</span>
+<span id="cb82-2"><a href="#cb82-2" aria-hidden="true" tabindex="-1"></a>test_eq(names <span class="op">-</span> fewer, {<span class="st">'run_shell'</span>, <span class="op">*</span>GIT_TOOLS})</span>
+<span id="cb82-3"><a href="#cb82-3" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="st">'search_code'</span> <span class="kw">in</span> fewer</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p><code>file</code> is not a group a host declares. Every host has the path boundary, so every host gets the file tools, and the table names it so a budget can still drop it.</p>
+</section>
+<section id="what-a-sub-agent-may-have" class="level2">
+<h2 class="anchored" data-anchor-id="what-a-sub-agent-may-have">What a sub-agent may have</h2>
+<p>A sub-agent gets the read tools and, with a budget, a hard cap on how many calls it may make. The write set comes from the tools themselves: <a href="https://vedicreader.github.io/shalya/core.html#is_write"><code>is_write</code></a> reads the mark <code>@writes</code> left.</p>
+<div id="6f32b72f" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-09-03T22:58:28.616226+00:00&quot;,&quot;shell.execute_reply&quot;:&quot;2026-09-03T22:58:28.619253+00:00&quot;,&quot;total&quot;:0.003031346999989637}}" data-execution_count="46">
+<hr>
+<p><a href="https://github.com/vedicreader/shalya/blob/main/shalya/tools.py#L702" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="read_only" class="level3">
+<h3 class="anchored" data-anchor-id="read_only">read_only</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb83"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb83-1"><a href="#cb83-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> read_only(</span>
+<span id="cb83-2"><a href="#cb83-2" aria-hidden="true" tabindex="-1"></a>    tools, max_calls:NoneType<span class="op">=</span><span class="va">None</span>, writes:<span class="bu">bool</span><span class="op">=</span><span class="va">False</span>, effects:<span class="bu">bool</span><span class="op">=</span><span class="va">True</span>, block:<span class="bu">tuple</span><span class="op">=</span>()</span>
+<span id="cb83-3"><a href="#cb83-3" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><em>The tools an agent may have when it must not act, optionally behind a hard call budget.</em></p>
+</section>
+</div>
+<p>Every write tool is filtered out, whatever else the host offers. <code>effects=False</code> withholds the rest of the ways to act: running code, an API call that can POST, an image that costs money, and standing work that outlives the turn. None of those writes a file the user owns, so <code>WRITE_TOOLS</code> does not name them and approval does not gate them. An agent asked to propose and not to act is refused them all the same. What survives can still be pinned: <code>read_url</code> keeps its page and loses the vault entry.</p>
+<div id="af8d6025" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb84"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb84-1"><a href="#cb84-1" aria-hidden="true" tabindex="-1"></a>[t.<span class="va">__name__</span> <span class="cf">for</span> t <span class="kw">in</span> read_only(ts)]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<pre><code>['search_code',
+ 'grep',
+ 'ls',
+ 'similar_code',
+ 'outline',
+ 'list_files',
+ 'view_file',
+ 'notebook_cells',
+ 'view_cell',
+ 'web_search',
+ 'read_url',
+ 'research',
+ 'list_vars',
+ 'inspect_python',
+ 'read_terminal',
+ 'git_status',
+ 'git_divergence',
+ 'git_rebase_preview']</code></pre>
+</div>
+</div>
+<div id="74499126" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb86"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb86-1"><a href="#cb86-1" aria-hidden="true" tabindex="-1"></a>ro <span class="op">=</span> {t.<span class="va">__name__</span> <span class="cf">for</span> t <span class="kw">in</span> read_only(ts)}</span>
+<span id="cb86-2"><a href="#cb86-2" aria-hidden="true" tabindex="-1"></a>test_eq(ro <span class="op">&amp;</span> WRITE_TOOLS, <span class="bu">set</span>())</span>
+<span id="cb86-3"><a href="#cb86-3" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="st">'search_code'</span> <span class="kw">in</span> ro <span class="kw">and</span> <span class="st">'git_status'</span> <span class="kw">in</span> ro</span>
+<span id="cb86-4"><a href="#cb86-4" aria-hidden="true" tabindex="-1"></a>test_eq({t.<span class="va">__name__</span> <span class="cf">for</span> t <span class="kw">in</span> read_only(ts, writes<span class="op">=</span><span class="va">True</span>)} <span class="op">&amp;</span> {<span class="st">'create_file'</span>}, {<span class="st">'create_file'</span>})</span>
+<span id="cb86-5"><a href="#cb86-5" aria-hidden="true" tabindex="-1"></a>safe_web <span class="op">=</span> {t.<span class="va">__name__</span>: t <span class="cf">for</span> t <span class="kw">in</span> read_only(wt.values())}</span>
+<span id="cb86-6"><a href="#cb86-6" aria-hidden="true" tabindex="-1"></a>test_eq(wt[<span class="st">'read_url'</span>].read_only, safe_web[<span class="st">'read_url'</span>])</span>
+<span id="cb86-7"><a href="#cb86-7" aria-hidden="true" tabindex="-1"></a>safe_web[<span class="st">'read_url'</span>](<span class="st">'https://python.org'</span>)</span>
+<span id="cb86-8"><a href="#cb86-8" aria-hidden="true" tabindex="-1"></a>test_eq(web_results.remember, <span class="va">False</span>)</span>
+<span id="cb86-9"><a href="#cb86-9" aria-hidden="true" tabindex="-1"></a>test_eq(<span class="bu">set</span>(get_schema(safe_web[<span class="st">'read_url'</span>])[<span class="st">'input_schema'</span>][<span class="st">'properties'</span>]), {<span class="st">'url'</span>})</span>
+<span id="cb86-10"><a href="#cb86-10" aria-hidden="true" tabindex="-1"></a>full_web <span class="op">=</span> {t.<span class="va">__name__</span>: t <span class="cf">for</span> t <span class="kw">in</span> read_only(wt.values(), writes<span class="op">=</span><span class="va">True</span>)}</span>
+<span id="cb86-11"><a href="#cb86-11" aria-hidden="true" tabindex="-1"></a>full_web[<span class="st">'read_url'</span>](<span class="st">'https://python.org'</span>)</span>
+<span id="cb86-12"><a href="#cb86-12" aria-hidden="true" tabindex="-1"></a>test_eq(web_results.remember, <span class="va">True</span>)</span>
+<span id="cb86-13"><a href="#cb86-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb86-14"><a href="#cb86-14" aria-hidden="true" tabindex="-1"></a><span class="co"># `effects=False` also withholds what acts without writing a file the user owns</span></span>
+<span id="cb86-15"><a href="#cb86-15" aria-hidden="true" tabindex="-1"></a>acting <span class="op">=</span> {t.<span class="va">__name__</span> <span class="cf">for</span> t <span class="kw">in</span> ts <span class="cf">if</span> has_effect(t)}</span>
+<span id="cb86-16"><a href="#cb86-16" aria-hidden="true" tabindex="-1"></a>test_eq(acting <span class="op">-</span> ACTING_TOOLS, <span class="bu">set</span>())              <span class="co"># nothing is marked without being named</span></span>
+<span id="cb86-17"><a href="#cb86-17" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> acting <span class="op">&lt;=</span> ro                                <span class="co"># and the default keeps every one of them</span></span>
+<span id="cb86-18"><a href="#cb86-18" aria-hidden="true" tabindex="-1"></a>propose <span class="op">=</span> {t.<span class="va">__name__</span> <span class="cf">for</span> t <span class="kw">in</span> read_only(ts, effects<span class="op">=</span><span class="va">False</span>)}</span>
+<span id="cb86-19"><a href="#cb86-19" aria-hidden="true" tabindex="-1"></a>test_eq(propose <span class="op">&amp;</span> (WRITE_TOOLS <span class="op">|</span> ACTING_TOOLS), <span class="bu">set</span>())</span>
+<span id="cb86-20"><a href="#cb86-20" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="st">'search_code'</span> <span class="kw">in</span> propose                    <span class="co"># looking is still allowed</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>With a budget, the tools themselves stop the loop. A local engine owns its internal tool loop, so a cap the harness holds is a cap the harness cannot enforce.</p>
+<div id="d1f9c094" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb87"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb87-1"><a href="#cb87-1" aria-hidden="true" tabindex="-1"></a>budgeted <span class="op">=</span> {t.<span class="va">__name__</span>: t <span class="cf">for</span> t <span class="kw">in</span> read_only(ts, max_calls<span class="op">=</span><span class="dv">1</span>)}</span>
+<span id="cb87-2"><a href="#cb87-2" aria-hidden="true" tabindex="-1"></a>budgeted[<span class="st">'search_code'</span>](<span class="st">'threshold'</span>), budgeted[<span class="st">'ls'</span>](<span class="st">'.'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<pre><code>('no matches (Kosha sync in progress; literal fallback via ripgrep)',
+ 'Tool budget exhausted. Stop calling tools and return the best evidence-backed answer now.')</code></pre>
+</div>
+</div>
+<div id="887c1c62" class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb89"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb89-1"><a href="#cb89-1" aria-hidden="true" tabindex="-1"></a>budgeted <span class="op">=</span> {t.<span class="va">__name__</span>: t <span class="cf">for</span> t <span class="kw">in</span> read_only(ts, max_calls<span class="op">=</span><span class="dv">1</span>)}</span>
+<span id="cb89-2"><a href="#cb89-2" aria-hidden="true" tabindex="-1"></a>budgeted[<span class="st">'ls'</span>](<span class="st">'.'</span>)</span>
+<span id="cb89-3"><a href="#cb89-3" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="st">'budget exhausted'</span> <span class="kw">in</span> budgeted[<span class="st">'ls'</span>](<span class="st">'.'</span>), <span class="st">'the second call should have been refused'</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/vedicreader\.github\.io\/shalya");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+<footer class="footer"><div class="nav-footer"><div class="nav-footer-center"><div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/vedicreader/shalya/issues/new" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></div></div></footer></body></html>
