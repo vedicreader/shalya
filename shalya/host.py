@@ -16,11 +16,7 @@ from abc import ABC, abstractmethod
 from fastcore.basics import AttrDict, first, ifnone, patch
 from fastcore.parallel import startthread
 from fastcore.xtras import Path, exec_eval
-# Unsafe, denied, SANDBOX and SECRET are unused here and imported anyway: the boundary moved
-# to core, and a caller that reaches for it through the host still finds it.
-from .core import (
-    DENY, Hit, HostError, MAX_API, MAX_FILE, MAX_GREP_HITS, NO_ROOTS, SANDBOX, SECRET, Sandbox,
-    Unsafe, denied, host_err)
+from .core import DENY, Hit, HostError, MAX_API, MAX_FILE, MAX_GREP_HITS, NO_ROOTS, SANDBOX, SECRET, Sandbox, Unsafe, denied, host_err
 
 # %% ../nbs/01_host.ipynb #c1786946
 class Capability(ABC):
@@ -320,15 +316,11 @@ class GitHost(Capability):
     group = 'git'
 
 # %% ../nbs/01_host.ipynb #748b1cb3
-SKIP_DIRS = frozenset({'.git', '.hg', '.svn', '__pycache__', '.venv', 'venv', 'node_modules',
-                       '.ipynb_checkpoints', '.pytest_cache', '.mypy_cache', '_docs', '_proc',
-                       'dist', 'build', '.quarto', '.idea', '.attic'})
-SKIP_SUFFIXES = frozenset({'.pyc', '.pyo', '.so', '.dylib', '.dll', '.a', '.o', '.zip', '.gz',
-                           '.whl', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.pdf', '.parquet',
-                           '.sqlite', '.db', '.bin', '.safetensors', '.gguf'})
-MAX_VARS = 200
-LD_CHARS = 4000           # of a page's JSON-LD to keep. Enough for a product, not a catalogue
-
+SKIP_DIRS = frozenset({'.git', '.hg', '.svn', '__pycache__', '.venv', 'venv', 'node_modules', '.ipynb_checkpoints', '.pytest_cache',
+   '.mypy_cache', '_docs', '_proc', 'dist', 'build', '.quarto', '.idea', '.attic'})
+SKIP_SUFFIXES = frozenset({'.pyc', '.pyo', '.so', '.dylib', '.dll', '.a', '.o', '.zip', '.gz', '.whl', '.png', '.jpg', '.jpeg', '.gif',
+   '.webp', '.pdf', '.parquet', '.sqlite', '.db', '.bin', '.safetensors', '.gguf'})
+MAX_VARS, LD_CHARS = 200, 4000
 _LD = re.compile(r'<script[^>]+application/ld\+json[^>]*>(.*?)</script>', re.S | re.I)
 
 # %% ../nbs/01_host.ipynb #c9de4f1f
@@ -369,10 +361,8 @@ def ld_json(html):
     return out
 
 # %% ../nbs/01_host.ipynb #a50e3780
-class LocalHost(Host, CodeHost, WebHost, NotebookHost, SessionHost, ShellHost, MemoryHost,
-                WatchHost, AskHost, ApiHost, GitHost):
+class LocalHost(Host, CodeHost, WebHost, NotebookHost, SessionHost, ShellHost, MemoryHost, WatchHost, AskHost, ApiHost, GitHost):
     "Reference host for local folders."
-
     def __init__(self,
                  roots=('.',),          # the folders the agent is confined to; each must exist
                  ns=None,               # live namespace; fresh dict when None

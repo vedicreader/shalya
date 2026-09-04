@@ -24,8 +24,7 @@ class FileEdit:
     before: str
     after: str
     edits: int
-    def dict(self):
-        return dict(path=self.path, before=self.before, after=self.after, edits=self.edits)
+    def dict(self): return dict(path=self.path, before=self.before, after=self.after, edits=self.edits)
 
 # %% ../nbs/04_refactor.ipynb #ff54ed8d
 def _starts(source):
@@ -263,20 +262,14 @@ def move_plan(read,          # gives a file's text, or None where there is no su
     rtree, rstarts = _parse(src, rest), _starts(rest)
     used = sorted(n for n in names if n in _free([rtree]))
     want = names if shim else used
-    # A re-export the source does not otherwise need is dropped rather than refused: keeping it
-    # would import the two modules into each other for nothing.
     if want and back:
-        if used: raise ValueError(f'{src_mod} and {dest_mod} would import each other over '
-                                  f'{", ".join(back)}; move those as well')
+        if used: raise ValueError(f'{src_mod} and {dest_mod} would import each other over {", ".join(back)}; move those as well')
         want = []
         notes.append(f're-export left out: {dest_mod} imports {", ".join(back)} back from {src_mod}')
     sedits = _add_imports(rest, rtree, rstarts, src_mod, {dest_mod: set(want)}, set()) if want else []
-    # `__all__` keeps the name only while something still exports it: a dropped re-export takes it too
     if (e := _all_edit(rest, rstarts, rtree, drop=() if want else names)): sedits.append(e)
     safter = _apply(rest, sedits)
-
-    rows = [FileEdit(src, source, safter, len(names)),
-            FileEdit(dest, None if fresh else dtext, dafter, len(names))]
+    rows = [FileEdit(src, source, safter, len(names)), FileEdit(dest, None if fresh else dtext, dafter, len(names))]
     for path in others:
         if Path(path).resolve() in (Path(src).resolve(), Path(dest).resolve()): continue
         text = read(path)

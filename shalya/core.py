@@ -51,12 +51,9 @@ def failed(result):
 SANDBOX = 'path is outside the open folders'
 SECRET = 'path holds credentials and is never read'
 NO_ROOTS = 'no folders are open, so no path is inside them'
-
 #: Credential-shaped paths refused even with `read_outside`. `fnmatch` on the resolved path.
-DENY = ('*/.ssh/*', '*/.aws/*', '*/.gnupg/*', '*/.config/gcloud/*', '*/.netrc',
-        '*/.git-credentials', '*/.codex/auth.json', '*/.claude/.credentials.json',
+DENY = ('*/.ssh/*', '*/.aws/*', '*/.gnupg/*', '*/.config/gcloud/*', '*/.netrc', '*/.git-credentials', '*/.codex/auth.json', '*/.claude/.credentials.json',
         '*/.env', '*/.env.*', '*/id_rsa*', '*/id_ed25519*', '*.pem', '*.key', '*.p12')
-
 class Unsafe(HostError): "A path that resolves outside every open root, or one refused for safety."
 
 def denied(path, patterns=DENY):

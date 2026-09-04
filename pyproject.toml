@@ -17,9 +17,6 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
 ]
-# `_fuse` reciprocal-rank-fuses the search legs and `read_page` needs a reader. Both used to be
-# extras that degraded rather than failed; Leela is the package that uses shalya and it installs
-# both, so the degraded path was never the one that ran. They are dependencies now.
 dependencies = ["fastcore>=2.1.16","exhash>=0.4.9","vishalakshi","fastspec","gheasy","dhrishti",
                 "jupyter-client","litesearch>=0.1.34","fossick>=0.1.17"]
 
