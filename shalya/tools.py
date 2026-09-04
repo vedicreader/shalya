@@ -226,7 +226,8 @@ def file_tools(host, mx=MAX_TOOL_CHARS):
         try: return f'wrote {host.write(str(p), text)}'
         except Exception as e: return err('write failed', e)
 
-    if not host.writes: return [view_file]   # an editor that can only raise is worse than no editor
+    # `host is None` is `tool_groups` enumerating names, where there is no host to ask.
+    if host is not None and not host.writes: return [view_file]   # an editor that can only raise is worse than no editor
     return [view_file, replace_text, edit_file, create_file, add_root]
 
 # %% ../nbs/02_tools.ipynb #3c171dfb
