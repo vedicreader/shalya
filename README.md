@@ -91,7 +91,7 @@ print(ts['replace_text']('greet.py', '[{"oldText": "hi {n}", "newText": "hey {n}
     -def hi(n): return f"hi {n}"
     +def hi(n): return f"hey {n}"
 
-A refusal is a string beginning `ERROR:`, and [`failed`](https://vedicreader.github.io/shalya/core.html#failed) is the one place that knows that spelling.
+A refusal is a string that begins with `ERROR:`, and [`failed`](https://vedicreader.github.io/shalya/core.html#failed) is the one function that checks for it.
 
 ``` python
 r = ts['view_file']('missing.py')
