@@ -830,7 +830,7 @@ def run_cmd(self:LocalHost, command, cwd=None, timeout=120):
             stderr=subprocess.STDOUT, start_new_session=True)
     try: out, _ = p.communicate(timeout=max(1, int(timeout)))
     except subprocess.TimeoutExpired:
-        import os, signal
+        import signal
         try: os.killpg(p.pid, signal.SIGKILL)
         except Exception: p.kill()
         out, _ = p.communicate()
@@ -993,98 +993,98 @@ LocalHost.THIN_PAGE = THIN_PAGE   #: a subclass can raise it; `read_page` is tol
 LocalHost.READERS = READERS
 
 # %% ../nbs/01_host.ipynb #3feed41c
-def _needs(host, what):
+def _needs(what):
     "Return a missing-backend error."
     return HostError(f'this host has no {what}')
 
 # %% ../nbs/01_host.ipynb #121abd1e
 @patch
 def memory_search(self:LocalHost, query, limit=8):
-    if self.memory is None: raise _needs(self, 'vault')
+    if self.memory is None: raise _needs('vault')
     return self.memory.search(str(query), limit=int(limit))
 
 # %% ../nbs/01_host.ipynb #316c7b1f
 @patch
 def memory_tree(self:LocalHost, document=''):
-    if self.memory is None: raise _needs(self, 'vault')
+    if self.memory is None: raise _needs('vault')
     return self.memory.toc(document or None)
 
 # %% ../nbs/01_host.ipynb #7f3a5f3b
 @patch
 def memory_read(self:LocalHost, node_id):
-    if self.memory is None: raise _needs(self, 'vault')
+    if self.memory is None: raise _needs('vault')
     return self.memory.read(str(node_id))
 
 # %% ../nbs/01_host.ipynb #d5dc90b5
 @patch
 def memory_topics(self:LocalHost, limit=12):
-    if self.memory is None: raise _needs(self, 'vault')
+    if self.memory is None: raise _needs('vault')
     return self.memory.topic_tree(limit=int(limit))
 
 # %% ../nbs/01_host.ipynb #fcb89ac4
 @patch
 def memory_forget(self:LocalHost, doc_id):
-    if self.memory is None: raise _needs(self, 'vault')
+    if self.memory is None: raise _needs('vault')
     return self.memory.forget(str(doc_id))
 
 # %% ../nbs/01_host.ipynb #3a1847c4
 @patch
 def remember(self:LocalHost, text, title=None, tags=()):
-    if self.memory is None: raise _needs(self, 'vault')
+    if self.memory is None: raise _needs('vault')
     return self.memory.note(str(text), title=title, tags=list(tags))
 
 # %% ../nbs/01_host.ipynb #5d0a69ed
 @patch
 def ask(self:LocalHost, question, ref=None, instruction='', **kw):
-    if self.memory is None: raise _needs(self, 'vault')
+    if self.memory is None: raise _needs('vault')
     return self.memory.ask(str(question), ref=ref, instruction=instruction, **kw)
 
 # %% ../nbs/01_host.ipynb #ef92f2f9
 @patch
 def watch(self:LocalHost, target, action='remind', every='1d', note=None, **params):
-    if self.memory is None: raise _needs(self, 'vault')
+    if self.memory is None: raise _needs('vault')
     return self.memory.watch(target, action=action, every=every, note=note, **params)
 
 # %% ../nbs/01_host.ipynb #b91294a2
 @patch
 def watches(self:LocalHost, due_only=False):
-    if self.memory is None: raise _needs(self, 'vault')
+    if self.memory is None: raise _needs('vault')
     return self.memory.watches(due_only=bool(due_only))
 
 # %% ../nbs/01_host.ipynb #91f80b0a
 @patch
 def unwatch(self:LocalHost, watch_id): 
-    if self.memory is None: raise _needs(self, 'vault')
+    if self.memory is None: raise _needs('vault')
     return self.memory.unwatch(str(watch_id))
 
 # %% ../nbs/01_host.ipynb #1a5e84ff
 @patch
 def poll(self:LocalHost):
-    if self.memory is None: raise _needs(self, 'vault')
+    if self.memory is None: raise _needs('vault')
     return self.memory.poll()
 
 # %% ../nbs/01_host.ipynb #18519fef
 @patch
 def api_load(self:LocalHost, src, name=''):
-    if self.apis is None: raise _needs(self, 'API specifications')
+    if self.apis is None: raise _needs('API specifications')
     return self.apis.api_load(src, name=name)
 
 # %% ../nbs/01_host.ipynb #8353d136
 @patch
 def api_ops(self:LocalHost, group='', name='', match='', limit=None, offset=0):
-    if self.apis is None: raise _needs(self, 'API specifications')
+    if self.apis is None: raise _needs('API specifications')
     return self.apis.api_ops(group=group, name=name, match=match, limit=limit, offset=offset)
 
 # %% ../nbs/01_host.ipynb #02e694ed
 @patch
 def api_count(self:LocalHost, group='', name='', match=''):
-    if self.apis is None: raise _needs(self, 'API specifications')
+    if self.apis is None: raise _needs('API specifications')
     return self.apis.api_count(group=group, name=name, match=match)
 
 # %% ../nbs/01_host.ipynb #27c2f983
 @patch
 def api_call(self:LocalHost, operation, name='', **params):
-    if self.apis is None: raise _needs(self, 'API specifications')
+    if self.apis is None: raise _needs('API specifications')
     return self.apis.api_call(operation, name=name, **params)
 
 # %% ../nbs/01_host.ipynb #3f0e0e03

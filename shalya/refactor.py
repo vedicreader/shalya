@@ -169,12 +169,9 @@ def _add_imports(text, tree, starts, here, froms, plains):
 
 def _carry(froms, plains, node, name, here):
     "Record the import that gave `name` to the source file, so the destination gains it too."
-    if isinstance(node, ast.ImportFrom):
-        alias = first(a for a in node.names if (a.asname or a.name).split('.')[0] == name)
-        froms.setdefault(_absolute(node, here), set()).add(_spec(alias))
-    else:
-        alias = first(a for a in node.names if (a.asname or a.name).split('.')[0] == name)
-        plains.add(f'import {_spec(alias)}')
+    alias = first(a for a in node.names if (a.asname or a.name).split('.')[0] == name)
+    if isinstance(node, ast.ImportFrom): froms.setdefault(_absolute(node, here), set()).add(_spec(alias))
+    else: plains.add(f'import {_spec(alias)}')
 
 # %% ../nbs/04_refactor.ipynb #97c9c94d
 def _repoint(path, text, src_mod, dest_mod, names):
