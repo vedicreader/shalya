@@ -469,14 +469,18 @@ def _walk(self:LocalHost, root):
             yield p
         return
     except Exception: pass
-    for p in sorted(Path(root).rglob('*')):
-        if any(part in SKIP_DIRS for part in p.parts): continue
-        if not p.is_file() or p.is_symlink(): continue
-        if p.suffix.lower() in SKIP_SUFFIXES: continue
-        try:
-            if p.stat().st_size > MAX_FILE: continue
-        except OSError: continue
-        yield p
+    fs = []
+    for d,dnames,fnames in os.walk(root):
+        dnames[:] = [x for x in dnames if x not in SKIP_DIRS]
+        for f in fnames:
+            p = Path(d)/f
+            if not p.is_file() or p.is_symlink(): continue
+            if p.suffix.lower() in SKIP_SUFFIXES: continue
+            try:
+                if p.stat().st_size > MAX_FILE: continue
+            except OSError: continue
+            fs.append(p)
+    yield from sorted(fs)
 
 # %% ../nbs/01_host.ipynb #3c10f362
 @patch
