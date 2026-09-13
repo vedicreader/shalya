@@ -933,6 +933,24 @@ def _extracted(rows):
         return str(row or '')
     return '\n\n'.join(x for x in (body(r).strip() for r in (rows if isinstance(rows, list) else [rows])) if x)
 
+_READER_KIND = {'arxiv': 'paper', 'ghfile': 'repo', 'youtube': 'page', 'pdf': 'page'}
+_READER_STRATEGY = {'arxiv': 'read_arxiv', 'ghfile': 'read_gh_file', 'youtube': 'read_yt', 'pdf': 'pdf2md'}
+
+def _reader_doc(fossick, url, say, mx):
+    "A target fossick reads with a dedicated reader (arxiv, gh file, youtube, pdf), adapted to read_page's contract."
+    what_is = getattr(fossick, 'what_is', None)
+    try: kind = what_is(url) if what_is else None
+    except Exception: kind = None
+    if kind not in _READER_KIND: return None
+    try: res = fossick.read(url)
+    except Exception as e:
+        say(f'read could not read {url} ({host_err(e)}); fetching the page')
+        return None
+    if not (res and res.get('ok') and str(res.get('text') or '').strip()): return None
+    text = str(res['text'])[:mx]
+    return AttrDict(text=text, url=res.get('source') or url, title=res.get('title') or md_title(text, url),
+                    kind=_READER_KIND[kind], sections=[], strategy=_READER_STRATEGY[kind])
+
 def read_page(fossick, url, sel=None, note=None, readers=READERS, thin=THIN_PAGE, mx=MAX_PAGE):
     """One url as markdown, or None. `sel` is a css selector to prefer over every guess.
 
@@ -940,17 +958,20 @@ def read_page(fossick, url, sel=None, note=None, readers=READERS, thin=THIN_PAGE
     """
     url, say = str(url or '').strip(), note or (lambda msg: None)
     if not url: return None
-    for rx, name, kw, kind in readers:
-        if not rx.search(url) or (reader := getattr(fossick, name, None)) is None: continue
-        try: got = reader(url, **kw)
-        except Exception as e:   # a reader that cannot answer is not a url that cannot be read
-            say(f'{name} could not read {url} ({host_err(e)}); fetching the page')
+    if getattr(fossick, 'read', None) is not None:      # fossick reads arxiv/gh/youtube/pdf itself
+        if (got := _reader_doc(fossick, url, say, mx)) is not None: return got
+    else:
+        for rx, name, kw, kind in readers:              # a fossick without `read`: shalya's own dispatch
+            if not rx.search(url) or (reader := getattr(fossick, name, None)) is None: continue
+            try: got = reader(url, **kw)
+            except Exception as e:   # a reader that cannot answer is not a url that cannot be read
+                say(f'{name} could not read {url} ({host_err(e)}); fetching the page')
+                break
+            if (text := _md_doc(got)).strip():
+                titled = str(got.get('title') or '') if isinstance(got, dict) else ''
+                return AttrDict(text=text[:mx], url=url, title=titled or md_title(text, url),
+                                kind=kind, sections=[], strategy=name)
             break
-        if (text := _md_doc(got)).strip():
-            titled = str(got.get('title') or '') if isinstance(got, dict) else ''
-            return AttrDict(text=text[:mx], url=url, title=titled or md_title(text, url),
-                            kind=kind, sections=[], strategy=name)
-        break
     try: page = fossick.fetch(url, auto=True)
     except Exception as e:
         say(f'could not fetch {url} ({host_err(e)})')
@@ -958,7 +979,9 @@ def read_page(fossick, url, sel=None, note=None, readers=READERS, thin=THIN_PAGE
     text, strategy = _page_text(fossick, page, sel, mx) if page is not None else ('', 'nothing fetched')
     sections = _sections(fossick, page, mx) if page is not None and not sel else []
     if len(text.strip()) < thin:
+        reached = getattr(page, 'tier', None) in ('stealthy', 'stealthy+session', 'blocked')
         for opts in ({'heavy': True, 'network_idle': True}, {'stealthy': True}):
+            if opts.get('stealthy') and reached: continue   # `auto` already escalated to stealthy; a manual retry only repeats it
             try: heavy = fossick.fetch(url, **opts)
             except Exception: continue
             if heavy is None: continue
