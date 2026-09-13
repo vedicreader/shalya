@@ -681,7 +681,7 @@ def search_note(self:LocalHost):
 @patch
 def public_api(self:LocalHost, package, limit=MAX_API):
     "Kosha's public surface for `package`, `@patch`-added methods included."
-    if not str(package or '').strip(): return []      # the capability probe
+    if not str(package or '').strip(): return []      # an empty name has nothing to list
     indexes = list(self._indexes)
     if not indexes: raise HostError(f'no code index: {self.search_note}')
     out, seen = [], set()
@@ -822,7 +822,7 @@ def terminal_text(self:LocalHost, lines=200):
 def run_cmd(self:LocalHost, command, cwd=None, timeout=120):
     "Run a shell command in a new process group. Interleave stdout and stderr. Kill the process group on timeout."
     import subprocess
-    if not str(command or '').strip(): return 0, ''   # the capability probe
+    if not str(command or '').strip(): return 0, ''   # an empty command runs nothing
     if not (cwd or self._roots): raise HostError(NO_ROOTS)
     d = self.check(cwd) if cwd else Path(self._roots[0])
     if not d.is_dir(): raise HostError(f'not a directory: {d}')
@@ -853,7 +853,7 @@ def _fossick(self:LocalHost):
 # %% ../nbs/01_host.ipynb #5d1cd1db
 @patch
 def web_search(self:LocalHost, query, n=20):
-    "Search the web through fossick. An empty query answers `[]`: that is how `tools_for` probes."
+    "Search the web through fossick. An empty query answers `[]` without reaching the network."
     fossick = self._fossick()
     if not str(query).strip(): return []
     rows = fossick.search(str(query), n=int(n))

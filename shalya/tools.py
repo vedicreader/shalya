@@ -22,7 +22,8 @@ from .core import (Hit, ERR, MAX_TOOL_CHARS, MAX_HITS, MAX_GREP_HITS, MAX_API, G
                          GIT_READ_TOOLS, GIT_WRITE_TOOLS, WRITE_TOOLS, clip, clip_lines, cmds,
                          edits, apply_edits, diff_text, err, failed, is_write, writes, acts, has_effect,
                          ACTING_TOOLS, summary, summarise, one_line as _1)
-from .host import Host, HostError, LocalHost, host_err
+from .host import (Host, HostError, LocalHost, host_err, CodeHost, WebHost, NotebookHost,
+                         MemoryHost, AskHost, WatchHost, SessionHost, ShellHost, ApiHost, GitHost)
 from .skills import Skill, find, skill_index
 
 # %% ../nbs/02_tools.ipynb #837ae38d
@@ -707,12 +708,13 @@ def git_tools(host, mx=MAX_TOOL_CHARS):
     return [git_status, git_divergence, git_rebase_preview, git_remote, git_checkout]
 
 # %% ../nbs/02_tools.ipynb #8cc4fdac
-#: group -> the factory that builds it. Order is the order a model sees the tools in.
-GROUPS = (('code', code_tools), ('file', file_tools), ('notebook', notebook_tools),
-          ('web', web_tools), ('memory', memory_tools), ('ask', ask_tools),
-          ('watch', watch_tools),
-          ('api', api_tools), ('session', session_tools), ('shell', shell_tools),
-          ('git', git_tools))
+#: the Capability class -> the factory that builds its group. The group name lives only on
+#: `cls.group`; order is the order a model sees the tools in. `Host` carries group='file'.
+GROUPS = ((CodeHost, code_tools), (Host, file_tools), (NotebookHost, notebook_tools),
+          (WebHost, web_tools), (MemoryHost, memory_tools), (AskHost, ask_tools),
+          (WatchHost, watch_tools),
+          (ApiHost, api_tools), (SessionHost, session_tools), (ShellHost, shell_tools),
+          (GitHost, git_tools))
 
 def tools_for(host, get_skills=None, extra=(), mx=MAX_TOOL_CHARS, drop=(), image=None):
     """Every tool this host declares it can support, plus whatever else was registered.
@@ -721,7 +723,7 @@ def tools_for(host, get_skills=None, extra=(), mx=MAX_TOOL_CHARS, drop=(), image
     host does not, so the frontend that knows builds it and passes it in.
     """
     drop = set(drop or ())
-    tools = [t for g, f in GROUPS if g not in drop and host.can(g) for t in f(host, mx)]
+    tools = [t for cap, f in GROUPS if cap.group not in drop and host.can(cap.group) for t in f(host, mx)]
     if get_skills is not None and 'skill' not in drop: tools += skill_tools(host, get_skills, mx)
     if image is not None and 'image' not in drop: tools += list(image)
     return tools + list(extra or ())
@@ -731,8 +733,9 @@ def tools_for(host, get_skills=None, extra=(), mx=MAX_TOOL_CHARS, drop=(), image
 def tool_groups():
     "Every tool name shalya can build, mapped to the group that owns it. `image` and `skill` included."
     out = {}
-    for group, factory in (*GROUPS, ('image', image_tools)):
-        for t in factory(None): out[t.__name__] = group
+    for cap, factory in GROUPS:
+        for t in factory(None): out[t.__name__] = cap.group
+    for t in image_tools(None): out[t.__name__] = 'image'
     for t in skill_tools(None, lambda: ()): out[t.__name__] = 'skill'
     return out
 
