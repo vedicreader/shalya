@@ -16,7 +16,9 @@ from abc import ABC, abstractmethod
 from fastcore.basics import AttrDict, first, ifnone, patch
 from fastcore.parallel import startthread
 from fastcore.xtras import Path, exec_eval
-from .core import DENY, Hit, HostError, MAX_API, MAX_FILE, MAX_GREP_HITS, NO_ROOTS, SANDBOX, SECRET, Sandbox, Unsafe, denied, host_err
+from litesearch import rrf_all
+from litesearch.core import BUSY_TIMEOUT_MS
+from .core import DENY, Hit, HostError, MAX_API, MAX_FILE, MAX_GREP_HITS, NO_ROOTS, SANDBOX, SECRET, Sandbox, Unsafe, denied, host_err, one_line
 
 # %% ../nbs/01_host.ipynb #c1786946
 class Capability(ABC):
@@ -346,10 +348,7 @@ def _fuse(legs, limit):
             by_key.setdefault(key, h)
             rows.append({'_fid': key})
         lists.append(rows)
-    try:   # litesearch arrives with vishalakshi rather than declared here, so guard the import
-        from litesearch import rrf_all
-        fused = rrf_all(lists, id_key='_fid', limit=limit)
-    except Exception: return legs[0][:limit]
+    fused = rrf_all(lists, id_key='_fid', limit=limit)
     return [by_key[r['_fid']] for r in fused if r.get('_fid') in by_key]
 
 def ld_json(html):
@@ -541,7 +540,7 @@ def sync_index(self:LocalHost, wait=False, force=False):
                 return
             for root in list(self._roots):
                 try:
-                    k = Kosha(dir=Path(root), busy_timeout=30000)
+                    k = Kosha(dir=Path(root), busy_timeout=BUSY_TIMEOUT_MS)
                     k.sync(dir=Path(root), verbose=False, force=force, pyproject=True, graph=self.graph)
                     self._indexes.append(k)
                 except Exception as e: self._index_errors.append(host_err(e))
@@ -642,7 +641,7 @@ def _semantic(self:LocalHost, query, limit):
             if key in seen: continue
             seen.add(key)
             symbol = meta.get('mod_name') or meta.get('name') or ''
-            text = ' '.join(str(row.get('content') or '').split())[:240]
+            text = one_line(row.get('content'), 240)
             out.append(Hit(path, line, str(symbol), text))
             if len(out) >= limit: return out
     return out
@@ -697,7 +696,7 @@ def public_api(self:LocalHost, package, limit=MAX_API):
             name = str(row.get('mod_name') or row.get('name') or '')
             if not name or name in seen: continue
             seen.add(name)
-            doc = ' '.join(str(row.get('docstring') or '').split())[:200]
+            doc = one_line(row.get('docstring'), 200)
             out.append(Hit(str(row.get('path') or ''), int(row.get('lineno') or 1), name, doc))
             if len(out) >= limit: return out
     return out

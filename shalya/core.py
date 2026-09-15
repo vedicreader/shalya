@@ -15,7 +15,7 @@ __all__ = ['MAX_TOOL_CHARS', 'MAX_HITS', 'MAX_GREP_HITS', 'MAX_API', 'MAX_FILE',
 import json, os
 from fastcore.basics import AttrDict, first, listify
 from fastcore.foundation import L
-from fastcore.xtras import Path, str_diff
+from fastcore.xtras import Path, str_diff, truncstr
 
 # %% ../nbs/00_core.ipynb #9af4b779
 MAX_TOOL_CHARS = 6000   # chars per tool result, budgeted for the smallest model
@@ -214,8 +214,7 @@ def has_effect(t):
 
 def one_line(v, n=90):
     "One line of a value, short enough to sit in a list."
-    t = ' '.join(str(v or '').split())
-    return t if len(t) <= n else t[:n - 1] + '…'
+    return truncstr(' '.join(str(v or '').split()), n)
 
 SUMMARIES = {}
 def summary(fn):
