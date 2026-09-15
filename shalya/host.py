@@ -469,14 +469,18 @@ def _walk(self:LocalHost, root):
             yield p
         return
     except Exception: pass
-    for p in sorted(Path(root).rglob('*')):
-        if any(part in SKIP_DIRS for part in p.parts): continue
-        if not p.is_file() or p.is_symlink(): continue
-        if p.suffix.lower() in SKIP_SUFFIXES: continue
-        try:
-            if p.stat().st_size > MAX_FILE: continue
-        except OSError: continue
-        yield p
+    fs = []
+    for d,dnames,fnames in os.walk(root):
+        dnames[:] = [x for x in dnames if x not in SKIP_DIRS]
+        for f in fnames:
+            p = Path(d)/f
+            if not p.is_file() or p.is_symlink(): continue
+            if p.suffix.lower() in SKIP_SUFFIXES: continue
+            try:
+                if p.stat().st_size > MAX_FILE: continue
+            except OSError: continue
+            fs.append(p)
+    yield from sorted(fs)
 
 # %% ../nbs/01_host.ipynb #3c10f362
 @patch
@@ -681,7 +685,7 @@ def search_note(self:LocalHost):
 @patch
 def public_api(self:LocalHost, package, limit=MAX_API):
     "Kosha's public surface for `package`, `@patch`-added methods included."
-    if not str(package or '').strip(): return []      # the capability probe
+    if not str(package or '').strip(): return []      # an empty name has nothing to list
     indexes = list(self._indexes)
     if not indexes: raise HostError(f'no code index: {self.search_note}')
     out, seen = [], set()
@@ -822,7 +826,7 @@ def terminal_text(self:LocalHost, lines=200):
 def run_cmd(self:LocalHost, command, cwd=None, timeout=120):
     "Run a shell command in a new process group. Interleave stdout and stderr. Kill the process group on timeout."
     import subprocess
-    if not str(command or '').strip(): return 0, ''   # the capability probe
+    if not str(command or '').strip(): return 0, ''   # an empty command runs nothing
     if not (cwd or self._roots): raise HostError(NO_ROOTS)
     d = self.check(cwd) if cwd else Path(self._roots[0])
     if not d.is_dir(): raise HostError(f'not a directory: {d}')
@@ -830,7 +834,7 @@ def run_cmd(self:LocalHost, command, cwd=None, timeout=120):
             stderr=subprocess.STDOUT, start_new_session=True)
     try: out, _ = p.communicate(timeout=max(1, int(timeout)))
     except subprocess.TimeoutExpired:
-        import os, signal
+        import signal
         try: os.killpg(p.pid, signal.SIGKILL)
         except Exception: p.kill()
         out, _ = p.communicate()
@@ -853,7 +857,7 @@ def _fossick(self:LocalHost):
 # %% ../nbs/01_host.ipynb #5d1cd1db
 @patch
 def web_search(self:LocalHost, query, n=20):
-    "Search the web through fossick. An empty query answers `[]`: that is how `tools_for` probes."
+    "Search the web through fossick. An empty query answers `[]` without reaching the network."
     fossick = self._fossick()
     if not str(query).strip(): return []
     rows = fossick.search(str(query), n=int(n))
@@ -929,6 +933,24 @@ def _extracted(rows):
         return str(row or '')
     return '\n\n'.join(x for x in (body(r).strip() for r in (rows if isinstance(rows, list) else [rows])) if x)
 
+_READER_KIND = {'arxiv': 'paper', 'ghfile': 'repo', 'youtube': 'page', 'pdf': 'page'}
+_READER_STRATEGY = {'arxiv': 'read_arxiv', 'ghfile': 'read_gh_file', 'youtube': 'read_yt', 'pdf': 'pdf2md'}
+
+def _reader_doc(fossick, url, say, mx):
+    "A target fossick reads with a dedicated reader (arxiv, gh file, youtube, pdf), adapted to read_page's contract."
+    what_is = getattr(fossick, 'what_is', None)
+    try: kind = what_is(url) if what_is else None
+    except Exception: kind = None
+    if kind not in _READER_KIND: return None
+    try: res = fossick.read(url)
+    except Exception as e:
+        say(f'read could not read {url} ({host_err(e)}); fetching the page')
+        return None
+    if not (res and res.get('ok') and str(res.get('text') or '').strip()): return None
+    text = str(res['text'])[:mx]
+    return AttrDict(text=text, url=res.get('source') or url, title=res.get('title') or md_title(text, url),
+                    kind=_READER_KIND[kind], sections=[], strategy=_READER_STRATEGY[kind])
+
 def read_page(fossick, url, sel=None, note=None, readers=READERS, thin=THIN_PAGE, mx=MAX_PAGE):
     """One url as markdown, or None. `sel` is a css selector to prefer over every guess.
 
@@ -936,17 +958,20 @@ def read_page(fossick, url, sel=None, note=None, readers=READERS, thin=THIN_PAGE
     """
     url, say = str(url or '').strip(), note or (lambda msg: None)
     if not url: return None
-    for rx, name, kw, kind in readers:
-        if not rx.search(url) or (reader := getattr(fossick, name, None)) is None: continue
-        try: got = reader(url, **kw)
-        except Exception as e:   # a reader that cannot answer is not a url that cannot be read
-            say(f'{name} could not read {url} ({host_err(e)}); fetching the page')
+    if getattr(fossick, 'read', None) is not None:      # fossick reads arxiv/gh/youtube/pdf itself
+        if (got := _reader_doc(fossick, url, say, mx)) is not None: return got
+    else:
+        for rx, name, kw, kind in readers:              # a fossick without `read`: shalya's own dispatch
+            if not rx.search(url) or (reader := getattr(fossick, name, None)) is None: continue
+            try: got = reader(url, **kw)
+            except Exception as e:   # a reader that cannot answer is not a url that cannot be read
+                say(f'{name} could not read {url} ({host_err(e)}); fetching the page')
+                break
+            if (text := _md_doc(got)).strip():
+                titled = str(got.get('title') or '') if isinstance(got, dict) else ''
+                return AttrDict(text=text[:mx], url=url, title=titled or md_title(text, url),
+                                kind=kind, sections=[], strategy=name)
             break
-        if (text := _md_doc(got)).strip():
-            titled = str(got.get('title') or '') if isinstance(got, dict) else ''
-            return AttrDict(text=text[:mx], url=url, title=titled or md_title(text, url),
-                            kind=kind, sections=[], strategy=name)
-        break
     try: page = fossick.fetch(url, auto=True)
     except Exception as e:
         say(f'could not fetch {url} ({host_err(e)})')
@@ -954,7 +979,9 @@ def read_page(fossick, url, sel=None, note=None, readers=READERS, thin=THIN_PAGE
     text, strategy = _page_text(fossick, page, sel, mx) if page is not None else ('', 'nothing fetched')
     sections = _sections(fossick, page, mx) if page is not None and not sel else []
     if len(text.strip()) < thin:
+        reached = getattr(page, 'tier', None) in ('stealthy', 'stealthy+session', 'blocked')
         for opts in ({'heavy': True, 'network_idle': True}, {'stealthy': True}):
+            if opts.get('stealthy') and reached: continue   # `auto` already escalated to stealthy; a manual retry only repeats it
             try: heavy = fossick.fetch(url, **opts)
             except Exception: continue
             if heavy is None: continue
@@ -993,98 +1020,98 @@ LocalHost.THIN_PAGE = THIN_PAGE   #: a subclass can raise it; `read_page` is tol
 LocalHost.READERS = READERS
 
 # %% ../nbs/01_host.ipynb #3feed41c
-def _needs(host, what):
+def _needs(what):
     "Return a missing-backend error."
     return HostError(f'this host has no {what}')
 
 # %% ../nbs/01_host.ipynb #121abd1e
 @patch
 def memory_search(self:LocalHost, query, limit=8):
-    if self.memory is None: raise _needs(self, 'vault')
+    if self.memory is None: raise _needs('vault')
     return self.memory.search(str(query), limit=int(limit))
 
 # %% ../nbs/01_host.ipynb #316c7b1f
 @patch
 def memory_tree(self:LocalHost, document=''):
-    if self.memory is None: raise _needs(self, 'vault')
+    if self.memory is None: raise _needs('vault')
     return self.memory.toc(document or None)
 
 # %% ../nbs/01_host.ipynb #7f3a5f3b
 @patch
 def memory_read(self:LocalHost, node_id):
-    if self.memory is None: raise _needs(self, 'vault')
+    if self.memory is None: raise _needs('vault')
     return self.memory.read(str(node_id))
 
 # %% ../nbs/01_host.ipynb #d5dc90b5
 @patch
 def memory_topics(self:LocalHost, limit=12):
-    if self.memory is None: raise _needs(self, 'vault')
+    if self.memory is None: raise _needs('vault')
     return self.memory.topic_tree(limit=int(limit))
 
 # %% ../nbs/01_host.ipynb #fcb89ac4
 @patch
 def memory_forget(self:LocalHost, doc_id):
-    if self.memory is None: raise _needs(self, 'vault')
+    if self.memory is None: raise _needs('vault')
     return self.memory.forget(str(doc_id))
 
 # %% ../nbs/01_host.ipynb #3a1847c4
 @patch
 def remember(self:LocalHost, text, title=None, tags=()):
-    if self.memory is None: raise _needs(self, 'vault')
+    if self.memory is None: raise _needs('vault')
     return self.memory.note(str(text), title=title, tags=list(tags))
 
 # %% ../nbs/01_host.ipynb #5d0a69ed
 @patch
 def ask(self:LocalHost, question, ref=None, instruction='', **kw):
-    if self.memory is None: raise _needs(self, 'vault')
+    if self.memory is None: raise _needs('vault')
     return self.memory.ask(str(question), ref=ref, instruction=instruction, **kw)
 
 # %% ../nbs/01_host.ipynb #ef92f2f9
 @patch
 def watch(self:LocalHost, target, action='remind', every='1d', note=None, **params):
-    if self.memory is None: raise _needs(self, 'vault')
+    if self.memory is None: raise _needs('vault')
     return self.memory.watch(target, action=action, every=every, note=note, **params)
 
 # %% ../nbs/01_host.ipynb #b91294a2
 @patch
 def watches(self:LocalHost, due_only=False):
-    if self.memory is None: raise _needs(self, 'vault')
+    if self.memory is None: raise _needs('vault')
     return self.memory.watches(due_only=bool(due_only))
 
 # %% ../nbs/01_host.ipynb #91f80b0a
 @patch
 def unwatch(self:LocalHost, watch_id): 
-    if self.memory is None: raise _needs(self, 'vault')
+    if self.memory is None: raise _needs('vault')
     return self.memory.unwatch(str(watch_id))
 
 # %% ../nbs/01_host.ipynb #1a5e84ff
 @patch
 def poll(self:LocalHost):
-    if self.memory is None: raise _needs(self, 'vault')
+    if self.memory is None: raise _needs('vault')
     return self.memory.poll()
 
 # %% ../nbs/01_host.ipynb #18519fef
 @patch
 def api_load(self:LocalHost, src, name=''):
-    if self.apis is None: raise _needs(self, 'API specifications')
+    if self.apis is None: raise _needs('API specifications')
     return self.apis.api_load(src, name=name)
 
 # %% ../nbs/01_host.ipynb #8353d136
 @patch
 def api_ops(self:LocalHost, group='', name='', match='', limit=None, offset=0):
-    if self.apis is None: raise _needs(self, 'API specifications')
+    if self.apis is None: raise _needs('API specifications')
     return self.apis.api_ops(group=group, name=name, match=match, limit=limit, offset=offset)
 
 # %% ../nbs/01_host.ipynb #02e694ed
 @patch
 def api_count(self:LocalHost, group='', name='', match=''):
-    if self.apis is None: raise _needs(self, 'API specifications')
+    if self.apis is None: raise _needs('API specifications')
     return self.apis.api_count(group=group, name=name, match=match)
 
 # %% ../nbs/01_host.ipynb #27c2f983
 @patch
 def api_call(self:LocalHost, operation, name='', **params):
-    if self.apis is None: raise _needs(self, 'API specifications')
+    if self.apis is None: raise _needs('API specifications')
     return self.apis.api_call(operation, name=name, **params)
 
 # %% ../nbs/01_host.ipynb #3f0e0e03
