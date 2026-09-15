@@ -226,11 +226,19 @@ def summary(fn):
         return t
     return _mark
 
+def _summaries():
+    "`SUMMARIES`, with every factory built once so a bare name can be looked up."
+    from shalya.tools import tool_groups
+    tool_groups()   # cached; a factory closes over its host, so building one without one costs nothing
+    return SUMMARIES
+
 def summarise(tool, args=None):
     "The imperative one-liner for a call: what a person would say they just did."
     a = args if isinstance(args, dict) else {}
     nm = tool if isinstance(tool, str) else getattr(tool, '__name__', '')
     fn = getattr(tool, 'summary', None) or SUMMARIES.get(nm)
+    # a name alone reaches here before anything built its group: `@summary` runs on definition
+    if fn is None and nm: fn = _summaries().get(nm)
     if fn is not None:
         try: return fn(a)
         except Exception: pass
