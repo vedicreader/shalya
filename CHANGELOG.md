@@ -3,15 +3,13 @@
 <!-- do not remove -->
 
 ## 0.0.8
-- `read_page` hands dedicated readers to `fossick.read`, which adds PDF, and skips the stealthy re-fetch that repeated it.
-- `GROUPS` pairs each Capability class with its factory; the group name lives only on `cls.group`.
-- `summarise` builds the tool table when handed a bare name, so a call drawn out of a saved turn renders its one-liner rather than a signature.
-- `Host.writes` is read by `tools_for`. `tests/test_web.py`.
-
-### Removed
-
-- `shalya.refactor`. It was a copy of leela's, imported by nothing; kosha carries the superset.
-- The bare `except` around `rrf_all`, which returned the first leg whenever fusion raised. litesearch is declared.
+- `read_page` hands dedicated readers to `fossick.read` (adds PDF) and skips the stealthy re-fetch.
+- `GROUPS` pairs each Capability class with its factory; group name lives only on `cls.group`.
+- `summarise` builds the tool table for a bare name, so a saved-turn call renders its one-liner.
+- `Host.writes` is read by `tools_for`.
+- Added `tests/test_web.py`.
+- Removed `shalya.refactor`: a copy of leela's, imported by nothing; kosha carries the superset.
+- Removed the bare `except` around `rrf_all`; litesearch declared `>=0.1.34`.
 
 ## 0.0.7
 - Unified `read_page`: full site-read, fetch, article extraction, shell/page escalation, JSON-LD handling. `LocalHost.read_url` wraps it and returns `title`, `kind`, `sections`, `strategy`, `text`, `url`. Leela and shalya logic merged.
