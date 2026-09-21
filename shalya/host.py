@@ -16,8 +16,6 @@ from abc import ABC, abstractmethod
 from fastcore.basics import AttrDict, first, ifnone, patch
 from fastcore.parallel import startthread
 from fastcore.xtras import Path, exec_eval
-from litesearch import rrf_all
-from litesearch.core import BUSY_TIMEOUT_MS
 from .core import DENY, Hit, HostError, MAX_API, MAX_FILE, MAX_GREP_HITS, NO_ROOTS, SANDBOX, SECRET, Sandbox, Unsafe, denied, host_err, one_line
 
 # %% ../nbs/01_host.ipynb #c1786946
@@ -337,6 +335,7 @@ def _md_doc(d):
 
 def _fuse(legs, limit):
     "Fuse ranked `Hit` lists by `path:line`."
+    from litesearch import rrf_all
     legs = [list(l) for l in legs if l]
     if not legs: return []
     if len(legs) == 1: return legs[0][:limit]
@@ -534,6 +533,7 @@ def sync_index(self:LocalHost, wait=False, force=False):
             try:
                 os.environ.setdefault('TQDM_DISABLE', '1')
                 from kosha import Kosha
+                from litesearch.core import BUSY_TIMEOUT_MS
             except Exception as e:
                 self._index_errors.append(host_err(e))
                 self._pending = []

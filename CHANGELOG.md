@@ -2,6 +2,9 @@
 
 <!-- do not remove -->
 
+## 0.0.9
+- litesearch is imported where `_fuse` and `sync_index` run, not at module load; `import shalya` no longer brings numpy and pandas into a server.
+
 ## 0.0.8
 - `read_page` hands dedicated readers to `fossick.read` (adds PDF) and skips the stealthy re-fetch.
 - `GROUPS` pairs each Capability class with its factory; group name lives only on `cls.group`.
