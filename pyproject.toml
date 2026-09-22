@@ -20,6 +20,9 @@ classifiers = [
 dependencies = ["fastcore>=2.1.16","exhash>=0.4.9","vishalakshi","fastspec","gheasy","dhrishti",
                 "jupyter-client","litesearch>=0.1.34","fossick>=0.1.17"]
 
+[project.optional-dependencies]
+tmux = ["fastmux>=0.0.2"]
+
 [project.urls]
 Repository = "https://github.com/vedicreader/shalya"
 Documentation = "https://vedicreader.github.io/shalya/"

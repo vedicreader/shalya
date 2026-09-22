@@ -12,7 +12,7 @@ __all__ = ['RESPONSES_API', 'IMAGE_API', 'IMAGE_MODEL', 'IMAGE_SIZES', 'API_VEND
            'read_only']
 
 # %% ../nbs/02_tools.ipynb #a71f9b84
-import functools, json, mimetypes, os, re, threading, uuid
+import functools, json, mimetypes, os, re, shlex, threading, uuid
 from base64 import b64decode
 from pathlib import Path
 from fastcore.basics import AttrDict, bind
@@ -461,7 +461,7 @@ def session_tools(host, mx=MAX_TOOL_CHARS):
     @summary(lambda a: f'Inspect: {_1((a.get("code") or "").strip().splitlines()[0] if a.get("code") else "")}' + ('' if (a.get('scope') or 'isolated') == 'isolated' else f'  [{a["scope"]}]'))
     def inspect_python(code: str, scope: str = 'isolated') -> str:
         """Inspect live variables without changing them.
-        `isolated` runs allowlisted Python on a copy. `overlay` permits library calls and stores new names in a private layer. Neither scope can mutate user variables. Use `run_python` to write to the user's namespace.
+        `isolated` runs allowlisted Python on a copy. `overlay` permits library calls and stores new names in a private layer. Neither scope can mutate user variables. A host may honour `isolated` alone; `environment` says which. Use `run_python` to write to the user's namespace.
         """
         try: return clip(host.inspect_python(code, scope=scope))
         except NotImplementedError: raise
@@ -483,7 +483,7 @@ def shell_tools(host, mx=MAX_TOOL_CHARS):
     @summary(lambda a: f'Run {_1(a.get("command"), 110)}')
     def run_shell(command: str, cwd: str = '', timeout: int = 120) -> str:
         """Run one terminating project command and return its exit code and output.
-        `cwd` must be in the open folders. `timeout` kills expired commands. Do not start servers, watchers, or REPLs. Use the project's documented commands. One call may require approval.
+        `cwd` must be in the open folders. `timeout` kills expired commands. Servers, watchers and slow suites go to `run_shell_bg`. Use the project's documented commands. One call may require approval.
         """
         cmd = str(command or '').strip()
         if not cmd: return err('no command given')
@@ -495,7 +495,39 @@ def shell_tools(host, mx=MAX_TOOL_CHARS):
                     more='re-run narrowing the command (a single test, `| tail -50`) rather than repeating it')
         return f'{head}\n{body}' if code == 0 else f'{ERR}{head}\n{body}'
 
-    return [run_shell]
+    @writes
+    @summary(lambda a: f'Run in background {_1(a.get("command"), 100)}')
+    def run_shell_bg(command: str, cwd: str = '') -> str:
+        "Start a command that keeps running and return its id; read it with `shell_output`, end it with `shell_stop`."
+        cmd = str(command or '').strip()
+        if not cmd: return err('no command given')
+        try: rid = host.run_cmd_bg(cmd, cwd=(str(cwd).strip() or None))
+        except NotImplementedError: raise
+        except Exception as e: return err('command could not be started', e)
+        return f'started {rid}; read it with shell_output({rid!r})'
+
+    @summary(lambda a: f'Read {a.get("run_id", "?")}')
+    def shell_output(run_id: str, tail: int = 200) -> str:
+        "A background command's state and its last `tail` lines."
+        try: state, text = host.cmd_output(run_id, int(tail))
+        except NotImplementedError: raise
+        except Exception as e: return err('no such command', e)
+        return clip(f'{state}\n{text or "(no output yet)"}', mx)
+
+    @acts
+    @summary(lambda a: f'Stop {a.get("run_id", "?")}')
+    def shell_stop(run_id: str) -> str:
+        "Stop a background command."
+        try: return host.cmd_stop(run_id)
+        except NotImplementedError: raise
+        except Exception as e: return err('could not stop', e)
+
+    @summary(lambda a: 'Environment')
+    def environment() -> str:
+        "The interpreters, venvs and commands on this machine; read before choosing how to run anything."
+        return clip(host.environment() or 'this host does not describe its environment')
+
+    return [run_shell, run_shell_bg, shell_output, shell_stop, environment]
 
 # %% ../nbs/02_tools.ipynb #80208a7b
 def api_tools(host, mx=MAX_TOOL_CHARS):
@@ -674,8 +706,10 @@ def git_tools(host, mx=MAX_TOOL_CHARS):
             raise ValueError(f'Git root {found.root} is outside the open folders; open the repository root first')
         return found
     def state(r, result=''): return {'result': result} | {k: r.info()[k] for k in STATE_KEYS}
-    def answer(what, path, make):
-        try: return clip(json.dumps(make(repo(path)), indent=2), mx * 2)
+    def answer(what, path, make, text=False):
+        try:
+            r = make(repo(path))
+            return clip(r if text else json.dumps(r, indent=2), mx * 2)
         except Exception as e: return err(what, e)
     def preview(r, onto):
         oid = r._resolve_ref(onto)
@@ -694,6 +728,30 @@ def git_tools(host, mx=MAX_TOOL_CHARS):
     def git_rebase_preview(onto: str, path: str = '') -> str:
         "What replaying this branch onto `onto` would hit, without rewriting anything."
         return answer('git rebase preview', path, lambda r: preview(r, onto))
+    @summary(lambda a: 'Git diff' + (' (staged)' if a.get('staged') else ''))
+    def git_diff(staged: bool = False, path: str = '') -> str:
+        "The unified diff of the working tree, or of the index with `staged`; `path` narrows it to a file or folder."
+        return answer('git diff', path, lambda r: r.diff(path=str(host.check(path)) if path else '', staged=staged) or '(no changes)', text=True)
+    @summary(lambda a: f'Git log {a.get("n", 10)}')
+    def git_log(n: int = 10, path: str = '') -> str:
+        "The last `n` commits on this branch: short id, author, subject."
+        return answer('git log', path, lambda r: [{k: c[k] for k in ('short', 'author', 'subject')} for c in r.history(limit=int(n), ref='HEAD')])
+    @writes
+    @summary(lambda a: f'Git commit: {_1(a.get("message"), 80)}')
+    def git_commit(message: str, paths: str = '') -> str:
+        "Commit with `message`; `paths` (space-separated) are staged first, otherwise what is staged is committed."
+        def go(r):
+            if (ps := shlex.split(paths or '')): r.stage(ps)
+            return state(r, _said(r.commit(str(message))))
+        return answer('git commit', '', go)
+    @writes
+    @summary(lambda a: f'Git stash {a.get("action", "push")}')
+    def git_stash(action: str = 'push', message: str = '', path: str = '') -> str:
+        "`push` the working changes aside, or `pop`, `apply` or `drop` the latest stash."
+        ops = {'push': lambda r: r.stash(str(message or '')), 'pop': lambda r: r.stash_pop(),
+               'apply': lambda r: r.stash_apply(), 'drop': lambda r: r.stash_drop()}
+        if action not in ops: return err('git stash', ValueError(f'action must be one of {", ".join(ops)}'))
+        return answer(f'git stash {action}', path, lambda r: state(r, _said(ops[action](r))))
     @writes
     @summary(lambda a: f'Git {a.get("op","fetch")}')
     def git_remote(op: str = 'fetch', path: str = '') -> str:
@@ -705,7 +763,7 @@ def git_tools(host, mx=MAX_TOOL_CHARS):
     def git_checkout(branch: str, path: str = '') -> str:
         "Switch to a local branch, or create a local tracking branch from `REMOTE/BRANCH`."
         return answer('git checkout', path, lambda r: state(r, _said(r.checkout(str(branch or '').strip()))))
-    return [git_status, git_divergence, git_rebase_preview, git_remote, git_checkout]
+    return [git_status, git_divergence, git_rebase_preview, git_diff, git_log, git_remote, git_checkout, git_commit, git_stash]
 
 # %% ../nbs/02_tools.ipynb #8cc4fdac
 #: the Capability class -> the factory that builds its group. The group name lives only on

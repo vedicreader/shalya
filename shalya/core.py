@@ -243,11 +243,11 @@ def summarise(tool, args=None):
         except Exception: pass
     return f'{nm}({", ".join(f"{k}={one_line(v, 30)!r}" for k, v in a.items())})'
 
-GIT_READ_TOOLS = ('git_status', 'git_divergence', 'git_rebase_preview')
-GIT_WRITE_TOOLS = frozenset({'git_remote', 'git_checkout'})
+GIT_READ_TOOLS = ('git_status', 'git_divergence', 'git_rebase_preview', 'git_diff', 'git_log')
+GIT_WRITE_TOOLS = frozenset({'git_remote', 'git_checkout', 'git_commit', 'git_stash'})
 GIT_TOOLS = (*GIT_READ_TOOLS, *sorted(GIT_WRITE_TOOLS))
 
-WRITE_TOOLS = frozenset({'edit_file', 'replace_text', 'create_file', 'edit_cell', 'add_cell', 'run_python', 'run_shell', 'memory_forget',
+WRITE_TOOLS = frozenset({'edit_file', 'replace_text', 'create_file', 'edit_cell', 'add_cell', 'run_python', 'run_shell', 'run_shell_bg', 'memory_forget',
                          'create_skill', 'cancel_watch', 'add_root'}) | GIT_WRITE_TOOLS
 
-ACTING_TOOLS = frozenset({'inspect_python', 'api_call', 'generate_image', 'research', 'watch_url', 'set_reminder'})
+ACTING_TOOLS = frozenset({'inspect_python', 'shell_stop', 'api_call', 'generate_image', 'research', 'watch_url', 'set_reminder'})
