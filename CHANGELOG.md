@@ -2,6 +2,15 @@
 
 <!-- do not remove -->
 
+## 0.0.10
+- `environment()` and the `environment` tool: this process, the venvs under the open folders, the commands on PATH, the `inspect_python` scopes, and the tmux pane.
+- tmux through fastmux (`shalya[tmux]`): `LocalHost(tmux=)` auto-detects `$TMUX`; `terminal_text` reads the sibling panes; `run_cmd_bg` runs in a pane; `open_pane` and `close_pane`.
+- Background commands: `run_cmd_bg`, `cmd_output`, `cmd_stop` on the host; `run_shell_bg`, `shell_output`, `shell_stop` tools; `close()` stops them.
+- Git: `git_diff`, `git_log`, `git_commit`, `git_stash`.
+- `fire` returns what the hooks return; `EVENTS` gains `session_start` and `stop`; `<cfg>/hooks.json` shell hooks.
+- `Host.close()` no-op on the base.
+- Needs fastmux 0.0.2 for the tmux extra.
+
 ## 0.0.9
 - litesearch is imported where `_fuse` and `sync_index` run, not at module load; `import shalya` no longer brings numpy and pandas into a server.
 
