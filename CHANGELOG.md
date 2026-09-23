@@ -2,6 +2,9 @@
 
 <!-- do not remove -->
 
+## 0.0.11
+- `EVENTS` gains `background_done` and `watch`, fired by ramabana when a background delegation finishes and when a run is watched.
+
 ## 0.0.10
 - `environment()` and the `environment` tool: this process, the venvs under the open folders, the commands on PATH, the `inspect_python` scopes, and the tmux pane.
 - tmux through fastmux (`shalya[tmux]`): `LocalHost(tmux=)` auto-detects `$TMUX`; `terminal_text` reads the sibling panes; `run_cmd_bg` runs in a pane; `open_pane` and `close_pane`.
