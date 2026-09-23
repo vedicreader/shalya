@@ -142,7 +142,7 @@ def find(skills, name):
     return None
 
 # %% ../nbs/03_skills.ipynb #935db1a7
-EVENTS = ('session_start', 'before_turn', 'after_turn', 'before_tool', 'after_tool', 'stop', 'compact', 'approval')
+EVENTS = ('session_start', 'before_turn', 'after_turn', 'before_tool', 'after_tool', 'stop', 'compact', 'approval', 'background_done', 'watch')
 
 # %% ../nbs/03_skills.ipynb #18873bfa
 class Registry:
