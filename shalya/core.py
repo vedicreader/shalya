@@ -180,7 +180,7 @@ def apply_edits(text, es):
     "Apply exact-text edits to `text`, or raise saying which one is wrong and why."
     spans = []
     for i, (old, new) in enumerate(es, 1):
-        if not old: raise ValueError(f'edit {i}: oldText is empty; use create_file to write a whole file')
+        if not old: raise ValueError(f'edit {i}: oldText is empty; give the exact text to replace')
         n = text.count(old)
         if n == 0: raise ValueError(f'edit {i}: oldText not found. It must match the file exactly, including indentation. Re-read the file and try again')
         if n > 1: raise ValueError(f'edit {i}: oldText matches {n} places. Include more surrounding lines so it matches exactly one')

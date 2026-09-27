@@ -156,14 +156,14 @@ def code_tools(host, mx=MAX_TOOL_CHARS):
     return tools
 
 # %% ../nbs/02_tools.ipynb #6d65593d
-def _replace(read, es):
+def _replace(read, es, what=''):
     "`(after, before, n, '')` for exact-text edits to the text `read()` returns, or `(None, None, 0, err)` with the reason."
     try: items = edits(es)
     except Exception as e: return None, None, 0, err('could not parse edits', e)
     if not items: return None, None, 0, err('no edits given')
     try: before = read()
-    except Exception as e: return None, None, 0, err('could not read', e)
-    if before is None: return None, None, 0, err('no such file. Use create_file to create it')
+    except Exception as e: return None, None, 0, err(f'could not read {what}'.rstrip(), e)
+    if before is None: return None, None, 0, err(f'no such file: {what}; create_file makes one')
     try: after = apply_edits(before, items)
     except ValueError as e: return None, None, 0, err(str(e))
     if after == before: return None, None, 0, err('the edits changed nothing; check oldText against a fresh view')
@@ -193,11 +193,12 @@ def file_tools(host, mx=MAX_TOOL_CHARS):
 
     @writes
     @summary(lambda a: f'Edit {a.get("path","")}')
-    def replace_text(path: str, edits: list[dict]) -> str:
+    def replace_text(path: str, edits: list[dict],  # [{"oldText": "exact text", "newText": "replacement"}, ...]
+                     ) -> str:
         "Replace exact text in a file: each `{oldText, newText}` must match once; all apply or none; returns the diff."
         p, refused = resolved(host, path, writing=True)
         if refused: return refused
-        after, before, n, refused = _replace(lambda: host.read(str(p)), edits)
+        after, before, n, refused = _replace(lambda: host.read(str(p)), edits, str(p))
         if refused: return refused
         try: host.write(str(p), after)
         except Exception as e: return err('write failed', e)
@@ -254,11 +255,12 @@ def notebook_tools(host, mx=MAX_TOOL_CHARS):
 
     @writes
     @summary(lambda a: f'Edit {a.get("path","")} cell {a.get("cell_id","?")}')
-    def edit_cell(path: str, cell_id: str, edits: list[dict]) -> str:
+    def edit_cell(path: str, cell_id: str, edits: list[dict],  # [{"oldText": "exact text", "newText": "replacement"}, ...]
+                  ) -> str:
         "Replace exact text in one cell: each `{oldText, newText}` must match once; all apply or none; returns the diff."
         p, refused = resolved(host, path, writing=True)
         if refused: return refused
-        after, before, n, refused = _replace(lambda: host.nb_cell(str(p), cell_id)[2], edits)
+        after, before, n, refused = _replace(lambda: host.nb_cell(str(p), cell_id)[2], edits, f'{p}#{cell_id}')
         if refused: return refused
         try: cid = host.nb_set_cell(str(p), cell_id, after)
         except Exception as e: return err('could not write cell', e)
