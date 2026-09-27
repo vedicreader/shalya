@@ -6,7 +6,7 @@ Docs: https://vedicreader.github.io/shalya/host.html.md"""
 
 # %% auto #0
 __all__ = ['SKIP_DIRS', 'SKIP_SUFFIXES', 'MAX_VARS', 'LD_CHARS', 'PANE_LINES', 'CONTENT_SEL', 'BLOCK_SEL', 'THIN_PAGE',
-           'MAX_PAGE', 'MIN_SECTION', 'READERS', 'Capability', 'Host', 'CodeHost', 'WebHost', 'NotebookHost',
+           'MAX_PAGE', 'MIN_SECTION', 'READERS', 'Capability', 'Host', 'nb_read', 'CodeHost', 'WebHost', 'NotebookHost',
            'MemoryHost', 'AskHost', 'WatchHost', 'SessionHost', 'ShellHost', 'ApiHost', 'GitHost', 'ld_json',
            'LocalHost', 'md_title', 'read_page', 'implemented']
 
@@ -16,6 +16,7 @@ from abc import ABC, abstractmethod
 from fastcore.basics import AttrDict, first, ifnone, patch
 from fastcore.parallel import startthread
 from fastcore.xtras import Path, exec_eval
+from fastcore.nbio import read_nb, write_nb, mk_cell, dict2nb
 from .core import DENY, Hit, HostError, MAX_API, MAX_FILE, MAX_GREP_HITS, NO_ROOTS, SANDBOX, SECRET, Sandbox, Unsafe, denied, host_err, one_line
 
 # %% ../nbs/01_host.ipynb #c1786946
@@ -87,6 +88,17 @@ class Host(ABC):
     def note(self, text):
         "Tell the user something out of band. Never blocks. A host may drop it."
         pass
+
+# %% ../nbs/01_host.ipynb #a0ecfcde
+def nb_read(path):
+    "A notebook whose every cell has an id: `c{i}` by position for the ones saved without (nbformat 4.4), so a listed id survives the next read."
+    d = json.loads(Path(path).expanduser().read_text(encoding='utf-8'))
+    if any('id' not in c for c in d.get('cells', ())):
+        for i, c in enumerate(d['cells']): c.setdefault('id', f'c{i}')
+        d['nbformat_minor'] = max(int(d.get('nbformat_minor', 0)), 5)
+    nb = dict2nb(d)
+    nb['path_'] = str(path)
+    return nb
 
 # %% ../nbs/01_host.ipynb #ee658b0c
 class CodeHost(Capability):
@@ -167,10 +179,9 @@ class NotebookHost(Capability):
 
     def nb_set_cell(self, path, cell_id, source):
         "Replace one cell's source and write the notebook back; returns the cell's id."
-        from fastcore.nbio import read_nb, write_nb
         cid = self.nb_cell(path, cell_id)[0]
         p = self.check(path, must_exist=True)
-        nb = read_nb(p)
+        nb = nb_read(p)
         if (c := first(c for c in nb.cells if c.get('id') == cid)) is None: raise ValueError(f'no cell {cid!r}')
         c['source'] = source
         write_nb(nb, p)
@@ -531,8 +542,7 @@ def text_at(self:LocalHost, path):
     if not p.exists(): return ''
     if p.suffix == '.ipynb':
         try:
-            from fastcore.nbio import read_nb
-            return '\n\n'.join(''.join(c.source) for c in read_nb(p).cells)
+            return '\n\n'.join(''.join(c.source) for c in nb_read(p).cells)
         except Exception: return None
     try: return p.read_text(encoding='utf-8')
     except Exception: return None
@@ -771,16 +781,14 @@ def peers(self:LocalHost, path, line, limit=20):
 # %% ../nbs/01_host.ipynb #b579f602
 @patch
 def nb_cells(self:LocalHost, path):
-    from fastcore.nbio import read_nb
-    nb = read_nb(self.check(path, must_exist=True, reading=True))
+    nb = nb_read(self.check(path, must_exist=True, reading=True))
     return [(c.get('id', ''), c.cell_type, ''.join(c.source)) for c in nb.cells]
 
 # %% ../nbs/01_host.ipynb #e0805d6b
 @patch
 def nb_add_cell(self:LocalHost, path, source, index=-1, cell_type='code'):
-    from fastcore.nbio import read_nb, write_nb, mk_cell, dict2nb
     p = self.check(path)
-    nb = read_nb(p) if p.exists() else dict2nb({'cells': [], 'metadata': {}, 'nbformat': 4, 'nbformat_minor': 5})
+    nb = nb_read(p) if p.exists() else dict2nb({'cells': [], 'metadata': {}, 'nbformat': 4, 'nbformat_minor': 5})
     cell = mk_cell(source, cell_type)
     if not cell.get('id'): cell['id'] = uuid.uuid4().hex[:8]
     nb.cells.append(cell) if index < 0 else nb.cells.insert(int(index), cell)
