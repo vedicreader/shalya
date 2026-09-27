@@ -14,7 +14,7 @@ import pytest
 from shalya.core import SUMMARIES, one_line, summarise, summary
 from shalya.host import LocalHost
 from shalya.tools import (api_tools, ask_tools, author_tools, code_tools, exhash_tools, file_tools,
-                          git_tools, image_tools, memory_tools, notebook_tools, research_tools,
+                          git_tools, image_tools, legacy_tools, memory_tools, notebook_tools, research_tools,
                           session_tools, shell_tools, skill_tools, watch_tools, web_tools)
 
 
@@ -31,7 +31,7 @@ def every_tool(tmp_path):
     h = AnyHost()
     out = list(code_tools(LocalHost([tmp_path], index=False, web=False)))
     for f in (file_tools, exhash_tools, notebook_tools, web_tools, research_tools, memory_tools, ask_tools,
-              watch_tools, session_tools, shell_tools, skill_tools, author_tools, api_tools, git_tools):
+              watch_tools, session_tools, shell_tools, skill_tools, author_tools, api_tools, git_tools, legacy_tools):
         try: out += list(f(h))
         except Exception: pass
     try: out += list(image_tools(h))
@@ -45,7 +45,7 @@ def test_every_tool_this_package_builds_carries_its_own_summary(tmp_path):
     assert len(built) > 30, f'only {len(built)} tools built; the sweep stopped finding them'
     bare = sorted({t.__name__ for t in built if getattr(t, 'summary', None) is None})
     assert bare == [], f'no summary on: {bare}'
-    assert 'research' in {t.__name__ for t in built}, 'the sweep skipped the research group'
+    assert {'research', 'edit_file', 'create_skill', 'list_files', 'set_reminder'} <= {t.__name__ for t in built}, 'the sweep skipped an opt-in group'
 
 
 def test_the_summary_reads_the_arguments_of_the_call_it_labels(tmp_path):

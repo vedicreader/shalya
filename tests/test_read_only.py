@@ -71,6 +71,13 @@ def test_the_two_axes_are_independent():
     assert is_write(written) and not has_effect(written)
 
 
+def test_opt_in_groups_follow_the_same_two_axes():
+    "A sub-agent built from a parent that opted in keeps research (an act) and loses edit_file (a write)."
+    ts = [acts(tool('research')), writes(tool('edit_file')), tool('list_files')]
+    assert names(read_only(ts)) == {'research', 'list_files'}
+    assert names(read_only(ts, effects=False)) == {'list_files'}
+
+
 def test_block_refuses_names_the_caller_names_whatever_else_they_are():
     "Ramabana passes its own delegation tools here; they are reads by every other measure."
     ts = [tool('delegate_search'), tool('search_code')]
