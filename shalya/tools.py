@@ -632,11 +632,19 @@ def image_tools(host, mx=MAX_TOOL_CHARS, session='', draws_itself=None, from_rep
     return [generate_image]
 
 # %% ../nbs/02_tools.ipynb #49342acf
-from gheasy.repo import GitRepo, STATE_KEYS, REMOTE_OPS, _said
+from gheasy.repo import GitRepo, STATE_KEYS, REMOTE_OPS
 
 # %% ../nbs/02_tools.ipynb #5c1e1c29
+def _report(r, out=None):
+    "A git write's report: what gheasy said, its undo token when it journaled one, and the repository state."
+    d = out if isinstance(out, dict) else {}
+    said = (d.get('summary') or d.get('message') or '') if d else str(out or '').strip()
+    return ({'result': said, 'summary': d.get('summary', said), 'undo': d.get('undo', ''), 'undoes': d.get('undoes', ''),
+             'head': d.get('head', ''), 'moved': bool(d.get('moved', False))} | {k: r.info()[k] for k in STATE_KEYS})
+
 def git_tools(host, mx=MAX_TOOL_CHARS):
-    "Git bound to one open repository, kept inside the host's roots."
+    "Git bound to one open repository, kept inside the host's roots; writes report an undo token."
+    os.environ.setdefault('GIT_TERMINAL_PROMPT', '0')
     def repo(path=''):
         roots = L(host.roots).map(lambda r: Path(r).expanduser().resolve())
         if not roots: raise ValueError('open a project folder first')
@@ -644,65 +652,60 @@ def git_tools(host, mx=MAX_TOOL_CHARS):
         if not any(found.root.is_relative_to(r) for r in roots):
             raise ValueError(f'Git root {found.root} is outside the open folders; open the repository root first')
         return found
-    def state(r, result=''): return {'result': result} | {k: r.info()[k] for k in STATE_KEYS}
     def answer(what, path, make, text=False):
         try:
             r = make(repo(path))
             return clip(r if text else json.dumps(r, indent=2), mx * 2)
         except Exception as e: return err(what, e)
-    def preview(r, onto):
-        oid = r._resolve_ref(onto)
-        stops, replayed, _ = r._replay(oid, list(reversed(r.history(limit=250, ref=f'{oid}..HEAD'))))
-        return ({k: v for k, v in r.rebase_preview(onto).items() if k != 'review'}
-                | {'stops_at': stops, 'replayed': replayed})
     @summary(lambda a: 'Git status')
     def git_status(path: str = '') -> str:
-        "Repository status: branch, upstream, local and remote branches, and changed files."
-        return answer('git status', path, state)
-    @summary(lambda a: 'Git divergence')
-    def git_divergence(path: str = '', upstream: str = '') -> str:
-        "How far this branch has run from its upstream each way, and every way back, rehearsed."
-        return answer('git divergence', path, lambda r: r.divergence(upstream))
-    @summary(lambda a: 'Rehearse a rebase')
-    def git_rebase_preview(onto: str, path: str = '') -> str:
-        "What replaying this branch onto `onto` would hit, without rewriting anything."
-        return answer('git rebase preview', path, lambda r: preview(r, onto))
+        "Branch, upstream, ahead/behind counts, local and remote branches, and every changed file."
+        return answer('git status', path, _report)
+    @summary(lambda a: f'Git divergence vs {a.get("against") or "upstream"}')
+    def git_divergence(against: str = '', path: str = '') -> str:
+        "How this branch differs from `against` (default its upstream), with fast-forward, merge, rebase and reset rehearsed: conflicts, where a rebase would stop, and a recommendation."
+        return answer('git divergence', path, lambda r: r.divergence(against))
     @summary(lambda a: 'Git diff' + (' (staged)' if a.get('staged') else ''))
     def git_diff(staged: bool = False, path: str = '') -> str:
-        "The unified diff of the working tree, or of the index with `staged`; `path` narrows it to a file or folder."
+        "Unified diff of the working tree, or of the index with `staged`; `path` narrows to a file or folder."
         return answer('git diff', path, lambda r: r.diff(path=str(host.check(path)) if path else '', staged=staged) or '(no changes)', text=True)
     @summary(lambda a: f'Git log {a.get("n", 10)}')
     def git_log(n: int = 10, path: str = '') -> str:
-        "The last `n` commits on this branch: short id, author, subject."
+        "The last `n` commits: short id, author, subject."
         return answer('git log', path, lambda r: [{k: c[k] for k in ('short', 'author', 'subject')} for c in r.history(limit=int(n), ref='HEAD')])
     @writes
-    @summary(lambda a: f'Git commit: {_1(a.get("message"), 80)}')
-    def git_commit(message: str, paths: str = '') -> str:
-        "Commit with `message`; `paths` (space-separated) are staged first, otherwise what is staged is committed."
+    @summary(lambda a: f'Git {"amend" if a.get("amend") else "commit"}: {_1(a.get("message"), 80)}')
+    def git_commit(message: str, paths: str = '', amend: bool = False) -> str:
+        "Commit what is staged (or stage `paths`, space-separated, first) with `message`; `amend` folds it into the last commit; returns an `undo` token."
         def go(r):
             if (ps := shlex.split(paths or '')): r.stage(ps)
-            return state(r, _said(r.commit(str(message))))
+            return _report(r, r.commit(str(message), amend=amend))
         return answer('git commit', '', go)
+    @writes
+    @summary(lambda a: f'Git {"create" if a.get("create") else "checkout"} {a.get("branch","?")}')
+    def git_checkout(branch: str, create: bool = False, path: str = '') -> str:
+        "Switch to `branch` (a `REMOTE/BRANCH` makes a tracking branch); `create` makes a new branch from HEAD; uncommitted work is carried or refused, never lost."
+        b = str(branch or '').strip()
+        def go(r):
+            if create: r.create(b); return _report(r, f'created and switched to {b}')
+            return _report(r, r.checkout(b))
+        return answer('git checkout', path, go)
     @writes
     @summary(lambda a: f'Git stash {a.get("action", "push")}')
     def git_stash(action: str = 'push', message: str = '', path: str = '') -> str:
-        "`push` the working changes aside, or `pop`, `apply` or `drop` the latest stash."
+        "`push` sets the working changes aside (with `message`); `pop`, `apply` or `drop` acts on the latest stash."
         ops = {'push': lambda r: r.stash(str(message or '')), 'pop': lambda r: r.stash_pop(),
                'apply': lambda r: r.stash_apply(), 'drop': lambda r: r.stash_drop()}
         if action not in ops: return err('git stash', ValueError(f'action must be one of {", ".join(ops)}'))
-        return answer(f'git stash {action}', path, lambda r: state(r, _said(ops[action](r))))
+        return answer(f'git stash {action}', path, lambda r: _report(r, ops[action](r)))
     @writes
-    @summary(lambda a: f'Git {a.get("op","fetch")}')
-    def git_remote(op: str = 'fetch', path: str = '') -> str:
-        "Talk to the remote: `fetch`, `pull` (fast-forward only), or `push`."
+    @summary(lambda a: f'Git {a.get("op","fetch")}' + (' (publish)' if a.get('publish') else ''))
+    def git_remote(op: str = 'fetch', publish: bool = False, path: str = '') -> str:
+        "`fetch` all remotes, `pull` fast-forward only (autostash), or `push`; `publish` sets the upstream for a branch pushed the first time."
         if op not in REMOTE_OPS: return err('git remote', ValueError(f'op must be one of {", ".join(REMOTE_OPS)}'))
-        return answer(f'git {op}', path, lambda r: state(r, _said(getattr(r, op)())))
-    @writes
-    @summary(lambda a: f'Git checkout {a.get("branch","?")}')
-    def git_checkout(branch: str, path: str = '') -> str:
-        "Switch to a local branch, or create a local tracking branch from `REMOTE/BRANCH`."
-        return answer('git checkout', path, lambda r: state(r, _said(r.checkout(str(branch or '').strip()))))
-    return [git_status, git_divergence, git_rebase_preview, git_diff, git_log, git_remote, git_checkout, git_commit, git_stash]
+        go = (lambda r: r.push(publish=publish)) if op == 'push' else (lambda r: getattr(r, op)())
+        return answer(f'git {op}', path, lambda r: _report(r, go(r)))
+    return [git_status, git_divergence, git_diff, git_log, git_commit, git_checkout, git_stash, git_remote]
 
 # %% ../nbs/02_tools.ipynb #8cc4fdac
 #: the Capability class -> the factory that builds its group. The group name lives only on

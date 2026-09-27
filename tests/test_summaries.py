@@ -13,9 +13,9 @@ import pytest
 
 from shalya.core import SUMMARIES, one_line, summarise, summary
 from shalya.host import LocalHost
-from shalya.tools import (api_tools, ask_tools, code_tools, file_tools, git_tools, image_tools,
-                          memory_tools, notebook_tools, session_tools, shell_tools, skill_tools,
-                          watch_tools, web_tools)
+from shalya.tools import (api_tools, ask_tools, author_tools, code_tools, exhash_tools, file_tools,
+                          git_tools, image_tools, memory_tools, notebook_tools, research_tools,
+                          session_tools, shell_tools, skill_tools, watch_tools, web_tools)
 
 
 class AnyHost:
@@ -30,8 +30,8 @@ def every_tool(tmp_path):
     "One of every tool this package defines, whatever host each factory wants."
     h = AnyHost()
     out = list(code_tools(LocalHost([tmp_path], index=False, web=False)))
-    for f in (file_tools, notebook_tools, web_tools, memory_tools, ask_tools, watch_tools,
-              session_tools, shell_tools, skill_tools, api_tools, git_tools):
+    for f in (file_tools, exhash_tools, notebook_tools, web_tools, research_tools, memory_tools, ask_tools,
+              watch_tools, session_tools, shell_tools, skill_tools, author_tools, api_tools, git_tools):
         try: out += list(f(h))
         except Exception: pass
     try: out += list(image_tools(h))
@@ -78,9 +78,9 @@ def test_one_line_keeps_a_value_to_one_line_and_says_where_it_cut():
     assert one_line(None) == ''
 
 
-@pytest.mark.parametrize('name', ['git_status', 'git_divergence',   # Task 6 adds git_stash and the new names
-                                  'git_remote', 'git_checkout', 'add_root', 'ask_memory',
-                                  'api_load', 'api_ops', 'api_call', 'generate_image', 'public_api'])
+@pytest.mark.parametrize('name', ['git_status', 'git_divergence', 'git_remote', 'git_checkout', 'add_root',
+                                  'ask_memory', 'api_load', 'api_ops', 'api_call', 'generate_image',
+                                  'public_api', 'watch', 'memory_read', 'ls'])
 def test_the_tools_the_old_dispatch_never_named_have_one_now(name):
     assert name in SUMMARIES, f'{name} still renders as its own call'
     assert not SUMMARIES[name]({}).startswith(f'{name}('), 'that is the fallback, not a summary'
