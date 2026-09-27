@@ -78,7 +78,7 @@ def test_one_line_keeps_a_value_to_one_line_and_says_where_it_cut():
     assert one_line(None) == ''
 
 
-@pytest.mark.parametrize('name', ['git_status', 'git_divergence', 'git_rebase_preview',
+@pytest.mark.parametrize('name', ['git_status', 'git_divergence',   # Task 6 adds git_stash and the new names
                                   'git_remote', 'git_checkout', 'add_root', 'ask_memory',
                                   'api_load', 'api_ops', 'api_call', 'generate_image', 'public_api'])
 def test_the_tools_the_old_dispatch_never_named_have_one_now(name):

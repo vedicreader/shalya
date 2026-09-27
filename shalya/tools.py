@@ -801,6 +801,8 @@ def group_of(name, default=''):
     "Which group a tool belongs to, or `default` for a name shalya does not build."
     return tool_groups().get(str(name), default)
 
+tool_groups()   # build once at import so `summarise` can label a bare name
+
 # %% ../nbs/02_tools.ipynb #01e94cbe
 def _writing(t): return is_write(t) or getattr(t, '__name__', '') in WRITE_TOOLS
 def _acting(t):  return has_effect(t) or getattr(t, '__name__', '') in ACTING_TOOLS

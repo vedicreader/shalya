@@ -7,9 +7,9 @@ Docs: https://vedicreader.github.io/shalya/core.html.md"""
 # %% auto #0
 __all__ = ['MAX_TOOL_CHARS', 'MAX_HITS', 'MAX_GREP_HITS', 'MAX_API', 'MAX_FILE', 'ERR', 'SANDBOX', 'SECRET', 'NO_ROOTS', 'DENY',
            'SUMMARIES', 'GIT_READ_TOOLS', 'GIT_WRITE_TOOLS', 'GIT_TOOLS', 'WRITE_TOOLS', 'ACTING_TOOLS', 'Hit',
-           'HostError', 'host_err', 'err', 'failed', 'Unsafe', 'denied', 'Sandbox', 'clip', 'clip_lines', 'cmds',
-           'edits', 'apply_edits', 'diff_text', 'writes', 'is_write', 'acts', 'has_effect', 'one_line', 'summary',
-           'summarise']
+           'HostError', 'host_err', 'err', 'failed', 'attempt', 'Unsafe', 'denied', 'Sandbox', 'clip', 'clip_lines',
+           'cmds', 'edits', 'apply_edits', 'diff_text', 'writes', 'is_write', 'acts', 'has_effect', 'one_line',
+           'summary', 'summarise']
 
 # %% ../nbs/00_core.ipynb #8ff4e050
 import json, os
@@ -46,6 +46,12 @@ def err(what, e=None):
 def failed(result):
     "Whether a tool result starts with `ERROR: `."
     return str(result or '').startswith(ERR)
+
+def attempt(what, f):
+    "Run `f`; a host that cannot is left to raise, and anything else is one tool failure."
+    try: return f()
+    except NotImplementedError: raise
+    except Exception as e: return err(what, e)
 
 # %% ../nbs/00_core.ipynb #a0da82f5
 SANDBOX = 'path is outside the open folders'
@@ -154,17 +160,20 @@ def cmds(commands):
 
 # %% ../nbs/00_core.ipynb #c75c5591
 def edits(es):
-    "A JSON string, `{'oldText','newText'}` dicts, or `[old, new]` pairs: all three are unambiguous."
-    if isinstance(es, str): es = json.loads(es)
+    "`{'oldText','newText'}` dicts or `[old, new]` pairs, as a list; a JSON string of either still parses this release."
+    shape = 'edits is a list of {"oldText": …, "newText": …}'
+    if isinstance(es, str):
+        try: es = json.loads(es)
+        except Exception as e: raise ValueError(f'{shape}, not {es[:60]!r}') from e
     if isinstance(es, dict): es = [es]
-    if not isinstance(es, (list, tuple)): raise ValueError('edits must be a JSON array')
+    if not isinstance(es, (list, tuple)): raise ValueError(f'{shape}, got {type(es).__name__}')
     out = []
     for e in es:
         if isinstance(e, dict):
-            if 'oldText' not in e or 'newText' not in e: raise ValueError("each edit needs 'oldText' and 'newText'")
+            if 'oldText' not in e or 'newText' not in e: raise ValueError("each edit needs 'oldText' and 'newText' (exact keys)")
             out.append((str(e['oldText']), str(e['newText'])))
         elif isinstance(e, (list, tuple)) and len(e) == 2: out.append((str(e[0]), str(e[1])))
-        else: raise ValueError('each edit must be {"oldText":…,"newText":…} or [old, new]')
+        else: raise ValueError(f'each edit must be {{"oldText":…,"newText":…}} or [old, new]; {shape}')
     return out
 
 def apply_edits(text, es):
@@ -225,29 +234,21 @@ def summary(fn):
         return t
     return _mark
 
-def _summaries():
-    "`SUMMARIES`, with every factory built once so a bare name can be looked up."
-    from shalya.tools import tool_groups
-    tool_groups()   # cached; a factory closes over its host, so building one without one costs nothing
-    return SUMMARIES
-
 def summarise(tool, args=None):
     "The imperative one-liner for a call: what a person would say they just did."
     a = args if isinstance(args, dict) else {}
     nm = tool if isinstance(tool, str) else getattr(tool, '__name__', '')
     fn = getattr(tool, 'summary', None) or SUMMARIES.get(nm)
-    # a name alone reaches here before anything built its group: `@summary` runs on definition
-    if fn is None and nm: fn = _summaries().get(nm)
     if fn is not None:
         try: return fn(a)
         except Exception: pass
     return f'{nm}({", ".join(f"{k}={one_line(v, 30)!r}" for k, v in a.items())})'
 
-GIT_READ_TOOLS = ('git_status', 'git_divergence', 'git_rebase_preview', 'git_diff', 'git_log')
+GIT_READ_TOOLS = ('git_status', 'git_divergence', 'git_diff', 'git_log')
 GIT_WRITE_TOOLS = frozenset({'git_remote', 'git_checkout', 'git_commit', 'git_stash'})
 GIT_TOOLS = (*GIT_READ_TOOLS, *sorted(GIT_WRITE_TOOLS))
 
 WRITE_TOOLS = frozenset({'edit_file', 'replace_text', 'create_file', 'edit_cell', 'add_cell', 'run_python', 'run_shell', 'run_shell_bg', 'memory_forget',
                          'create_skill', 'cancel_watch', 'add_root'}) | GIT_WRITE_TOOLS
 
-ACTING_TOOLS = frozenset({'inspect_python', 'shell_stop', 'api_call', 'generate_image', 'research', 'watch_url', 'set_reminder'})
+ACTING_TOOLS = frozenset({'inspect_python', 'shell_stop', 'api_call', 'generate_image', 'research', 'watch'})
