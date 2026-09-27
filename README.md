@@ -45,21 +45,21 @@ ts = {t.__name__: t for t in tools_for(host)}
 len(ts), sorted(ts)
 ```
 
-    (25,
+    (27,
      ['add_cell',
       'add_root',
       'create_file',
       'edit_cell',
-      'edit_file',
       'git_checkout',
+      'git_commit',
+      'git_diff',
       'git_divergence',
-      'git_rebase_preview',
+      'git_log',
       'git_remote',
+      'git_stash',
       'git_status',
       'grep',
       'inspect_python',
-      'list_files',
-      'list_vars',
       'ls',
       'notebook_cells',
       'outline',
@@ -67,12 +67,14 @@ len(ts), sorted(ts)
       'replace_text',
       'run_python',
       'run_shell',
+      'run_shell_bg',
       'search_code',
-      'similar_code',
+      'shell_output',
+      'shell_stop',
       'view_cell',
       'view_file'])
 
-A tool answers with the text a model reads. `view_file` numbers and hashes each line, and that hash is the address `edit_file` takes.
+A tool answers with the text a model reads. `view_file` numbers and hashes each line; `replace_text` edits by exact text, a list of `{oldText, newText}` that all apply or none do; `edit_file`, the hash-addressed editor, is the opt-in `exhash` group (`tools_for(host, optin=('exhash',))`).
 
 ``` python
 print(ts['view_file']('greet.py'))
@@ -81,7 +83,7 @@ print(ts['view_file']('greet.py'))
     1|f8c6|def hi(n): return f"hi {n}"
 
 ``` python
-print(ts['replace_text']('greet.py', '[{"oldText": "hi {n}", "newText": "hey {n}"}]'))
+print(ts['replace_text']('greet.py', [{'oldText': 'hi {n}', 'newText': 'hey {n}'}]))
 ```
 
     replaced 1 block(s) in /private/tmp/shalya-demo/greet.py
@@ -100,6 +102,18 @@ failed(r), r
 
     (True, 'ERROR: no such file: /private/tmp/shalya-demo/missing.py')
 
+## Opting in
+
+`optin` names the groups nobody gets by default: `exhash` (`edit_file`), `research` (a cited digest of the top web results), `author` (`create_skill`) and `legacy`, one release of shims for the names an MCP client may still send (`list_files`, `list_vars`, `environment`, `memory_tree`, `git_rebase_preview`, `set_reminder`, `watch_url`; gone in 0.2.0). An opt-in the host cannot back is empty rather than broken.
+
+``` python
+sorted({t.__name__ for t in tools_for(host, optin=('exhash', 'legacy'))} - set(ts))
+```
+
+    ['edit_file', 'environment', 'git_rebase_preview', 'list_files', 'list_vars']
+
+With a vault (vishalakshi 0.1.17) the host also answers `memory_read(ref='')`, which browses the roots, a document’s headings or one section by `doc#n`; `remember(key=)`, which replaces the note filed under the same key; and one `watch(target, kind=)` for a `url`, a `remind`er, a web `search` or a `folder`. Git writes answer in JSON with gheasy’s `undo` token beside [`summary`](https://vedicreader.github.io/shalya/core.html#summary), `head` and `moved`, so a harness can rewind what a turn did.
+
 ## Tools for a sub-agent
 
 [`read_only`](https://vedicreader.github.io/shalya/tools.html#read_only) filters a list for a sub-agent that must not change anything. It drops every write tool, unless that tool publishes a read-only twin. `read_url` publishes one, and the twin reads a page without saving it to memory.
@@ -112,12 +126,14 @@ sorted(set(ts) - {t.__name__ for t in read_only(ts.values())})
      'add_root',
      'create_file',
      'edit_cell',
-     'edit_file',
      'git_checkout',
+     'git_commit',
      'git_remote',
+     'git_stash',
      'replace_text',
      'run_python',
-     'run_shell']
+     'run_shell',
+     'run_shell_bg']
 
 ## Skills
 
@@ -133,10 +149,10 @@ print(skill_index(ks))
 
     ## Skills
 
-    Know-how available to you. Read one with `read_skill(name)` when its description matches what you are about to do, *before* you do it -- several of these describe tools already installed in this environment, so the code they discuss is also searchable with `search_code`.
+    Use `read_skill(name)` before doing the work a skill covers. Installed tool code is also searchable with `search_code`.
 
-    - `exhash` -- Hash-verified text editing.
-    - `ghapi` -- GitHub REST access through `GhApi`.
+    - `exhash`: Hash-verified text editing.
+    - `ghapi`: GitHub REST access through `GhApi`.
 
 ## Extensions
 
