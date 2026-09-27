@@ -145,7 +145,7 @@ class WebHost(Capability):
 
 
 class NotebookHost(Capability):
-    "Notebook cell listing and insertion."
+    "Notebook cells: listing, one-cell reads and writes, insertion."
     group = 'notebook'
 
     @abstractmethod
@@ -155,6 +155,23 @@ class NotebookHost(Capability):
     @abstractmethod
     def nb_add_cell(self, path, source, index=-1, cell_type='code'):
         "Insert a cell (-1 appends), creating the notebook if needed. Returns the new cell's id."
+
+    def nb_cell(self, path, cell_id):
+        "`(id, cell_type, source)` of one cell by exact id or unique prefix; a miss names the ids."
+        rows = self.nb_cells(path)
+        hit = [r for r in rows if r[0] == cell_id] or [r for r in rows if r[0].startswith(cell_id)]
+        if len(hit) != 1: raise ValueError(f'{"no" if not hit else "ambiguous"} cell {cell_id!r}; ids: {", ".join(r[0] for r in rows[:20])}')
+        return hit[0]
+
+    def nb_set_cell(self, path, cell_id, source):
+        "Replace one cell's source and write the notebook back; returns the cell's id."
+        from fastcore.nbio import read_nb, write_nb
+        cid = self.nb_cell(path, cell_id)[0]
+        p = self.check(path, must_exist=True)
+        nb = read_nb(p)
+        first(c for c in nb.cells if c.get('id') == cid)['source'] = source
+        write_nb(nb, p)
+        return cid
 
 
 class MemoryHost(Capability):

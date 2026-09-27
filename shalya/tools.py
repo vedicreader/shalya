@@ -240,40 +240,38 @@ def notebook_tools(host, mx=MAX_TOOL_CHARS):
 
     @summary(lambda a: f'Cells of {a.get("path","")}')
     def notebook_cells(path: str) -> str:
-        "List a notebook's cells: id, type, and first line. Cell ids are what `edit_cell` addresses."
-        try: rows = host.nb_cells(str(readable(host, path)))
-        except NotImplementedError: raise
-        except Exception as e: return err('could not read notebook', e)
-        return clip('\n'.join(f'{i}  {t:8} {(s or "").strip().splitlines()[0][:100] if (s or "").strip() else ""}' for i, t, s in rows) or '(empty notebook)')
+        "List a notebook's cells as `id  type  first line`; the ids are what `view_cell` and `edit_cell` address."
+        rows = attempt('could not read notebook', lambda: host.nb_cells(str(readable(host, path))))
+        if isinstance(rows, str): return rows
+        return clip('\n'.join(f'{i}  {t:8} {(s or "").strip().splitlines()[0][:100] if (s or "").strip() else ""}' for i, t, s in rows) or '(empty notebook)', mx)
 
     @summary(lambda a: f'View {a.get("path","")} cell {a.get("cell_id","?")}')
     def view_cell(path: str, cell_id: str) -> str:
-        "Read one notebook cell as `lineno|hash|content` lines, ready to address with `edit_cell`."
-        from exhash import lnhashview_cell
-        try: return clip(str(lnhashview_cell(str(readable(host, path)), cell_id)))
+        "One notebook cell's source, numbered; copy `oldText` for `edit_cell` from here."
+        try: _, _, src = host.nb_cell(str(readable(host, path, must_exist=True)), cell_id)
         except Exception as e: return err('could not read cell', e)
+        return clip_lines([f'{i}: {l}' for i, l in enumerate(src.splitlines() or [''], 1)], n=mx)
 
     @writes
     @summary(lambda a: f'Edit {a.get("path","")} cell {a.get("cell_id","?")}')
-    def edit_cell(path: str, cell_id: str, commands: str) -> str:
-        "Edit one notebook cell's source with exhash commands from `view_cell`. Same format as `edit_file`."
-        from exhash import cell_exhash
+    def edit_cell(path: str, cell_id: str, edits: list[dict]) -> str:
+        "Replace exact text in one cell: each `{oldText, newText}` must match once; all apply or none; returns the diff."
         p, refused = resolved(host, path, writing=True)
         if refused: return refused
-        try: cs = cmds(commands)
-        except Exception as e: return err('could not parse commands', e)
-        try: return clip(str(cell_exhash(str(p), cell_id, *cs)))
-        except Exception as e: return err('edit failed', e)
+        after, before, n, refused = _replace(lambda: host.nb_cell(str(p), cell_id)[2], edits)
+        if refused: return refused
+        try: cid = host.nb_set_cell(str(p), cell_id, after)
+        except Exception as e: return err('could not write cell', e)
+        return clip(f'replaced {n} block(s) in cell {cid} of {p}\n' + diff_text(before, after, f'{p}#{cid}'), mx)
 
     @writes
     @summary(lambda a: f'Add {a.get("cell_type","code")} cell to {a.get("path","")}')
     def add_cell(path: str, source: str, index: int = -1, cell_type: str = 'code') -> str:
-        "Insert a new cell into a notebook at `index` (-1 appends). Creates the notebook if needed."
+        "Insert a new cell into a notebook at `index` (-1 appends); creates the notebook if needed."
         p, refused = resolved(host, path, writing=True)
         if refused: return refused
-        try: return f'added cell {host.nb_add_cell(str(p), source, int(index), cell_type)} to {path}'
-        except NotImplementedError: raise
-        except Exception as e: return err('could not add cell', e)
+        said = attempt('could not add cell', lambda: host.nb_add_cell(str(p), source, int(index), cell_type))
+        return said if failed(said) else f'added cell {said} to {path}'
 
     return [notebook_cells, view_cell, edit_cell, add_cell]
 
