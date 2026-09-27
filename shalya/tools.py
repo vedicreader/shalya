@@ -6,14 +6,15 @@ Docs: https://vedicreader.github.io/shalya/tools.html.md"""
 
 # %% auto #0
 __all__ = ['RESPONSES_API', 'IMAGE_API', 'IMAGE_MODEL', 'IMAGE_SIZES', 'API_VENDORS', 'GROUPS', 'readable', 'resolved',
-           'code_tools', 'file_tools', 'exhash_tools', 'notebook_tools', 'web_tools', 'memory_tools', 'watch_tools',
-           'ask_tools', 'session_tools', 'shell_tools', 'api_tools', 'skill_tools', 'media_dir', 'mime_for',
-           'save_media', 'image_available', 'api_model', 'image_tools', 'git_tools', 'tools_for', 'tool_groups',
-           'group_of', 'read_only']
+           'code_tools', 'file_tools', 'exhash_tools', 'notebook_tools', 'web_tools', 'research_tools', 'memory_tools',
+           'watch_tools', 'ask_tools', 'session_tools', 'shell_tools', 'api_tools', 'skill_tools', 'author_tools',
+           'media_dir', 'mime_for', 'save_media', 'image_available', 'api_model', 'image_tools', 'git_tools',
+           'tools_for', 'tool_groups', 'group_of', 'read_only']
 
 # %% ../nbs/02_tools.ipynb #a71f9b84
 import functools, json, mimetypes, os, re, shlex, threading, uuid
 from base64 import b64decode
+from fnmatch import fnmatch
 from pathlib import Path
 from exhash import lnhashview, lnhashview_file, file_exhash
 from fastcore.basics import AttrDict, bind
@@ -46,9 +47,7 @@ def code_tools(host, mx=MAX_TOOL_CHARS):
 
     @summary(lambda a: f'Search {_1(a.get("query"))}')
     def search_code(query: str) -> str:
-        """Search the codebase and installed packages for `query`.
-        Uses semantic search when an index is ready and literal search otherwise.
-        """
+        "Search the open folders and installed packages for `query`: semantic when an index is ready, literal otherwise."
         hits = host.search(query, limit=MAX_HITS)
         if not hits: return f'no matches ({host.search_note})'
         rows = []
@@ -77,18 +76,9 @@ def code_tools(host, mx=MAX_TOOL_CHARS):
         if not syms: return f'no symbols in {path}'
         return clip('\n'.join(f'{int(getattr(s, "score", 0))*" "}{s.line}: {s.symbol}' for s in syms), mx)
 
-    @summary(lambda a: f'List files {_1(a.get("pattern","")) or "(all)"}')
-    def list_files(pattern: str = '') -> str:
-        "Files in the open folders, optionally filtered by a substring of the path."
-        ps = [str(p) for p in host.walk()]
-        if pattern: ps = [p for p in ps if pattern.lower() in p.lower()]
-        return clip_lines(ps, n=mx, more='narrow `pattern`', empty='no matching files')
-
     @summary(lambda a: f'Grep {_1(a.get("pattern",""))}' + (f' in {a["path_filter"]}' if a.get('path_filter') else ''))
     def grep(pattern: str, path_filter: str = '', regex: bool = True, ignore_case: bool = False) -> str:
-        """Find matching lines in the open folders.
-        `path_filter` is a path substring. Set `regex=False` for literal matching.
-        """
+        "Lines matching `pattern` in the open folders; `path_filter` is a path substring; `regex=False` matches literally."
         if not str(pattern or '').strip(): return err('grep needs a pattern')
         flags = re.IGNORECASE if ignore_case else 0
         try: rx = re.compile(pattern if regex else re.escape(pattern), flags)
@@ -118,14 +108,19 @@ def code_tools(host, mx=MAX_TOOL_CHARS):
         head = f'{len(hits)}{"+" if capped else ""} match(es) in {scanned} file(s) searched'
         return clip_lines([head] + hits, n=mx, more='narrow `pattern` or set `path_filter`')
 
-    @summary(lambda a: f'List {a.get("path") or "(open folders)"}')
-    def ls(path: str = '') -> str:
-        "List one directory with subdirectories first and file sizes. Empty `path` lists each open root."
+    @summary(lambda a: f'List {a.get("path") or "(open folders)"}' + (f' matching {a["pattern"]}' if a.get('pattern') else ''))
+    def ls(path: str = '', pattern: str = '', recursive: bool = False) -> str:
+        "List a folder (each open root when empty): subfolders first, then files with sizes; `pattern` filters names, `recursive` walks."
         if str(path or '').strip():
             p, refused = resolved(host, path, reading=True)
             if refused: return refused
             roots = [p]
         else: roots = [host.check(r) for r in host.roots]
+        pat = str(pattern or '').lower()
+        hit = (lambda s: fnmatch(s.lower(), pat)) if any(c in pat for c in '*?[') else (lambda s: pat in s.lower())
+        if recursive:
+            ps = [str(f) for f in host.walk() if any(Path(f).is_relative_to(r) for r in roots) and (not pat or hit(Path(f).name) or hit(str(f)))]
+            return clip_lines(ps, n=mx, more='narrow `pattern`', empty='no matching files')
         out = []
         for d in roots:
             if not d.exists(): out.append(f'{d}: does not exist'); continue
@@ -135,6 +130,7 @@ def code_tools(host, mx=MAX_TOOL_CHARS):
             out.append(f'{d}/')
             for k in kids:
                 if k.name.startswith('.') and k.name not in ('.agents', '.leela'): continue
+                if pat and not hit(k.name): continue
                 try: out.append(f'  {k.name}/' if k.is_dir() else f'  {k.name}  {k.stat().st_size}')
                 except Exception: out.append(f'  {k.name}')
         return clip_lines(out, n=mx, more='name a subdirectory to list it', empty='(nothing)')
@@ -149,10 +145,8 @@ def code_tools(host, mx=MAX_TOOL_CHARS):
         rows = [f'{h.symbol}  {h.path}:{h.line}  {h.text}' for h in api]
         return clip_lines([f'{len(rows)} public name(s) in {package}'] + rows, n=mx, more='read one with view_file')
 
-    tools = [search_code, grep, ls, similar_code, outline, list_files]
-    #: `indexed` is `LocalHost`'s, not part of the code group's contract, so a host may declare
-    #: the group and not carry it. With no index `public_api` could only ever refuse.
-    if getattr(host, 'indexed', False): tools.append(public_api)
+    tools = [search_code, grep, ls, outline]
+    if getattr(host, 'indexed', False): tools += [similar_code, public_api]
     return tools
 
 # %% ../nbs/02_tools.ipynb #6d65593d
@@ -290,9 +284,7 @@ def web_tools(host, mx=MAX_TOOL_CHARS):
 
     @summary(lambda a: f'Web fetch: {_1(a.get("url"), 120)}')
     def read_url(url: str, remember: bool = True) -> str:
-        """Read `url` as source-appropriate text.
-        Results enter durable memory unless `remember=False`.
-        """
+        "Read `url` as text suited to its kind (article, PDF, repo file, transcript); the page enters durable memory unless `remember=False`."
         d = host.read_url(url, remember=remember)
         return clip(d.text if d else f'could not read {url} ({host.research_note})')
 
@@ -302,13 +294,20 @@ def web_tools(host, mx=MAX_TOOL_CHARS):
     no_save_read.__name__ = 'read_url'
     read_url.read_only = no_save_read
 
+    return [web_search, read_url]
+
+# %% ../nbs/02_tools.ipynb #0acd5a7f
+def research_tools(host, mx=MAX_TOOL_CHARS):
+    "The slow web tool, offered where a caller asks for it (`optin=('research',)`)."
+
     @acts
     @summary(lambda a: f'Research: {_1(a.get("query"))}')
     def research(query: str) -> str:
-        "Search the web and read the top results into a cited digest."
-        return clip(host.research(query) or f'nothing found ({host.research_note})')
+        "Search the web and read the top results into one cited digest; slower than `web_search`, for what one page will not settle."
+        return clip(host.research(query) or f'nothing found ({host.research_note})', mx)
 
-    return [web_search, read_url, research]
+    if host is not None and hasattr(host, 'can') and not host.can('web'): return []
+    return [research]
 
 # %% ../nbs/02_tools.ipynb #13dd6936
 def memory_tools(host, mx=MAX_TOOL_CHARS):
@@ -446,38 +445,25 @@ def ask_tools(host, mx=MAX_TOOL_CHARS):
 def session_tools(host, mx=MAX_TOOL_CHARS):
     "The live kernel the user is working in, and the terminal they are looking at."
 
-    @summary(lambda a: 'List variables')
-    def list_vars() -> str:
-        "List the variables visible in the user's live session: name, type, and a short value."
-        return clip(host.list_vars() or '(empty session)')
-
     @writes
     @summary(lambda a: f'Run python: {_1((a.get("code") or "").strip().splitlines()[0] if a.get("code") else "")}')
     def run_python(code: str) -> str:
-        """Run Python in the user's live namespace.
-        Bind results to new names. Mutating or deleting user variables is refused.
-        """
-        try: return clip(host.run_python(code))
-        except NotImplementedError: raise
-        except Exception as e: return err('run failed', e)
+        "Run Python in the user's live namespace; bind results to new names, since rebinding or deleting the user's variables is refused."
+        return clip(attempt('run failed', lambda: host.run_python(code)))
 
     @acts
     @summary(lambda a: f'Inspect: {_1((a.get("code") or "").strip().splitlines()[0] if a.get("code") else "")}' + ('' if (a.get('scope') or 'isolated') == 'isolated' else f'  [{a["scope"]}]'))
-    def inspect_python(code: str, scope: str = 'isolated') -> str:
-        """Inspect live variables without changing them.
-        `isolated` runs allowlisted Python on a copy. `overlay` permits library calls and stores new names in a private layer. Neither scope can mutate user variables. A host may honour `isolated` alone; `environment` says which. Use `run_python` to write to the user's namespace.
-        """
-        try: return clip(host.inspect_python(code, scope=scope))
-        except NotImplementedError: raise
-        except Exception as e: return err('inspection failed', e)
+    def inspect_python(code: str = '', scope: str = 'isolated') -> str:
+        "Look at live variables without changing them; empty `code` lists them; `scope` is `isolated` (sandboxed copy) or `overlay` (real interpreter, private layer)."
+        if not str(code or '').strip(): return clip(host.list_vars() or '(empty session)')
+        return clip(attempt('inspection failed', lambda: host.inspect_python(code, scope=scope)))
 
     @summary(lambda a: 'Read terminal')
     def read_terminal(lines: int = 200) -> str:
         "Read recent IDE terminal output without running a command."
         return clip(host.terminal_text(int(lines)) or 'the terminal has printed nothing yet')
 
-    # No tool per recipe: `run_python` composes one in a line. See `coding_patterns`.
-    return [list_vars, run_python, inspect_python, read_terminal]
+    return [run_python, inspect_python, read_terminal]
 
 # %% ../nbs/02_tools.ipynb #0eb6a349
 def shell_tools(host, mx=MAX_TOOL_CHARS):
@@ -486,9 +472,7 @@ def shell_tools(host, mx=MAX_TOOL_CHARS):
     @writes
     @summary(lambda a: f'Run {_1(a.get("command"), 110)}')
     def run_shell(command: str, cwd: str = '', timeout: int = 120) -> str:
-        """Run one terminating project command and return its exit code and output.
-        `cwd` must be in the open folders. `timeout` kills expired commands. Servers, watchers and slow suites go to `run_shell_bg`. Use the project's documented commands. One call may require approval.
-        """
+        "Run one terminating command (`cwd` inside the open folders, killed after `timeout` s) and return exit code and output; servers go to `run_shell_bg`."
         cmd = str(command or '').strip()
         if not cmd: return err('no command given')
         try: code, out = host.run_cmd(cmd, cwd=(str(cwd).strip() or None), timeout=int(timeout))
@@ -505,33 +489,24 @@ def shell_tools(host, mx=MAX_TOOL_CHARS):
         "Start a command that keeps running and return its id; read it with `shell_output`, end it with `shell_stop`."
         cmd = str(command or '').strip()
         if not cmd: return err('no command given')
-        try: rid = host.run_cmd_bg(cmd, cwd=(str(cwd).strip() or None))
-        except NotImplementedError: raise
-        except Exception as e: return err('command could not be started', e)
-        return f'started {rid}; read it with shell_output({rid!r})'
+        rid = attempt('command could not be started', lambda: host.run_cmd_bg(cmd, cwd=(str(cwd).strip() or None)))
+        return rid if failed(rid) else f'started {rid}; read it with shell_output({rid!r})'
 
     @summary(lambda a: f'Read {a.get("run_id", "?")}')
     def shell_output(run_id: str, tail: int = 200) -> str:
         "A background command's state and its last `tail` lines."
-        try: state, text = host.cmd_output(run_id, int(tail))
-        except NotImplementedError: raise
-        except Exception as e: return err('no such command', e)
+        got = attempt('no such command', lambda: host.cmd_output(run_id, int(tail)))
+        if isinstance(got, str): return got
+        state, text = got
         return clip(f'{state}\n{text or "(no output yet)"}', mx)
 
     @acts
     @summary(lambda a: f'Stop {a.get("run_id", "?")}')
     def shell_stop(run_id: str) -> str:
         "Stop a background command."
-        try: return host.cmd_stop(run_id)
-        except NotImplementedError: raise
-        except Exception as e: return err('could not stop', e)
+        return attempt('could not stop', lambda: host.cmd_stop(run_id))
 
-    @summary(lambda a: 'Environment')
-    def environment() -> str:
-        "The interpreters, venvs and commands on this machine; read before choosing how to run anything."
-        return clip(host.environment() or 'this host does not describe its environment')
-
-    return [run_shell, run_shell_bg, shell_output, shell_stop, environment]
+    return [run_shell, run_shell_bg, shell_output, shell_stop]
 
 # %% ../nbs/02_tools.ipynb #80208a7b
 def api_tools(host, mx=MAX_TOOL_CHARS):
@@ -569,7 +544,7 @@ def api_tools(host, mx=MAX_TOOL_CHARS):
 
 # %% ../nbs/02_tools.ipynb #6ae4e312
 def skill_tools(host, get_skills, mx=MAX_TOOL_CHARS):
-    "Reading discovered skills and creating project-local Agent Skills."
+    "Reading the skills the system prompt lists."
 
     @summary(lambda a: f'Read skill {a.get("name","?")}')
     def read_skill(name: str) -> str:
@@ -581,13 +556,16 @@ def skill_tools(host, get_skills, mx=MAX_TOOL_CHARS):
         body = f'<skill name="{s.name}" from="{s.where}">\n{s.text()}\n</skill>'
         return clip(body, max(MAX_TOOL_CHARS * 3, len(body)))   # `Skill.text` already held the budget
 
+    return [read_skill]
+
+# %% ../nbs/02_tools.ipynb #dab555b1
+def author_tools(host, mx=MAX_TOOL_CHARS):
+    "Writing a project skill, offered where a caller asks for it (`optin=('author',)`)."
+
     @writes
     @summary(lambda a: f'Create skill {a.get("name","?")}')
     def create_skill(name: str, description: str, instructions: str) -> str:
-        """Create `.agents/skills/NAME/SKILL.md` without overwriting an existing skill.
-        `name` must use lowercase kebab-case. `description` states when the skill applies. `instructions` is its Markdown body. Run `/reload` to advertise the new skill.
-        """
-        from pathlib import Path
+        "Create `.agents/skills/NAME/SKILL.md` (kebab-case `name`; `description` says when it applies; `instructions` is its Markdown body) without overwriting one; `/reload` advertises it."
         name = str(name or '').strip()
         if not re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*', name):
             return 'skill name must be lowercase kebab-case (for example, notebook-tests)'
@@ -608,7 +586,8 @@ def skill_tools(host, get_skills, mx=MAX_TOOL_CHARS):
         except Exception as e: return err('could not create skill', e)
         return f'created {target}; run /reload to load it into the current agent'
 
-    return [read_skill, create_skill]
+    if host is not None and not host.writes: return []
+    return [create_skill]
 
 # %% ../nbs/02_tools.ipynb #8e7cc301
 RESPONSES_API = 'https://api.openai.com/v1/responses'
