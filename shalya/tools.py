@@ -6,21 +6,22 @@ Docs: https://vedicreader.github.io/shalya/tools.html.md"""
 
 # %% auto #0
 __all__ = ['RESPONSES_API', 'IMAGE_API', 'IMAGE_MODEL', 'IMAGE_SIZES', 'API_VENDORS', 'GROUPS', 'readable', 'resolved',
-           'code_tools', 'file_tools', 'notebook_tools', 'web_tools', 'memory_tools', 'watch_tools', 'ask_tools',
-           'session_tools', 'shell_tools', 'api_tools', 'skill_tools', 'media_dir', 'mime_for', 'save_media',
-           'image_available', 'api_model', 'image_tools', 'git_tools', 'tools_for', 'tool_groups', 'group_of',
-           'read_only']
+           'code_tools', 'file_tools', 'exhash_tools', 'notebook_tools', 'web_tools', 'memory_tools', 'watch_tools',
+           'ask_tools', 'session_tools', 'shell_tools', 'api_tools', 'skill_tools', 'media_dir', 'mime_for',
+           'save_media', 'image_available', 'api_model', 'image_tools', 'git_tools', 'tools_for', 'tool_groups',
+           'group_of', 'read_only']
 
 # %% ../nbs/02_tools.ipynb #a71f9b84
 import functools, json, mimetypes, os, re, shlex, threading, uuid
 from base64 import b64decode
 from pathlib import Path
+from exhash import lnhashview, lnhashview_file, file_exhash
 from fastcore.basics import AttrDict, bind
 from fastcore.foundation import L
 from fastcore.xtras import detect_mime
 from .core import (Hit, ERR, MAX_TOOL_CHARS, MAX_HITS, MAX_GREP_HITS, MAX_API, GIT_TOOLS,
                          GIT_READ_TOOLS, GIT_WRITE_TOOLS, WRITE_TOOLS, clip, clip_lines, cmds,
-                         edits, apply_edits, diff_text, err, failed, is_write, writes, acts, has_effect,
+                         edits, apply_edits, diff_text, err, failed, attempt, is_write, writes, acts, has_effect,
                          ACTING_TOOLS, summary, summarise, one_line as _1)
 from .host import (Host, HostError, LocalHost, host_err, CodeHost, WebHost, NotebookHost,
                          MemoryHost, AskHost, WatchHost, SessionHost, ShellHost, ApiHost, GitHost)
@@ -155,24 +156,32 @@ def code_tools(host, mx=MAX_TOOL_CHARS):
     return tools
 
 # %% ../nbs/02_tools.ipynb #6d65593d
+def _replace(read, es):
+    "`(after, before, n, '')` for exact-text edits to the text `read()` returns, or `(None, None, 0, err)` with the reason."
+    try: items = edits(es)
+    except Exception as e: return None, None, 0, err('could not parse edits', e)
+    if not items: return None, None, 0, err('no edits given')
+    try: before = read()
+    except Exception as e: return None, None, 0, err('could not read', e)
+    if before is None: return None, None, 0, err('no such file. Use create_file to create it')
+    try: after = apply_edits(before, items)
+    except ValueError as e: return None, None, 0, err(str(e))
+    if after == before: return None, None, 0, err('the edits changed nothing; check oldText against a fresh view')
+    return after, before, len(items), ''
+
 def file_tools(host, mx=MAX_TOOL_CHARS):
-    "Reading and editing files, by exact text or by hash-verified address. Read-only where the host cannot write."
+    "Reading and editing files by exact text. Read-only where the host cannot write."
 
     @writes
     @summary(lambda a: f'Open folder {a.get("path","")}')
     def add_root(path: str) -> str:
-        """Add an existing folder to the read and write boundary.
-        The user must name the folder. This write requires approval.
-        """
+        "Add an existing folder the user named to the read and write boundary."
         try: return f'opened {host.add_root(path)}. Open folders: ' + ', '.join(host.roots)
         except Exception as e: return err(f'could not open {path}', e)
 
     @summary(lambda a: f'View {a.get("path","")}' + (f':{a.get("start","")}-{a.get("end","")}' if a.get('start') or a.get('end') else ''))
     def view_file(path: str, start: int = 0, end: int = 0) -> str:
-        """Read `path` as `lineno|hash|content` lines.
-        The hashes are addresses for `edit_file`. `start` and `end` limit the line range.
-        """
-        from exhash import lnhashview, lnhashview_file
+        "Read `path` as `lineno|hash|content` lines; `start`/`end` bound the range."
         p, refused = resolved(host, path, reading=True)
         if refused: return refused
         try: text = host.read(str(p))
@@ -184,32 +193,36 @@ def file_tools(host, mx=MAX_TOOL_CHARS):
 
     @writes
     @summary(lambda a: f'Edit {a.get("path","")}')
-    def replace_text(path: str, spec: str) -> str:
-        """Apply exact-text replacements and return the diff.
-        `spec` is a JSON array of `oldText` and `newText` objects. Each non-empty `oldText` must occur once in the current file. Edits cannot overlap. A rejected edit writes nothing. Use `create_file` for new files.
-        """
+    def replace_text(path: str, edits: list[dict]) -> str:
+        "Replace exact text in a file: each `{oldText, newText}` must match once; all apply or none; returns the diff."
         p, refused = resolved(host, path, writing=True)
         if refused: return refused
-        try: items = edits(spec)
-        except Exception as e: return err('could not parse edits', e)
-        if not items: return err('no edits given')
-        try: before = host.read(str(p))
-        except Exception as e: return err(f'could not read {p}', e)
-        if before is None: return err(f'no such file: {p}. Use create_file to create it')
-        try: after = apply_edits(before, items)
-        except ValueError as e: return err(str(e))
-        if after == before: return err('the edits changed nothing; check oldText against a fresh view_file')
+        after, before, n, refused = _replace(lambda: host.read(str(p)), edits)
+        if refused: return refused
         try: host.write(str(p), after)
         except Exception as e: return err('write failed', e)
-        return clip(f'replaced {len(items)} block(s) in {p}\n' + diff_text(before, after, str(p)), mx)
+        return clip(f'replaced {n} block(s) in {p}\n' + diff_text(before, after, str(p)), mx)
+
+    @writes
+    @summary(lambda a: f'Create {a.get("path","")}')
+    def create_file(path: str, text: str = '') -> str:
+        "Create or overwrite a whole file; change an existing one with `replace_text`."
+        p, refused = resolved(host, path, writing=True)
+        if refused: return refused
+        try: return f'wrote {host.write(str(p), text)}'
+        except Exception as e: return err('write failed', e)
+
+    if host is not None and not host.writes: return [view_file]
+    return [view_file, replace_text, create_file, add_root]
+
+# %% ../nbs/02_tools.ipynb #16ef86e9
+def exhash_tools(host, mx=MAX_TOOL_CHARS):
+    "The hash-addressed editor, offered only where a caller asks for it (`optin=('exhash',)`)."
 
     @writes
     @summary(lambda a: f'Edit {a.get("path","")}')
-    def edit_file(path: str, commands: str) -> str:
-        """Apply hash-verified exhash `commands` and return the diff.
-        Each command starts with an address from `view_file`. The tool writes only after all commands succeed.
-        """
-        from exhash import file_exhash
+    def edit_file(path: str, commands: list[list]) -> str:
+        "Apply exhash commands addressed by the `lineno|hash|` prefixes `view_file` shows; writes only if every command succeeds."
         p, refused = resolved(host, path, writing=True)
         if refused: return refused
         try: cs = cmds(commands)
@@ -218,17 +231,8 @@ def file_tools(host, mx=MAX_TOOL_CHARS):
         try: return clip(str(file_exhash(str(p), *cs)), mx)
         except Exception as e: return err('edit failed', e)
 
-    @writes
-    @summary(lambda a: f'Create {a.get("path","")}')
-    def create_file(path: str, text: str = '') -> str:
-        "Create (or overwrite) a whole file. For changes to an existing file prefer `replace_text`."
-        p, refused = resolved(host, path, writing=True)
-        if refused: return refused
-        try: return f'wrote {host.write(str(p), text)}'
-        except Exception as e: return err('write failed', e)
-                
-    if host is not None and not host.writes: return [view_file]
-    return [view_file, replace_text, edit_file, create_file, add_root]
+    if host is not None and not host.writes: return []
+    return [edit_file]
 
 # %% ../nbs/02_tools.ipynb #3c171dfb
 def notebook_tools(host, mx=MAX_TOOL_CHARS):
