@@ -45,6 +45,7 @@ def test_every_tool_this_package_builds_carries_its_own_summary(tmp_path):
     assert len(built) > 30, f'only {len(built)} tools built; the sweep stopped finding them'
     bare = sorted({t.__name__ for t in built if getattr(t, 'summary', None) is None})
     assert bare == [], f'no summary on: {bare}'
+    assert 'research' in {t.__name__ for t in built}, 'the sweep skipped the research group'
 
 
 def test_the_summary_reads_the_arguments_of_the_call_it_labels(tmp_path):

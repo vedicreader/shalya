@@ -54,7 +54,7 @@ def code_tools(host, mx=MAX_TOOL_CHARS):
         for h in hits:
             target = ('NOTEBOOK -- use this exact path with notebook_cells, then view_cell/edit_cell'
                       if str(h.path).lower().endswith('.ipynb')
-                      else 'FILE -- use this exact path with view_file/edit_file')
+                      else 'FILE -- use this exact path with view_file/replace_text')
             rows.append(f'{h.path}:{h.line}  {h.symbol or ""}  {h.text}\n  {target}')
         return clip(f'[{host.search_note}]\n' + '\n'.join(rows), mx)
 
@@ -110,7 +110,7 @@ def code_tools(host, mx=MAX_TOOL_CHARS):
 
     @summary(lambda a: f'List {a.get("path") or "(open folders)"}' + (f' matching {a["pattern"]}' if a.get('pattern') else ''))
     def ls(path: str = '', pattern: str = '', recursive: bool = False) -> str:
-        "List a folder (each open root when empty): subfolders first, then files with sizes; `pattern` filters names, `recursive` walks."
+        "List a folder (each open root when empty): subfolders first, then files with sizes; `pattern` filters file names (or paths below the folder when `recursive`)."
         if str(path or '').strip():
             p, refused = resolved(host, path, reading=True)
             if refused: return refused
@@ -119,7 +119,8 @@ def code_tools(host, mx=MAX_TOOL_CHARS):
         pat = str(pattern or '').lower()
         hit = (lambda s: fnmatch(s.lower(), pat)) if any(c in pat for c in '*?[') else (lambda s: pat in s.lower())
         if recursive:
-            ps = [str(f) for f in host.walk() if any(Path(f).is_relative_to(r) for r in roots) and (not pat or hit(Path(f).name) or hit(str(f)))]
+            below = lambda f: next((str(Path(f).relative_to(r)) for r in roots if Path(f).is_relative_to(r)), None)
+            ps = [str(f) for f in host.walk() if (rel := below(f)) is not None and (not pat or hit(Path(f).name) or hit(rel))]
             return clip_lines(ps, n=mx, more='narrow `pattern`', empty='no matching files')
         out = []
         for d in roots:
@@ -130,8 +131,10 @@ def code_tools(host, mx=MAX_TOOL_CHARS):
             out.append(f'{d}/')
             for k in kids:
                 if k.name.startswith('.') and k.name not in ('.agents', '.leela'): continue
-                if pat and not hit(k.name): continue
-                try: out.append(f'  {k.name}/' if k.is_dir() else f'  {k.name}  {k.stat().st_size}')
+                try:
+                    if k.is_dir(): out.append(f'  {k.name}/'); continue
+                    if pat and not hit(k.name): continue
+                    out.append(f'  {k.name}  {k.stat().st_size}')
                 except Exception: out.append(f'  {k.name}')
         return clip_lines(out, n=mx, more='name a subdirectory to list it', empty='(nothing)')
 
@@ -306,7 +309,7 @@ def research_tools(host, mx=MAX_TOOL_CHARS):
         "Search the web and read the top results into one cited digest; slower than `web_search`, for what one page will not settle."
         return clip(host.research(query) or f'nothing found ({host.research_note})', mx)
 
-    if host is not None and hasattr(host, 'can') and not host.can('web'): return []
+    if host is not None and getattr(host, 'can', lambda g: None)('web') is False: return []
     return [research]
 
 # %% ../nbs/02_tools.ipynb #13dd6936
@@ -411,7 +414,7 @@ def session_tools(host, mx=MAX_TOOL_CHARS):
     @summary(lambda a: f'Inspect: {_1((a.get("code") or "").strip().splitlines()[0] if a.get("code") else "")}' + ('' if (a.get('scope') or 'isolated') == 'isolated' else f'  [{a["scope"]}]'))
     def inspect_python(code: str = '', scope: str = 'isolated') -> str:
         "Look at live variables without changing them; empty `code` lists them; `scope` is `isolated` (sandboxed copy) or `overlay` (real interpreter, private layer)."
-        if not str(code or '').strip(): return clip(host.list_vars() or '(empty session)')
+        if not str(code or '').strip(): return clip(attempt('inspection failed', lambda: host.list_vars() or '(empty session)'))
         return clip(attempt('inspection failed', lambda: host.inspect_python(code, scope=scope)))
 
     @summary(lambda a: 'Read terminal')
