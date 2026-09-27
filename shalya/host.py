@@ -61,7 +61,7 @@ class Host(ABC):
 
     @abstractmethod
     def check(self, path, must_exist=False, reading=False):
-        """Resolve `path` inside `roots`. `reading=True` may allow reads outside them."""
+        "Resolve `path` inside `roots`; `reading=True` may allow reads outside them."
 
     @abstractmethod
     def walk(self):
@@ -107,7 +107,7 @@ class CodeHost(Capability):
 
     @abstractmethod
     def public_api(self, package, limit=MAX_API):
-        """Return public exports as `Hit`s. Raise when no index is available."""
+        "Public exports as `Hit`s; raises when no index is available."
 
     def grep(self, pattern, path_filter='', regex=True, ignore_case=False, limit=MAX_GREP_HITS):
         "Every line matching `pattern` exactly, as `Hit`s. None means this host has no exact matcher."
@@ -247,26 +247,11 @@ class SessionHost(Capability):
 
     @abstractmethod
     def run_python(self, code):
-        """Run `code` in the user's live namespace under whatever restrictions the host imposes.
-
-        The contract the agent is briefed on, and the host's to enforce: read anything, bind
-        results to new names, never rebind or delete the owner's.
-        """
+        "Run `code` in the user's live namespace: read anything, bind results to new names, never rebind or delete the owner's."
 
     @abstractmethod
     def inspect_python(self, code, scope='isolated'):
-        """Run `code` against the live namespace without touching what the user has.
-
-        Two scopes, both protecting the owner's variables, by different means:
-
-        - `'isolated'` runs in an allowlist sandbox on a *copy*. Attribute reads and builtins
-          work. Most library method calls are refused. The default, and it needs no trust.
-        - `'overlay'` runs the real interpreter against the real namespace under an AST policy:
-          read anything, bind names in the agent's own layer, never delete, rebind or mutate
-          the owner's. `list(df.columns)` works here. In the sandbox it does not.
-
-        A host may refuse `'overlay'`. See `scopes`.
-        """
+        "Run `code` against the live namespace without touching the user's names; `scope` is `isolated` (sandboxed copy) or `overlay` (real interpreter, private layer); see `scopes`."
 
     @abstractmethod
     def list_vars(self):
@@ -296,16 +281,7 @@ class ShellHost(Capability):
 
     @abstractmethod
     def run_cmd(self, command, cwd=None, timeout=120):
-        """Run `command` in a shell and return `(exit_code, combined_output)`.
-
-        The contract a host must keep, because the tool trusts it:
-
-        - `cwd` is resolved through `check`. Confining the *working directory* is not confining
-          the command, which is why `run_shell` is a write tool and goes to a person.
-        - stdout and stderr come back interleaved, in one string, in order.
-        - `timeout` is enforced and the whole process *group* is killed on expiry.
-        - A failed command returns a non-zero exit code rather than raising.
-        """
+        "Run `command` in a shell and return `(exit_code, combined_output)`; the contract below is the host's to keep."
 
     @property
     def shell_note(self):

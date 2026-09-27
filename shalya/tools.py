@@ -438,9 +438,9 @@ def shell_tools(host, mx=MAX_TOOL_CHARS):
         "Run one terminating command (`cwd` inside the open folders, killed after `timeout` s) and return exit code and output; servers go to `run_shell_bg`."
         cmd = str(command or '').strip()
         if not cmd: return err('no command given')
-        try: code, out = host.run_cmd(cmd, cwd=(str(cwd).strip() or None), timeout=int(timeout))
-        except NotImplementedError: raise
-        except Exception as e: return err('command could not be run', e)
+        got = attempt('command could not be run', lambda: host.run_cmd(cmd, cwd=(str(cwd).strip() or None), timeout=int(timeout)))
+        if failed(got): return got
+        code, out = got
         head = f'exit {code}' + ('' if code == 0 else '  (command FAILED)')
         body = clip((out or '').rstrip() or '(no output)', max(500, mx - 200),
                     more='re-run narrowing the command (a single test, `| tail -50`) rather than repeating it')

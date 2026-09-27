@@ -13,6 +13,7 @@ __all__ = ['MAX_TOOL_CHARS', 'MAX_HITS', 'MAX_GREP_HITS', 'MAX_API', 'MAX_FILE',
 
 # %% ../nbs/00_core.ipynb #8ff4e050
 import json, os
+from fnmatch import fnmatch
 from fastcore.basics import AttrDict, first, listify
 from fastcore.foundation import L
 from fastcore.xtras import Path, str_diff, truncstr
@@ -64,7 +65,6 @@ class Unsafe(HostError): "A path that resolves outside every open root, or one r
 
 def denied(path, patterns=DENY):
     "Whether `path` matches a refused credential path."
-    from fnmatch import fnmatch
     s = Path(path).as_posix()
     return any(fnmatch(s, pat) for pat in patterns)
 
