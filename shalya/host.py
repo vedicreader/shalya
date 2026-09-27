@@ -193,17 +193,17 @@ class MemoryHost(Capability):
     def memory_read(self, node_id):
         "Read one remembered section and its children by stable node id."
 
-    @abstractmethod
     def memory_topics(self, limit=12):
-        "Labelled semantic clusters across remembered research."
+        "Labelled semantic clusters across remembered research; a host without a topic map says so."
+        raise HostError('this host has no topic map')
 
     @abstractmethod
     def memory_forget(self, doc_id):
         "Purge one remembered document and all derived tree, chunk and vector data."
 
     @abstractmethod
-    def remember(self, text, title=None, tags=()):
-        "File `text` into durable memory as a note. Returns the document record."
+    def remember(self, text, title=None, tags=(), key=''):
+        "File `text` as a note and return the document record; `key` upserts the same note later."
 
 
 class AskHost(Capability):
@@ -1248,9 +1248,9 @@ def memory_forget(self:LocalHost, doc_id):
 
 # %% ../nbs/01_host.ipynb #3a1847c4
 @patch
-def remember(self:LocalHost, text, title=None, tags=()):
+def remember(self:LocalHost, text, title=None, tags=(), key=''):
     if self.memory is None: raise _needs('vault')
-    return self.memory.note(str(text), title=title, tags=list(tags))
+    return self.memory.note(str(text), title=title, tags=list(tags), **({'key': key} if key else {}))
 
 # %% ../nbs/01_host.ipynb #5d0a69ed
 @patch
@@ -1263,6 +1263,14 @@ def ask(self:LocalHost, question, ref=None, instruction='', **kw):
 def watch(self:LocalHost, target, action='remind', every='1d', note=None, **params):
     if self.memory is None: raise _needs('vault')
     return self.memory.watch(target, action=action, every=every, note=note, **params)
+
+# %% ../nbs/01_host.ipynb #562126ee
+@patch(as_prop=True)
+def watch_actions(self:LocalHost):
+    "What `watch` accepts here: every vault action when a vault is attached, reminders alone otherwise."
+    if self.memory is None: return ('remind',)
+    from vishalakshi.acquire import ACTIONS
+    return ACTIONS
 
 # %% ../nbs/01_host.ipynb #b91294a2
 @patch
