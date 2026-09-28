@@ -2,6 +2,14 @@
 
 <!-- do not remove -->
 
+## 0.1.1
+
+- `generate_image(images=[...], path=...)`: draw from reference pictures (the images edits endpoint, `input_fidelity='high'` for gpt-image models) and save where asked; a `path` refuses `.git` (any case), credential paths, symlinks, and existing files that are not pictures; the read-only copy has no `path`. `image_targets(path, n)` names every file a drawing writes.
+- Pictures are recognised by their bytes (PNG, JPEG, GIF, WebP), capped at 20 MB each and 8 per call; API errors carry the response body.
+- `view_file` says a binary file is not text; `create_file` refuses to overwrite a non-text file; `replace_text` says "not a text file".
+- `memory_search` returns the vault's rows (with `age`/`stale`), not the result dict's key names.
+- `denied()` matches credential paths case-insensitively (macOS).
+
 ## 0.1.0
 
 
