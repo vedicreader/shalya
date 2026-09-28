@@ -327,7 +327,7 @@ def memory_tools(host, mx=MAX_TOOL_CHARS):
     @summary(lambda a: f'Memory search: {_1(a.get("query"))}')
     def memory_search(query: str, limit: int = 8) -> str:
         "Search remembered pages and return matching sections with breadcrumbs, each with its `age` in seconds and whether it is `stale`."
-        rows = attempt('memory search failed', lambda: list(host.memory_search(query, int(limit))))
+        rows = attempt('memory search failed', lambda: (lambda r: r if isinstance(r, dict) else list(r))(host.memory_search(query, int(limit))))   # a vault's context is one object
         return rows if isinstance(rows, str) else clip(json.dumps(rows, default=str), MAX_TOOL_CHARS * 2)
 
     @summary(lambda a: f'Memory read {a.get("ref") or "(roots)"}')
