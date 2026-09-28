@@ -9,8 +9,8 @@ __all__ = ['WATCH_KINDS', 'RESPONSES_API', 'IMAGE_API', 'IMAGE_EDIT_API', 'IMAGE
            'MAX_IMAGE_BYTES', 'MAX_IMAGES', 'OPTIN', 'GROUPS', 'readable', 'resolved', 'code_tools', 'file_tools',
            'exhash_tools', 'notebook_tools', 'web_tools', 'research_tools', 'memory_tools', 'watch_tools', 'ask_tools',
            'session_tools', 'shell_tools', 'api_tools', 'skill_tools', 'author_tools', 'media_dir', 'mime_for',
-           'save_media', 'picture_mime', 'image_available', 'image_refs', 'image_dest', 'api_model', 'image_tools',
-           'git_tools', 'legacy_tools', 'tools_for', 'tool_groups', 'group_of', 'read_only']
+           'save_media', 'picture_mime', 'image_available', 'image_refs', 'image_targets', 'image_dest', 'api_model',
+           'image_tools', 'git_tools', 'legacy_tools', 'tools_for', 'tool_groups', 'group_of', 'read_only']
 
 # %% ../nbs/02_tools.ipynb #a71f9b84
 import functools, json, mimetypes, os, re, shlex, threading, uuid
@@ -636,6 +636,11 @@ def image_refs(host, paths):
         out.append((p.name, p.read_bytes(), mime))
     return out, ''
 
+def image_targets(path, n=1):
+    "The names `n` pictures saved at `path` get: `path`, then `stem-2`, `stem-3`, ... beside it."
+    p = Path(path)
+    return [str(p if i == 0 else p.with_stem(f'{p.stem}-{i+1}')) for i in range(max(1, int(n)))]
+
 def image_dest(host, path):
     "`(resolved, '')` where a drawn picture may be saved, or `(None, err)`: inside the roots, outside `.git` and credential paths, not a symlink, not over a file that is not a picture."
     p, refused = resolved(host, path, writing=True)
@@ -643,7 +648,7 @@ def image_dest(host, path):
     raw = Path(path).expanduser()
     if not raw.is_absolute() and getattr(host, 'roots', None): raw = Path(host.roots[0])/raw
     if raw.is_symlink() or p.is_symlink(): return None, err(f'refusing to save through a symlink: {raw}')
-    if '.git' in p.parts: return None, err(f"refusing to save into git's own files: {p}")
+    if any(x.lower() == '.git' for x in (*raw.parts, *p.parts)): return None, err(f"refusing to save into git's own files: {p}")   # `.GIT` is `.git` on macOS
     if denied(p, getattr(getattr(host, 'sandbox', None), 'deny', DENY)): return None, err(f'refusing to save over a credential path: {p}')
     if p.exists():
         if not p.is_file(): return None, err(f'refusing to save over {p}: it is not a file')
@@ -671,10 +676,9 @@ def image_tools(host, mx=MAX_TOOL_CHARS, session='', draws_itself=None, from_rep
 
     def targets(path, n):
         "`path` and its `-2`, `-3` siblings for `n` pictures, each resolved and cleared by `image_dest`, or `([], err)`."
-        p = Path(path)
         out = []
-        for i in range(n):
-            d, refused = image_dest(host, str(p if i == 0 else p.with_stem(f'{p.stem}-{i+1}')))
+        for t in image_targets(path, n):
+            d, refused = image_dest(host, t)
             if refused: return [], refused
             out.append(d)
         return out, ''

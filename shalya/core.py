@@ -64,9 +64,9 @@ DENY = ('*/.ssh/*', '*/.aws/*', '*/.gnupg/*', '*/.config/gcloud/*', '*/.netrc', 
 class Unsafe(HostError): "A path that resolves outside every open root, or one refused for safety."
 
 def denied(path, patterns=DENY):
-    "Whether `path` matches a refused credential path."
-    s = Path(path).as_posix()
-    return any(fnmatch(s, pat) for pat in patterns)
+    "Whether `path` matches a refused credential path, in any case: a case-insensitive disk opens `.SSH` as `.ssh`."
+    s = Path(path).as_posix().lower()
+    return any(fnmatch(s, pat.lower()) for pat in patterns)
 
 # %% ../nbs/00_core.ipynb #30649626
 class Sandbox:
