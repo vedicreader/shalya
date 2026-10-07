@@ -10,7 +10,7 @@ __all__ = ['WATCH_KINDS', 'RESPONSES_API', 'IMAGE_API', 'IMAGE_EDIT_API', 'IMAGE
            'exhash_tools', 'notebook_tools', 'web_tools', 'research_tools', 'memory_tools', 'watch_tools', 'ask_tools',
            'session_tools', 'shell_tools', 'api_tools', 'skill_tools', 'author_tools', 'media_dir', 'mime_for',
            'save_media', 'picture_mime', 'image_available', 'image_refs', 'image_targets', 'image_dest', 'api_model',
-           'image_tools', 'git_tools', 'legacy_tools', 'tools_for', 'tool_groups', 'group_of', 'read_only']
+           'image_tools', 'git_repo', 'git_tools', 'legacy_tools', 'tools_for', 'tool_groups', 'group_of', 'read_only']
 
 # %% ../nbs/02_tools.ipynb #a71f9b84
 import functools, json, mimetypes, os, re, shlex, threading, uuid
@@ -427,12 +427,18 @@ def session_tools(host, mx=MAX_TOOL_CHARS):
         if not str(code or '').strip(): return clip(attempt('inspection failed', lambda: host.list_vars() or '(empty session)'))
         return clip(attempt('inspection failed', lambda: host.inspect_python(code, scope=scope)))
 
+    @writes
+    @summary(lambda a: 'Restart kernel')
+    def restart_kernel() -> str:
+        "Restart the live Python session; every name in it, the user's included, is gone afterwards."
+        return clip(attempt('restart failed', host.restart_kernel))
+
     @summary(lambda a: 'Read terminal')
     def read_terminal(lines: int = 200) -> str:
         "Read recent IDE terminal output without running a command."
         return clip(host.terminal_text(int(lines)) or 'the terminal has printed nothing yet')
 
-    return [run_python, inspect_python, read_terminal]
+    return [run_python, inspect_python, restart_kernel, read_terminal]
 
 # %% ../nbs/02_tools.ipynb #0eb6a349
 def shell_tools(host, mx=MAX_TOOL_CHARS):
@@ -748,16 +754,19 @@ def _report(r, out=None):
     return ({'result': said, 'summary': d.get('summary', said), 'undo': d.get('undo', ''), 'undoes': d.get('undoes', ''),
              'head': d.get('head', ''), 'moved': bool(d.get('moved', False))} | _state(r))
 
+def git_repo(host, path=''):
+    "The repository holding `path`, else the host's project, else its first root; refused outside the open folders."
+    roots = L(host.roots).map(lambda r: Path(r).expanduser().resolve())
+    if not roots: raise ValueError('open a project folder first')
+    found = GitRepo.at(host.check(path or getattr(host, 'project', '') or roots[0], must_exist=True))
+    if not any(found.root.is_relative_to(r) for r in roots):
+        raise ValueError(f'Git root {found.root} is outside the open folders; open the repository root first')
+    return found
+
 def git_tools(host, mx=MAX_TOOL_CHARS):
     "Git bound to one open repository, kept inside the host's roots; writes report an undo token."
     if host is not None: os.environ.setdefault('GIT_TERMINAL_PROMPT', '0')   # a real host runs git; naming the tools does not
-    def repo(path=''):
-        roots = L(host.roots).map(lambda r: Path(r).expanduser().resolve())
-        if not roots: raise ValueError('open a project folder first')
-        found = GitRepo.at(host.check(path or getattr(host, 'project', '') or roots[0], must_exist=True))
-        if not any(found.root.is_relative_to(r) for r in roots):
-            raise ValueError(f'Git root {found.root} is outside the open folders; open the repository root first')
-        return found
+    repo = functools.partial(git_repo, host)
     def answer(what, path, make, text=False):
         try:
             r = make(repo(path))
@@ -780,13 +789,13 @@ def git_tools(host, mx=MAX_TOOL_CHARS):
         "The last `n` commits: short id, author, subject."
         return answer('git log', path, lambda r: [{k: c[k] for k in ('short', 'author', 'subject')} for c in r.history(limit=int(n), ref='HEAD')])
     @writes
-    @summary(lambda a: f'Git {"amend" if a.get("amend") else "commit"}: {_1(a.get("message"), 80)}')
-    def git_commit(message: str, paths: str = '', amend: bool = False) -> str:
-        "Commit what is staged (or stage `paths`, space-separated, first) with `message`; `amend` folds it into the last commit; returns an `undo` token."
+    @summary(lambda a: f'Git {"amend" if a.get("amend") else "commit"}: {_1(a.get("message"), 80)}' + (f' in {a["path"]}' if a.get('path') else ''))
+    def git_commit(message: str, paths: str = '', amend: bool = False, path: str = '') -> str:
+        "Commit what is staged (or stage `paths`, space-separated and relative to the repository, first) with `message` in the repository at `path`; `amend` folds it into the last commit; returns an `undo` token."
         def go(r):
             if (ps := shlex.split(paths or '')): r.stage(ps)
             return _report(r, r.commit(str(message), amend=amend))
-        return answer('git commit', '', go)
+        return answer('git commit', path, go)
     @writes
     @summary(lambda a: f'Git {"create" if a.get("create") else "checkout"} {a.get("branch","?")}')
     def git_checkout(branch: str, create: bool = False, path: str = '') -> str:

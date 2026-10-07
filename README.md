@@ -45,7 +45,7 @@ ts = {t.__name__: t for t in tools_for(host)}
 len(ts), sorted(ts)
 ```
 
-    (27,
+    (28,
      ['add_cell',
       'add_root',
       'create_file',
@@ -65,6 +65,7 @@ len(ts), sorted(ts)
       'outline',
       'read_terminal',
       'replace_text',
+      'restart_kernel',
       'run_python',
       'run_shell',
       'run_shell_bg',
@@ -131,6 +132,7 @@ sorted(set(ts) - {t.__name__ for t in read_only(ts.values())})
      'git_remote',
      'git_stash',
      'replace_text',
+     'restart_kernel',
      'run_python',
      'run_shell',
      'run_shell_bg']

@@ -268,6 +268,10 @@ class SessionHost(Capability):
     def list_vars(self):
         "What is in the live namespace: name, type, and a short value, one per line."
 
+    @abstractmethod
+    def restart_kernel(self):
+        "Restart what runs the live namespace, so every name in it is gone; returns what happened."
+
     def terminal_text(self, lines=200):
         "What the IDE's terminal has printed. Read-only: it shows what the user ran, it cannot run anything."
         return ''
@@ -845,6 +849,16 @@ def list_vars(self:LocalHost):
         except Exception: short = '<unreprable>'
         rows.append(f'{k:20} {type(v).__name__:12} {short[:60]}')
     return '\n'.join(rows)
+
+# %% ../nbs/01_host.ipynb #e8605df8
+@patch
+def restart_kernel(self:LocalHost):
+    "Restart the kernel, or empty the in-process namespace in place."
+    if self.kernel is None:
+        self.ns.clear(); self.ns['__name__'] = '__main__'
+        return 'the namespace is empty'
+    if not callable(getattr(self.kernel, 'restart', None)): raise HostError(f'this {self.kernel_kind} kernel cannot be restarted from here')
+    return self.kernel.restart() or 'kernel restarted'
 
 # %% ../nbs/01_host.ipynb #c9764bf1
 def _fastmux():
