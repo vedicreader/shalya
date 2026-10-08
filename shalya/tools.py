@@ -922,15 +922,21 @@ def legacy_tools(host, mx=MAX_TOOL_CHARS):
     return out
 
 #: the opt-in name -> its factory, and each opt-in tool -> the capability group a catalog files it under
-OPTIN = {'exhash': exhash_tools, 'research': research_tools, 'author': author_tools, 'legacy': legacy_tools}
-_OPTIN_GROUP = {'edit_file': 'file', 'research': 'web', 'create_skill': 'skill', 'list_files': 'code', 'list_vars': 'session',
+def _browser_optin(host, mx=MAX_TOOL_CHARS):
+    "The browser group for a host that has one: opt-in, since it can drive pages, Leela's own included."
+    return browser_tools(host, mx) if host is None or host.can('browser') else []
+
+OPTIN = {'exhash': exhash_tools, 'research': research_tools, 'author': author_tools, 'legacy': legacy_tools,
+         'browser': _browser_optin}
+_OPTIN_GROUP = {**{n: 'browser' for n in ('browse', 'screenshot', 'page_text', 'page_reload', 'page_click', 'page_type', 'page_eval')},
+                'edit_file': 'file', 'research': 'web', 'create_skill': 'skill', 'list_files': 'code', 'list_vars': 'session',
                 'environment': 'shell', 'memory_tree': 'memory', 'set_reminder': 'watch', 'watch_url': 'watch', 'git_rebase_preview': 'git'}
 
 # %% ../nbs/02_tools.ipynb #8cc4fdac
 #: the Capability class -> the factory that builds its group. The group name lives only on
 #: `cls.group`; order is the order a model sees the tools in. `Host` carries group='file'.
 GROUPS = ((CodeHost, code_tools), (Host, file_tools), (NotebookHost, notebook_tools),
-          (WebHost, web_tools), (BrowserHost, browser_tools), (MemoryHost, memory_tools), (AskHost, ask_tools),
+          (WebHost, web_tools), (MemoryHost, memory_tools), (AskHost, ask_tools),
           (WatchHost, watch_tools),
           (ApiHost, api_tools), (SessionHost, session_tools), (ShellHost, shell_tools),
           (GitHost, git_tools))
