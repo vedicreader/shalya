@@ -2,6 +2,12 @@
 
 <!-- do not remove -->
 
+## 0.1.2
+
+- `git_commit(path=)` commits in the repository `path` names, like the other git tools; `git_repo(host, path)` is that rule, and `paths` are relative to it.
+- `SessionHost.restart_kernel` and a `restart_kernel` tool: a write, since it empties the person's namespace.
+- `BrowserHost` and the opt-in `browser` group (`optin=('browser',)`): `browse`, `screenshot`, `page_text` and `page_reload` look; `page_click`, `page_type` and `page_eval` are writes. `screenshot` returns the PNG's path. `LocalHost` has no browser.
+
 ## 0.1.1
 
 - `generate_image(images=[...], path=...)`: draw from reference pictures (the images edits endpoint, `input_fidelity='high'` for gpt-image models) and save where asked; a `path` refuses `.git` (any case), credential paths, symlinks, and existing files that are not pictures; the read-only copy has no `path`. `image_targets(path, n)` names every file a drawing writes.
