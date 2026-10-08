@@ -2,6 +2,11 @@
 
 <!-- do not remove -->
 
+## 0.1.3
+
+- `Media(str)`: a tool result that carries pictures in `.media`. `screenshot` returns one, so a harness can show the model the picture as well as the path.
+- `view_file` on a picture (recognised by its bytes, up to 20 MB, inside the open folders) returns it as `Media` rather than refusing it as not text.
+
 ## 0.1.2
 
 - `git_commit(path=)` commits in the repository `path` names, like the other git tools; `git_repo(host, path)` is that rule, and `paths` are relative to it.
