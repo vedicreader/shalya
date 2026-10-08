@@ -103,6 +103,10 @@ failed(r), r
 
     (True, 'ERROR: no such file: /private/tmp/shalya-demo/missing.py')
 
+## A browser
+
+`LocalHost` has no browser. A host that inherits `BrowserHost` gets the `browser` group: `browse`, `screenshot`, `page_text` and `page_reload` look at a page and act without writing; `page_click`, `page_type` and `page_eval` act on it and go to a person. `screenshot` returns the path of the PNG it saved, because a tool result is text.
+
 ## Opting in
 
 `optin` names the groups nobody gets by default: `exhash` (`edit_file`), `research` (a cited digest of the top web results), `author` (`create_skill`) and `legacy`, one release of shims for the names an MCP client may still send (`list_files`, `list_vars`, `environment`, `memory_tree`, `git_rebase_preview`, `set_reminder`, `watch_url`; gone in 0.2.0). An opt-in the host cannot back is empty rather than broken.

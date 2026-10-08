@@ -7,10 +7,11 @@ Docs: https://vedicreader.github.io/shalya/tools.html.md"""
 # %% auto #0
 __all__ = ['WATCH_KINDS', 'RESPONSES_API', 'IMAGE_API', 'IMAGE_EDIT_API', 'IMAGE_MODEL', 'IMAGE_SIZES', 'API_VENDORS',
            'MAX_IMAGE_BYTES', 'MAX_IMAGES', 'OPTIN', 'GROUPS', 'readable', 'resolved', 'code_tools', 'file_tools',
-           'exhash_tools', 'notebook_tools', 'web_tools', 'research_tools', 'memory_tools', 'watch_tools', 'ask_tools',
-           'session_tools', 'shell_tools', 'api_tools', 'skill_tools', 'author_tools', 'media_dir', 'mime_for',
-           'save_media', 'picture_mime', 'image_available', 'image_refs', 'image_targets', 'image_dest', 'api_model',
-           'image_tools', 'git_repo', 'git_tools', 'legacy_tools', 'tools_for', 'tool_groups', 'group_of', 'read_only']
+           'exhash_tools', 'notebook_tools', 'web_tools', 'research_tools', 'browser_tools', 'memory_tools',
+           'watch_tools', 'ask_tools', 'session_tools', 'shell_tools', 'api_tools', 'skill_tools', 'author_tools',
+           'media_dir', 'mime_for', 'save_media', 'picture_mime', 'image_available', 'image_refs', 'image_targets',
+           'image_dest', 'api_model', 'image_tools', 'git_repo', 'git_tools', 'legacy_tools', 'tools_for',
+           'tool_groups', 'group_of', 'read_only']
 
 # %% ../nbs/02_tools.ipynb #a71f9b84
 import functools, json, mimetypes, os, re, shlex, threading, uuid
@@ -25,7 +26,7 @@ from .core import (Hit, ERR, MAX_TOOL_CHARS, MAX_HITS, MAX_GREP_HITS, MAX_API, G
                          GIT_READ_TOOLS, GIT_WRITE_TOOLS, WRITE_TOOLS, clip, clip_lines, cmds,
                          edits, apply_edits, diff_text, err, failed, attempt, is_write, writes, acts, has_effect,
                          ACTING_TOOLS, summary, summarise, one_line as _1, DENY, denied)
-from .host import (Host, HostError, LocalHost, host_err, CodeHost, WebHost, NotebookHost,
+from .host import (Host, HostError, LocalHost, host_err, CodeHost, WebHost, BrowserHost, NotebookHost,
                          MemoryHost, AskHost, WatchHost, SessionHost, ShellHost, ApiHost, GitHost)
 from .skills import Skill, find, skill_index
 
@@ -321,6 +322,54 @@ def research_tools(host, mx=MAX_TOOL_CHARS):
 
     if not _can(host, 'web'): return []
     return [research]
+
+# %% ../nbs/02_tools.ipynb #22e28b56
+def browser_tools(host, mx=MAX_TOOL_CHARS):
+    "A browser tab the agent drives, to see a page the way a person does."
+
+    @acts
+    @summary(lambda a: f'Browse {_1(a.get("url"), 110)}')
+    def browse(url: str) -> str:
+        "Open `url` in the agent's own tab and return the page id and title."
+        return attempt('could not open the page', lambda: host.browse(str(url or '').strip()))
+
+    @acts
+    @summary(lambda a: 'Screenshot' + (f' {a["page"]}' if a.get('page') else ''))
+    def screenshot(page: str = '') -> str:
+        "Save a PNG of `page` (the latest when empty) and return its path; the result is the path, not the picture."
+        return attempt('could not take the screenshot', lambda: host.screenshot(page))
+
+    @acts
+    @summary(lambda a: 'Read page' + (f' {a["page"]}' if a.get('page') else ''))
+    def page_text(page: str = '') -> str:
+        "The page (the latest when empty) as markdown."
+        return clip(attempt('could not read the page', lambda: host.page_text(page)), mx)
+
+    @acts
+    @summary(lambda a: 'Reload page' + (f' {a["page"]}' if a.get('page') else ''))
+    def page_reload(page: str = '') -> str:
+        "Reload the page (the latest when empty) and return its title."
+        return attempt('could not reload the page', lambda: host.page_reload(page))
+
+    @writes
+    @summary(lambda a: f'Click {a.get("x", "?")},{a.get("y", "?")}')
+    def page_click(page: str, x: int, y: int) -> str:
+        "Click at viewport point `x`, `y` on the page."
+        return attempt('could not click', lambda: host.page_click(page, int(x), int(y)))
+
+    @writes
+    @summary(lambda a: f'Type {_1(a.get("text"), 60)}')
+    def page_type(page: str, text: str) -> str:
+        "Type `text` into the page's focused element."
+        return attempt('could not type', lambda: host.page_type(page, str(text)))
+
+    @writes
+    @summary(lambda a: f'Run in page: {_1(a.get("js"), 80)}')
+    def page_eval(page: str, js: str) -> str:
+        "Evaluate `js` in the page and return its value as text."
+        return clip(attempt('could not evaluate', lambda: host.page_eval(page, str(js))), mx)
+
+    return [browse, screenshot, page_text, page_reload, page_click, page_type, page_eval]
 
 # %% ../nbs/02_tools.ipynb #13dd6936
 def memory_tools(host, mx=MAX_TOOL_CHARS):
@@ -881,7 +930,7 @@ _OPTIN_GROUP = {'edit_file': 'file', 'research': 'web', 'create_skill': 'skill',
 #: the Capability class -> the factory that builds its group. The group name lives only on
 #: `cls.group`; order is the order a model sees the tools in. `Host` carries group='file'.
 GROUPS = ((CodeHost, code_tools), (Host, file_tools), (NotebookHost, notebook_tools),
-          (WebHost, web_tools), (MemoryHost, memory_tools), (AskHost, ask_tools),
+          (WebHost, web_tools), (BrowserHost, browser_tools), (MemoryHost, memory_tools), (AskHost, ask_tools),
           (WatchHost, watch_tools),
           (ApiHost, api_tools), (SessionHost, session_tools), (ShellHost, shell_tools),
           (GitHost, git_tools))

@@ -6,9 +6,9 @@ Docs: https://vedicreader.github.io/shalya/host.html.md"""
 
 # %% auto #0
 __all__ = ['SKIP_DIRS', 'SKIP_SUFFIXES', 'MAX_VARS', 'LD_CHARS', 'PANE_LINES', 'CONTENT_SEL', 'BLOCK_SEL', 'THIN_PAGE',
-           'MAX_PAGE', 'MIN_SECTION', 'READERS', 'Capability', 'Host', 'nb_read', 'CodeHost', 'WebHost', 'NotebookHost',
-           'MemoryHost', 'AskHost', 'WatchHost', 'SessionHost', 'ShellHost', 'ApiHost', 'GitHost', 'ld_json',
-           'LocalHost', 'md_title', 'read_page', 'implemented']
+           'MAX_PAGE', 'MIN_SECTION', 'READERS', 'Capability', 'Host', 'nb_read', 'CodeHost', 'WebHost', 'BrowserHost',
+           'NotebookHost', 'MemoryHost', 'AskHost', 'WatchHost', 'SessionHost', 'ShellHost', 'ApiHost', 'GitHost',
+           'ld_json', 'LocalHost', 'md_title', 'read_page', 'implemented']
 
 # %% ../nbs/01_host.ipynb #2f4ef978
 import ast, json, os, re, shutil, sys, uuid
@@ -154,6 +154,39 @@ class WebHost(Capability):
 
     @property
     def research_note(self): return ''
+
+
+class BrowserHost(Capability):
+    "A browser tab the agent drives: open, look, read, and act on a page."
+    group = 'browser'
+
+    @abstractmethod
+    def browse(self, url):
+        "Open `url` in the agent's own tab; returns the page id and title."
+
+    @abstractmethod
+    def screenshot(self, page=''):
+        "Save a PNG of `page` (the latest when empty) and return its path."
+
+    @abstractmethod
+    def page_text(self, page=''):
+        "The page as markdown."
+
+    @abstractmethod
+    def page_reload(self, page=''):
+        "Reload the page and return its title."
+
+    @abstractmethod
+    def page_click(self, page, x, y):
+        "Click at viewport point `x`, `y`."
+
+    @abstractmethod
+    def page_type(self, page, text):
+        "Type `text` into the focused element."
+
+    @abstractmethod
+    def page_eval(self, page, js):
+        "Evaluate `js` in the page and return its value as text."
 
 
 class NotebookHost(Capability):
