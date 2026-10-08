@@ -7,9 +7,9 @@ Docs: https://vedicreader.github.io/shalya/core.html.md"""
 # %% auto #0
 __all__ = ['MAX_TOOL_CHARS', 'MAX_HITS', 'MAX_GREP_HITS', 'MAX_API', 'MAX_FILE', 'ERR', 'SANDBOX', 'SECRET', 'NO_ROOTS', 'DENY',
            'SUMMARIES', 'GIT_READ_TOOLS', 'GIT_WRITE_TOOLS', 'GIT_TOOLS', 'WRITE_TOOLS', 'ACTING_TOOLS', 'Hit',
-           'HostError', 'host_err', 'err', 'failed', 'attempt', 'Unsafe', 'denied', 'Sandbox', 'clip', 'clip_lines',
-           'cmds', 'edits', 'apply_edits', 'diff_text', 'writes', 'is_write', 'acts', 'has_effect', 'one_line',
-           'summary', 'summarise']
+           'HostError', 'host_err', 'err', 'failed', 'Media', 'attempt', 'Unsafe', 'denied', 'Sandbox', 'clip',
+           'clip_lines', 'cmds', 'edits', 'apply_edits', 'diff_text', 'writes', 'is_write', 'acts', 'has_effect',
+           'one_line', 'summary', 'summarise']
 
 # %% ../nbs/00_core.ipynb #8ff4e050
 import json, os
@@ -47,6 +47,11 @@ def err(what, e=None):
 def failed(result):
     "Whether a tool result starts with `ERROR: `."
     return str(result or '').startswith(ERR)
+
+class Media(str):
+    "A tool result's text carrying pictures, as paths or bytes, that the agent's loop sends the model after it."
+    def __new__(cls, text='', media=()):
+        o = super().__new__(cls, text); o.media = list(media); return o
 
 def attempt(what, f):
     "Run `f`; a host that cannot is left to raise, and anything else is one tool failure."

@@ -6,10 +6,10 @@ Docs: https://vedicreader.github.io/shalya/tools.html.md"""
 
 # %% auto #0
 __all__ = ['WATCH_KINDS', 'RESPONSES_API', 'IMAGE_API', 'IMAGE_EDIT_API', 'IMAGE_MODEL', 'IMAGE_SIZES', 'API_VENDORS',
-           'MAX_IMAGE_BYTES', 'MAX_IMAGES', 'OPTIN', 'GROUPS', 'readable', 'resolved', 'code_tools', 'file_tools',
-           'exhash_tools', 'notebook_tools', 'web_tools', 'research_tools', 'browser_tools', 'memory_tools',
-           'watch_tools', 'ask_tools', 'session_tools', 'shell_tools', 'api_tools', 'skill_tools', 'author_tools',
-           'media_dir', 'mime_for', 'save_media', 'picture_mime', 'image_available', 'image_refs', 'image_targets',
+           'MAX_IMAGE_BYTES', 'MAX_IMAGES', 'OPTIN', 'GROUPS', 'readable', 'resolved', 'code_tools', 'picture_mime',
+           'file_tools', 'exhash_tools', 'notebook_tools', 'web_tools', 'research_tools', 'browser_tools',
+           'memory_tools', 'watch_tools', 'ask_tools', 'session_tools', 'shell_tools', 'api_tools', 'skill_tools',
+           'author_tools', 'media_dir', 'mime_for', 'save_media', 'image_available', 'image_refs', 'image_targets',
            'image_dest', 'api_model', 'image_tools', 'git_repo', 'git_tools', 'legacy_tools', 'tools_for',
            'tool_groups', 'group_of', 'read_only']
 
@@ -25,7 +25,7 @@ from fastcore.xtras import detect_mime
 from .core import (Hit, ERR, MAX_TOOL_CHARS, MAX_HITS, MAX_GREP_HITS, MAX_API, GIT_TOOLS,
                          GIT_READ_TOOLS, GIT_WRITE_TOOLS, WRITE_TOOLS, clip, clip_lines, cmds,
                          edits, apply_edits, diff_text, err, failed, attempt, is_write, writes, acts, has_effect,
-                         ACTING_TOOLS, summary, summarise, one_line as _1, DENY, denied)
+                         ACTING_TOOLS, summary, summarise, one_line as _1, DENY, denied, Media)
 from .host import (Host, HostError, LocalHost, host_err, CodeHost, WebHost, BrowserHost, NotebookHost,
                          MemoryHost, AskHost, WatchHost, SessionHost, ShellHost, ApiHost, GitHost)
 from .skills import Skill, find, skill_index
@@ -168,6 +168,27 @@ def _replace(read, es, what=''):
     if after == before: return None, None, 0, err('the edits changed nothing; check oldText against a fresh view')
     return after, before, len(items), ''
 
+#: header bytes -> MIME, for the pictures an image API accepts; `detect_mime` misses short JPEG and WebP headers
+_PICTURES = ((b'\x89PNG\r\n\x1a\n', 'image/png'), (b'\xff\xd8\xff', 'image/jpeg'), (b'GIF87a', 'image/gif'), (b'GIF89a', 'image/gif'))
+
+def picture_mime(head):
+    "The MIME of a PNG, JPEG, GIF or WebP from its first bytes, else None; the name of the file plays no part."
+    head = bytes(head or b'')
+    if head[:4] == b'RIFF' and head[8:12] == b'WEBP': return 'image/webp'
+    return next((m for sig, m in _PICTURES if head.startswith(sig)), None)
+
+def _picture(host, p):
+    "`Media` naming the picture at `p`, an error when it is one that may not go, or None when `p` is not a picture."
+    try:
+        with open(p, 'rb') as f: mime = picture_mime(f.read(16))
+    except OSError: return None
+    if mime is None: return None
+    if denied(p, getattr(getattr(host, 'sandbox', None), 'deny', DENY)): return err(f'refusing to read a credential path: {p}')
+    try: host.check(p)   # `read_outside` lets text through, never a picture
+    except Exception as e: return err(f'{p} is a picture outside the open folders', e)
+    if (n := p.stat().st_size) > MAX_IMAGE_BYTES: return err(f'{p} is a {mime} picture over the {MAX_IMAGE_BYTES >> 20} MB one may be')
+    return Media(f'{p} is a {mime} picture of {n:,} bytes; it follows as an image when this model takes images.', [str(p)])
+
 def file_tools(host, mx=MAX_TOOL_CHARS):
     "Reading and editing files by exact text. Read-only where the host cannot write."
 
@@ -180,14 +201,15 @@ def file_tools(host, mx=MAX_TOOL_CHARS):
 
     @summary(lambda a: f'View {a.get("path","")}' + (f':{a.get("start","")}-{a.get("end","")}' if a.get('start') or a.get('end') else ''))
     def view_file(path: str, start: int = 0, end: int = 0) -> str:
-        "Read `path` as `lineno|hash|content` lines; `start`/`end` bound the range."
+        "Read `path` as `lineno|hash|content` lines; `start`/`end` bound the range. A picture comes back as an image."
         p, refused = resolved(host, path, reading=True)
         if refused: return refused
+        if (pic := _picture(host, p)): return pic
         try: text = host.read(str(p))
         except Exception: text = None
         if text is None and not p.exists(): return err(f'no such file: {p}')
         try: view = str(lnhashview(text, start or None, end or None) if text is not None else lnhashview_file(str(p), start or None, end or None))
-        except (OSError, UnicodeError) as e: return err(f'{p} is not text; view_file reads text, and a picture reaches a model as an image input', e)
+        except (OSError, UnicodeError) as e: return err(f'{p} is not text or a picture; view_file reads those two', e)
         return clip_lines(view.splitlines(), start=(start or 1), n=mx,
                           more='call view_file(path, start={next}) to continue')
 
@@ -336,8 +358,9 @@ def browser_tools(host, mx=MAX_TOOL_CHARS):
     @acts
     @summary(lambda a: 'Screenshot' + (f' {a["page"]}' if a.get('page') else ''))
     def screenshot(page: str = '') -> str:
-        "Save a PNG of `page` (the latest when empty) and return its path; the result is the path, not the picture."
-        return attempt('could not take the screenshot', lambda: host.screenshot(page))
+        "Save a picture of `page` (the latest when empty); it comes back as an image when this model takes images."
+        r = attempt('could not take the screenshot', lambda: host.screenshot(page))
+        return r if failed(r) else Media(f'screenshot saved to {r}; it follows as an image when this model takes images.', [str(r)])
 
     @acts
     @summary(lambda a: 'Read page' + (f' {a["page"]}' if a.get('page') else ''))
@@ -646,15 +669,6 @@ def save_media(m, session='', stem='image'):
     p = d / f'{stem}-{n}{ext}'
     p.write_bytes(m['data'])
     return p
-
-#: header bytes -> MIME, for the pictures an image API accepts; `detect_mime` misses short JPEG and WebP headers
-_PICTURES = ((b'\x89PNG\r\n\x1a\n', 'image/png'), (b'\xff\xd8\xff', 'image/jpeg'), (b'GIF87a', 'image/gif'), (b'GIF89a', 'image/gif'))
-
-def picture_mime(head):
-    "The MIME of a PNG, JPEG, GIF or WebP from its first bytes, else None; the name of the file plays no part."
-    head = bytes(head or b'')
-    if head[:4] == b'RIFF' and head[8:12] == b'WEBP': return 'image/webp'
-    return next((m for sig, m in _PICTURES if head.startswith(sig)), None)
 
 def image_available(): return bool(os.environ.get('OPENAI_API_KEY'))
 
