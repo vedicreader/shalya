@@ -105,7 +105,7 @@ failed(r), r
 
 ## A browser
 
-`LocalHost` has no browser. A host that inherits `BrowserHost` can offer the opt-in `browser` group (`optin=('browser',)`): `browse`, `screenshot`, `page_text` and `page_reload` look at a page and act without writing; `page_click`, `page_type` and `page_eval` act on it and go to a person. `screenshot` returns the path of the PNG it saved, because a tool result is text.
+[`LocalHost`](https://vedicreader.github.io/shalya/host.html#localhost) has no browser. A host that inherits [`BrowserHost`](https://vedicreader.github.io/shalya/host.html#browserhost) can offer the opt-in `browser` group (`optin=('browser',)`): `browse`, `screenshot`, `page_text` and `page_reload` look at a page and act without writing; `page_click`, `page_type` and `page_eval` act on it and go to a person. `screenshot` returns the path of the PNG it saved, because a tool result is text.
 
 ## Opting in
 
