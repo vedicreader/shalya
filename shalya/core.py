@@ -7,12 +7,12 @@ Docs: https://vedicreader.github.io/shalya/core.html.md"""
 # %% auto #0
 __all__ = ['MAX_TOOL_CHARS', 'MAX_HITS', 'MAX_GREP_HITS', 'MAX_API', 'MAX_FILE', 'ERR', 'SANDBOX', 'SECRET', 'NO_ROOTS', 'DENY',
            'SUMMARIES', 'GIT_READ_TOOLS', 'GIT_WRITE_TOOLS', 'GIT_TOOLS', 'WRITE_TOOLS', 'ACTING_TOOLS', 'Hit',
-           'HostError', 'host_err', 'err', 'failed', 'Media', 'attempt', 'Unsafe', 'denied', 'Sandbox', 'clip',
-           'clip_lines', 'cmds', 'edits', 'apply_edits', 'diff_text', 'writes', 'is_write', 'acts', 'has_effect',
-           'one_line', 'summary', 'summarise']
+           'HostError', 'host_err', 'err', 'failed', 'Media', 'attempt', 'Unsafe', 'denied', 'spill_dir', 'spill',
+           'Sandbox', 'clip', 'clip_lines', 'cmds', 'edits', 'apply_edits', 'diff_text', 'writes', 'is_write', 'acts',
+           'has_effect', 'one_line', 'summary', 'summarise']
 
 # %% ../nbs/00_core.ipynb #8ff4e050
-import json, os
+import json, os, tempfile, uuid
 from fnmatch import fnmatch
 from fastcore.basics import AttrDict, first, listify
 from fastcore.foundation import L
@@ -74,6 +74,19 @@ def denied(path, patterns=DENY):
     return any(fnmatch(s, pat.lower()) for pat in patterns)
 
 # %% ../nbs/00_core.ipynb #30649626
+_SPILL = []   # this process's spill folder, made on first use
+
+def spill_dir():
+    "The folder results too long to send whole are saved in: one per process, readable through any `Sandbox`."
+    if not _SPILL: _SPILL.append(Path(tempfile.mkdtemp(prefix='shalya-spill-')).resolve())
+    return _SPILL[0]
+
+def spill(text):
+    "Save `text` whole in `spill_dir`, and return its path."
+    p = spill_dir()/f'{uuid.uuid4().hex[:12]}.txt'
+    p.write_text(str(text), encoding='utf-8')
+    return p
+
 class Sandbox:
     "The open folders, and the one place that decides whether a path is inside them."
     def __init__(self,
@@ -105,7 +118,7 @@ class Sandbox:
         p = Path(path).expanduser()
         if not p.is_absolute(): p = self.roots[0]/p
         p = p.resolve()
-        if not self.covers(p):
+        if not self.covers(p) and not (reading and _SPILL and p.is_relative_to(_SPILL[0])):
             if not (reading and self.read_outside): raise Unsafe(f'{SANDBOX}: {p}')
             if denied(p, self.deny): raise Unsafe(f'{SECRET}: {p}')
         if must_exist and not p.exists(): raise Unsafe(f'no such file: {p}')
@@ -123,31 +136,36 @@ class Sandbox:
         return self.check(self.check(path)/self.bare(name))
 
 # %% ../nbs/00_core.ipynb #a2c88077
-def clip(s, n=MAX_TOOL_CHARS, more=''):
-    "Truncate a tool result to `n` chars. A caller with a way to resume passes it as `more`."
+def clip(s, n=MAX_TOOL_CHARS,
+         more='',      # how to read the rest, when the caller has a way
+         keep=False):  # save the whole with `spill` and name the file, for a result nothing can page
+    "Truncate a tool result to `n` chars, its note included, whenever `n` is longer than the note."
     s, n = str(s), max(1, int(n))   # a caller subtracting a margin can arrive at zero or less
     if len(s) <= n: return s
-    cut = s[:n]
+    if keep: more = f'full text saved to {spill(s)}; read it with view_file' + (f'; {more}' if more else '')
+    note = lambda shown: f'…[truncated: {shown} of {len(s)} chars shown' + (f'. {more}]' if more else ']')
+    room = max(1, n - len(note(n)))
+    cut = s[:room]
     nl = cut.rfind('\n')
-    if nl > n * 0.6: cut = cut[:nl]
-    note = f'[truncated: {len(cut)} of {len(s)} chars shown'
-    return cut + f'…{note}. {more}]' if more else cut + f'…{note}]'
+    if nl > room * 0.6: cut = cut[:nl]
+    return cut + note(len(cut))
 
 # %% ../nbs/00_core.ipynb #7ca20dbc
 def clip_lines(lines, start=1, n=MAX_TOOL_CHARS, more='', empty='(nothing)'):
     "Render `lines` within the budget, and say which line to resume from."
     lines = listify(lines)
     if not lines: return empty
-    out, used = [], 0
+    if len(whole := '\n'.join(map(str, lines))) <= n: return whole
+    out, used, room = [], 0, n - min(n // 2, 70 + len(more))   # what the note may need, from the budget
     for i, line in enumerate(lines):
         line = str(line)
-        if used + len(line) + 1 > n:
+        if used + len(line) + 1 > room:
             if out:
                 rest = len(lines) - i
                 tail = f'\n…[{rest} more line(s) not shown'
                 hint = more.format(next=start + i) if '{next}' in more else more
                 return '\n'.join(out) + (f'{tail}. {hint}]' if hint else f'{tail}]')
-            keep, rest = max(1, n - 1), len(lines) - 1
+            keep, rest = max(1, room - 1), len(lines) - 1
             more_lines = f', and {rest} more line(s) not shown' if rest else ''
             return line[:keep] + f'\n…[line {start} is {len(line)} chars; {keep} shown{more_lines}]'
         out.append(line); used += len(line) + 1

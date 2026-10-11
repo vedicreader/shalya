@@ -312,13 +312,13 @@ def web_tools(host, mx=MAX_TOOL_CHARS):
         "Search the web and return titles and URLs."
         docs = host.web_search(query, n=MAX_HITS)
         if not docs: return f'no results ({host.research_note})'
-        return clip('\n'.join(f'{d.title}\n  {d.url}' for d in docs))
+        return clip('\n'.join(f'{d.title}\n  {d.url}' for d in docs), mx)
 
     @summary(lambda a: f'Web fetch: {_1(a.get("url"), 120)}')
     def read_url(url: str, remember: bool = True) -> str:
         "Read `url` as text suited to its kind (article, PDF, repo file, transcript); the page enters durable memory unless `remember=False`."
         d = host.read_url(url, remember=remember)
-        return clip(d.text if d else f'could not read {url} ({host.research_note})')
+        return clip(d.text if d else f'could not read {url} ({host.research_note})', mx, keep=True)
 
     def no_save_read(url: str) -> str:
         "Read one web page without saving it to durable memory."
@@ -340,7 +340,7 @@ def research_tools(host, mx=MAX_TOOL_CHARS):
     @summary(lambda a: f'Research: {_1(a.get("query"))}')
     def research(query: str) -> str:
         "Search the web and read the top results into one cited digest; slower than `web_search`, for what one page will not settle."
-        return clip(host.research(query) or f'nothing found ({host.research_note})', mx)
+        return clip(host.research(query) or f'nothing found ({host.research_note})', mx, keep=True)
 
     if not _can(host, 'web'): return []
     return [research]
@@ -366,7 +366,7 @@ def browser_tools(host, mx=MAX_TOOL_CHARS):
     @summary(lambda a: 'Read page' + (f' {a["page"]}' if a.get('page') else ''))
     def page_text(page: str = '') -> str:
         "The page (the latest when empty) as markdown."
-        return clip(attempt('could not read the page', lambda: host.page_text(page)), mx)
+        return clip(attempt('could not read the page', lambda: host.page_text(page)), mx, keep=True)
 
     @acts
     @summary(lambda a: 'Reload page' + (f' {a["page"]}' if a.get('page') else ''))
@@ -390,7 +390,7 @@ def browser_tools(host, mx=MAX_TOOL_CHARS):
     @summary(lambda a: f'Run in page: {_1(a.get("js"), 80)}')
     def page_eval(page: str, js: str) -> str:
         "Evaluate `js` in the page and return its value as text."
-        return clip(attempt('could not evaluate', lambda: host.page_eval(page, str(js))), mx)
+        return clip(attempt('could not evaluate', lambda: host.page_eval(page, str(js))), mx, keep=True)
 
     return [browse, screenshot, page_text, page_reload, page_click, page_type, page_eval]
 
@@ -402,7 +402,7 @@ def memory_tools(host, mx=MAX_TOOL_CHARS):
     def memory_search(query: str, limit: int = 8) -> str:
         "Search remembered pages and return matching sections with breadcrumbs, each with its `age` in seconds and whether it is `stale`."
         rows = attempt('memory search failed', lambda: (lambda r: r if isinstance(r, dict) else list(r))(host.memory_search(query, int(limit))))   # a vault's context is one object
-        return rows if isinstance(rows, str) else clip(json.dumps(rows, default=str), MAX_TOOL_CHARS * 2)
+        return rows if isinstance(rows, str) else clip(json.dumps(rows, default=str), mx, keep=True)
 
     @summary(lambda a: f'Memory read {a.get("ref") or "(roots)"}')
     def memory_read(ref: str = '') -> str:
@@ -410,7 +410,7 @@ def memory_tools(host, mx=MAX_TOOL_CHARS):
         ref = str(ref or '').strip()
         f = (lambda: host.memory_read(ref)) if re.fullmatch(r'.+#\d+', ref) else (lambda: host.memory_tree(ref))
         got = attempt('memory read failed', f)
-        return got if isinstance(got, str) else clip(json.dumps(got, default=str), MAX_TOOL_CHARS * 3)
+        return got if isinstance(got, str) else clip(json.dumps(got, default=str), mx, keep=True)
 
     @summary(lambda a: f'Remember {_1(a.get("title") or a.get("text"))}')
     def remember(text: str, title: str = '', tags: str = '', key: str = '') -> str:
@@ -478,7 +478,7 @@ def ask_tools(host, mx=MAX_TOOL_CHARS):
             rows.append(f"\n[policy {r.get('policy', 'local')}: withheld {', '.join(sorted(p.get('identifying') or {}))}; ask with `instruction=` for a count, total, comparison or yes/no]")
         if (c := r.get('cited')):
             rows.append('\n' + '\n'.join(f"[{x['n']}] {x['breadcrumb']}  ({x['node_id']})" for x in c))
-        return clip('\n'.join(rows), MAX_TOOL_CHARS * 2)
+        return clip('\n'.join(rows), mx, keep=True)
 
     return [ask_memory]
 
@@ -490,25 +490,25 @@ def session_tools(host, mx=MAX_TOOL_CHARS):
     @summary(lambda a: f'Run python: {_1((a.get("code") or "").strip().splitlines()[0] if a.get("code") else "")}')
     def run_python(code: str) -> str:
         "Run Python in the user's live namespace; bind results to new names, since rebinding or deleting the user's variables is refused."
-        return clip(attempt('run failed', lambda: host.run_python(code)))
+        return clip(attempt('run failed', lambda: host.run_python(code)), mx, keep=True)
 
     @acts
     @summary(lambda a: f'Inspect: {_1((a.get("code") or "").strip().splitlines()[0] if a.get("code") else "")}' + ('' if (a.get('scope') or 'isolated') == 'isolated' else f'  [{a["scope"]}]'))
     def inspect_python(code: str = '', scope: str = 'isolated') -> str:
         "Look at live variables without changing them; empty `code` lists them; `scope` is `isolated` (sandboxed copy) or `overlay` (real interpreter, private layer)."
-        if not str(code or '').strip(): return clip(attempt('inspection failed', lambda: host.list_vars() or '(empty session)'))
-        return clip(attempt('inspection failed', lambda: host.inspect_python(code, scope=scope)))
+        if not str(code or '').strip(): return clip(attempt('inspection failed', lambda: host.list_vars() or '(empty session)'), mx, keep=True)
+        return clip(attempt('inspection failed', lambda: host.inspect_python(code, scope=scope)), mx, keep=True)
 
     @writes
     @summary(lambda a: 'Restart kernel')
     def restart_kernel() -> str:
         "Restart the live Python session; every name in it, the user's included, is gone afterwards."
-        return clip(attempt('restart failed', host.restart_kernel))
+        return clip(attempt('restart failed', host.restart_kernel), mx)
 
     @summary(lambda a: 'Read terminal')
     def read_terminal(lines: int = 200) -> str:
         "Read recent IDE terminal output without running a command."
-        return clip(host.terminal_text(int(lines)) or 'the terminal has printed nothing yet')
+        return clip(host.terminal_text(int(lines)) or 'the terminal has printed nothing yet', mx, keep=True)
 
     return [run_python, inspect_python, restart_kernel, read_terminal]
 
@@ -526,8 +526,7 @@ def shell_tools(host, mx=MAX_TOOL_CHARS):
         if failed(got): return got
         code, out = got
         head = f'exit {code}' + ('' if code == 0 else '  (command FAILED)')
-        body = clip((out or '').rstrip() or '(no output)', max(500, mx - 200),
-                    more='re-run narrowing the command (a single test, `| tail -50`) rather than repeating it')
+        body = clip((out or '').rstrip() or '(no output)', max(500, mx - len(ERR) - len(head) - 1), keep=True)
         return f'{head}\n{body}' if code == 0 else f'{ERR}{head}\n{body}'
 
     @writes
@@ -545,7 +544,7 @@ def shell_tools(host, mx=MAX_TOOL_CHARS):
         got = attempt('no such command', lambda: host.cmd_output(run_id, int(tail)))
         if isinstance(got, str): return got
         state, text = got
-        return clip(f'{state}\n{text or "(no output yet)"}', mx)
+        return clip(f'{state}\n{text or "(no output yet)"}', mx, keep=True)
 
     @acts
     @summary(lambda a: f'Stop {a.get("run_id", "?")}')
@@ -562,7 +561,7 @@ def api_tools(host, mx=MAX_TOOL_CHARS):
     @summary(lambda a: f'Load API spec {_1(a.get("src"), 80)}')
     def api_load(src: str, name: str = '') -> str:
         "Load an OpenAPI or discovery document and return its operation count and groups."
-        try: return clip(json.dumps(host.api_load(src, name), default=str), mx)
+        try: return clip(json.dumps(host.api_load(src, name), default=str), mx, keep=True)
         except Exception as e: return err('could not load the spec', e)
 
     @summary(lambda a: 'API operations' + (f' in {a["group"]}' if a.get('group') else '') + (f' matching {_1(a["match"], 40)}' if a.get('match') else ''))
@@ -582,7 +581,7 @@ def api_tools(host, mx=MAX_TOOL_CHARS):
     @summary(lambda a: f'API call {a.get("operation","?")}')
     def api_call(operation: str, name: str = '', params: dict = None) -> str:
         "Call `operation` with the declared `params`. Undeclared parameters are errors."
-        try: return clip(json.dumps(host.api_call(operation, name, **(params or {})), default=str), mx)
+        try: return clip(json.dumps(host.api_call(operation, name, **(params or {})), default=str), mx, keep=True)
         except Exception as e: return err(f'{operation} failed', e)
 
     return [api_load, api_ops, api_call]
@@ -599,7 +598,7 @@ def skill_tools(host, get_skills, mx=MAX_TOOL_CHARS):
         if s is None:
             return f'no skill matching {name!r}. Available: ' + ', '.join(x.name for x in ss)
         body = f'<skill name="{s.name}" from="{s.where}">\n{s.text()}\n</skill>'
-        return clip(body, max(MAX_TOOL_CHARS * 3, len(body)))   # `Skill.text` already held the budget
+        return clip(body, mx, keep=True)
 
     return [read_skill]
 
@@ -787,7 +786,7 @@ def image_tools(host, mx=MAX_TOOL_CHARS, session='', draws_itself=None, from_rep
         try: out = [save(i, m) for i, m in enumerate(media)]
         except Exception as e: return err('could not save the image', e)
         if on_media: on_media(out)
-        return clip('\n'.join(str(p) for p in out))
+        return clip('\n'.join(str(p) for p in out), mx)
 
     @acts
     @summary(lambda a: f'Draw: {_1(a.get("prompt"), 100)}')
@@ -833,7 +832,7 @@ def git_tools(host, mx=MAX_TOOL_CHARS):
     def answer(what, path, make, text=False):
         try:
             r = make(repo(path))
-            return clip(r if text else json.dumps(r, indent=2), mx * 2)
+            return clip(r if text else json.dumps(r, indent=2), mx, keep=True)
         except Exception as e: return err(what, e)
     @summary(lambda a: 'Git status')
     def git_status(path: str = '') -> str:
