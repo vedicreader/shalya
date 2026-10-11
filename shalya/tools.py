@@ -23,7 +23,7 @@ from fastcore.basics import AttrDict, bind, listify
 from fastcore.foundation import L
 from fastcore.xtras import detect_mime
 from .core import (Hit, ERR, MAX_TOOL_CHARS, MAX_HITS, MAX_GREP_HITS, MAX_API, GIT_TOOLS,
-                         GIT_READ_TOOLS, GIT_WRITE_TOOLS, WRITE_TOOLS, clip, clip_lines, cmds,
+                         GIT_READ_TOOLS, GIT_WRITE_TOOLS, WRITE_TOOLS, clip, clip_json, clip_lines, cmds,
                          edits, apply_edits, diff_text, err, failed, attempt, is_write, writes, acts, has_effect,
                          ACTING_TOOLS, summary, summarise, one_line as _1, DENY, denied, Media)
 from .host import (Host, HostError, LocalHost, host_err, CodeHost, WebHost, BrowserHost, NotebookHost,
@@ -832,7 +832,7 @@ def git_tools(host, mx=MAX_TOOL_CHARS):
     def answer(what, path, make, text=False):
         try:
             r = make(repo(path))
-            return clip(r if text else json.dumps(r, indent=2), mx, keep=True)
+            return clip(r, mx, keep=True) if text else clip_json(r, mx)
         except Exception as e: return err(what, e)
     @summary(lambda a: 'Git status')
     def git_status(path: str = '') -> str:

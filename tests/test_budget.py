@@ -28,3 +28,22 @@ def test_long_results_fit_the_budget_and_keep_the_rest():
         p = _saved(out)
         assert p is not None and BIG.strip() in p.read_text(), (name, out[-300:])
     assert '| tail' not in tools['run_shell']('make')
+
+
+def test_a_long_git_report_stays_json_and_keeps_its_undo_token(tmp_path):
+    "A harness reads `undo` and `head` from the report; a clip that cut the JSON lost them, and `/rewind` with them."
+    import json, subprocess
+    from shalya.host import LocalHost
+    from shalya.tools import git_tools
+    g = lambda *a: subprocess.run(['git', *a], cwd=tmp_path, check=True, capture_output=True)
+    g('init', '-q', '-b', 'main'); g('config', 'user.email', 't@t'); g('config', 'user.name', 't')
+    (tmp_path/'a.txt').write_text('hi\n'); g('add', 'a.txt'); g('commit', '-qm', 'init')
+    for i in range(30): g('branch', f'feature-with-a-long-descriptive-name-{i}')
+    tools = {t.__name__: t for t in git_tools(LocalHost([str(tmp_path)], index=False), 1500)}
+    (tmp_path/'a.txt').write_text('x\n')
+    out = tools['git_commit']('c', 'a.txt')
+    assert len(out) <= 1500, len(out)
+    r = json.loads(out)
+    assert r['undo'] and r['head'] and r['branch'] == 'main', r
+    whole = json.loads(_saved(r['truncated'] + ';').read_text())
+    assert len(whole['branches']) == 31

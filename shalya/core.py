@@ -8,8 +8,8 @@ Docs: https://vedicreader.github.io/shalya/core.html.md"""
 __all__ = ['MAX_TOOL_CHARS', 'MAX_HITS', 'MAX_GREP_HITS', 'MAX_API', 'MAX_FILE', 'ERR', 'SANDBOX', 'SECRET', 'NO_ROOTS', 'DENY',
            'SUMMARIES', 'GIT_READ_TOOLS', 'GIT_WRITE_TOOLS', 'GIT_TOOLS', 'WRITE_TOOLS', 'ACTING_TOOLS', 'Hit',
            'HostError', 'host_err', 'err', 'failed', 'Media', 'attempt', 'Unsafe', 'denied', 'spill_dir', 'spill',
-           'Sandbox', 'clip', 'clip_lines', 'cmds', 'edits', 'apply_edits', 'diff_text', 'writes', 'is_write', 'acts',
-           'has_effect', 'one_line', 'summary', 'summarise']
+           'Sandbox', 'clip', 'clip_json', 'clip_lines', 'cmds', 'edits', 'apply_edits', 'diff_text', 'writes',
+           'is_write', 'acts', 'has_effect', 'one_line', 'summary', 'summarise']
 
 # %% ../nbs/00_core.ipynb #8ff4e050
 import json, os, tempfile, uuid
@@ -149,6 +149,15 @@ def clip(s, n=MAX_TOOL_CHARS,
     nl = cut.rfind('\n')
     if nl > room * 0.6: cut = cut[:nl]
     return cut + note(len(cut))
+
+def clip_json(r, n=MAX_TOOL_CHARS):
+    "`r` as indented JSON that stays JSON: whole when it fits in `n`, else its plain fields and a `truncated` note naming the file that holds the whole."
+    s = json.dumps(r, indent=2)
+    if len(s) <= n or not isinstance(r, dict): return clip(s, n, keep=True)
+    plain = {k: v for k, v in r.items() if not isinstance(v, (list, dict))}
+    left = ', '.join(k for k in r if k not in plain) or 'nothing'
+    plain['truncated'] = f'{len(s)} chars, so {left} left out; the whole is saved to {spill(s)}; read it with view_file'
+    return json.dumps(plain, indent=2)
 
 # %% ../nbs/00_core.ipynb #7ca20dbc
 def clip_lines(lines, start=1, n=MAX_TOOL_CHARS, more='', empty='(nothing)'):
