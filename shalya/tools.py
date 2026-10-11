@@ -117,7 +117,7 @@ def code_tools(host, mx=MAX_TOOL_CHARS):
             p, refused = resolved(host, path, reading=True)
             if refused: return refused
             roots = [p]
-        else: roots = [host.check(r) for r in host.roots]
+        else: roots = [host.check(r, reading=True) for r in (*host.roots, *getattr(host, 'read_roots', ()))]
         pat = str(pattern or '').lower()
         hit = (lambda s: fnmatch(s.lower(), pat)) if any(c in pat for c in '*?[') else (lambda s: pat in s.lower())
         if recursive:
@@ -184,7 +184,8 @@ def _picture(host, p):
     except OSError: return None
     if mime is None: return None
     if denied(p, getattr(getattr(host, 'sandbox', None), 'deny', DENY)): return err(f'refusing to read a credential path: {p}')
-    try: host.check(p)   # `read_outside` lets text through, never a picture
+    readonly = any(Path(p).is_relative_to(r) for r in getattr(host, 'read_roots', ()))
+    try: host.check(p, reading=True) if readonly else host.check(p)   # `read_outside` lets text through, never a picture
     except Exception as e: return err(f'{p} is a picture outside the open folders', e)
     if (n := p.stat().st_size) > MAX_IMAGE_BYTES: return err(f'{p} is a {mime} picture over the {MAX_IMAGE_BYTES >> 20} MB one may be')
     return Media(f'{p} is a {mime} picture of {n:,} bytes; it follows as an image when this model takes images.', [str(p)])
@@ -193,11 +194,13 @@ def file_tools(host, mx=MAX_TOOL_CHARS):
     "Reading and editing files by exact text. Read-only where the host cannot write."
 
     @writes
-    @summary(lambda a: f'Open folder {a.get("path","")}')
-    def add_root(path: str) -> str:
-        "Add an existing folder the user named to the read and write boundary."
-        try: return f'opened {host.add_root(path)}. Open folders: ' + ', '.join(host.roots)
+    @summary(lambda a: f'Open folder {a.get("path","")}' + (' read-only' if a.get('readonly') else ''))
+    def add_root(path: str, readonly: bool = False) -> str:
+        "Add an existing folder the user named to the read and write boundary, or with `readonly` to what the read tools search and no write touches."
+        try: p = host.add_root(path, readonly=True) if readonly else host.add_root(path)
         except Exception as e: return err(f'could not open {path}', e)
+        ro = list(getattr(host, 'read_roots', ()) or ())
+        return f'opened {p}{" read-only" if readonly else ""}. Open folders: ' + ', '.join(host.roots) + (f'; read-only: {", ".join(ro)}' if ro else '')
 
     @summary(lambda a: f'View {a.get("path","")}' + (f':{a.get("start","")}-{a.get("end","")}' if a.get('start') or a.get('end') else ''))
     def view_file(path: str, start: int = 0, end: int = 0) -> str:

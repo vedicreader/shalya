@@ -447,14 +447,15 @@ class LocalHost(Host, CodeHost, WebHost, NotebookHost, SessionHost, ShellHost, M
                  kernel=None,           # live kernel; None runs in process
                  read_outside=False,    # let read-only tools name any path on this machine
                  deny=DENY,             # what `read_outside` still refuses to open
+                 read_roots=(),         # folders the read tools search and no write may touch
                  tmux=None):            # None detects `$TMUX`; False off; True on; or this host's own pane (target or `Pane`)
-        self.sandbox = Sandbox(roots, read_outside=read_outside, deny=deny)
+        self.sandbox = Sandbox(roots, read_outside=read_outside, deny=deny, read_roots=read_roots)
         self._added_roots = []         # excluded when resuming
         self.ns = ifnone(ns, {'__name__': '__main__'})
         self._approvals, self._note, self.web = approvals, note, web
         self.transcript = []
         self._indexes, self._index_errors, self._index_thread = [], [], None
-        self._pending = list(self._roots)
+        self._pending = list(self._search_roots)
         self.rerank, self.rerank_model, self._rerank_note = bool(rerank), rerank_model, ''
         self.graph, self.memory, self.apis = graph, memory, apis
         self.kernel, self._bg = kernel, {}
@@ -465,6 +466,11 @@ class LocalHost(Host, CodeHost, WebHost, NotebookHost, SessionHost, ShellHost, M
     #: The sandbox holds the open folders; everything below reads them through here.
     @property
     def _roots(self): return [str(r) for r in self.sandbox.roots]
+    @property
+    def _search_roots(self):
+        "Every open root, write and read-only alike, each once: what the read tools search. A root inside another is searched with it."
+        rs = [*self.sandbox.roots, *self.sandbox.read_roots]
+        return [str(r) for r in rs if not any(r != o and r.is_relative_to(o) for o in rs)]
     @property
     def read_outside(self): return self.sandbox.read_outside
     @property
@@ -492,6 +498,11 @@ def _installed(mod):
 @patch(as_prop=True)
 def roots(self:LocalHost): return list(self._roots)
 
+@patch(as_prop=True)
+def read_roots(self:LocalHost):
+    "Folders open for reading only: searched by every read tool, refused to every write."
+    return [str(r) for r in self.sandbox.read_roots]
+
 # %% ../nbs/01_host.ipynb #8daf0762
 @patch(as_prop=True)
 def added_roots(self:LocalHost):
@@ -500,12 +511,13 @@ def added_roots(self:LocalHost):
 
 # %% ../nbs/01_host.ipynb #6d3cb86c
 @patch
-def add_root(self:LocalHost, path):
-    "Open an existing folder for reads and writes. Never creates one."
-    before = set(self._roots)
-    p = str(self.sandbox.add_root(path))
+def add_root(self:LocalHost, path,
+             readonly=False):   # open it for reads only: searched, never written
+    "Open an existing folder for reads and writes, or for reads only. Never creates one."
+    before = set(self._search_roots)
+    p = str(self.sandbox.add_root(path, readonly=readonly))
     if p in before: return p                           # already open, or already inside one
-    open_now, self._env = set(self._roots), None       # a new parent closes the roots inside it
+    open_now, self._env = set(self._search_roots), None   # a new parent closes the roots inside it
     self._added_roots = [r for r in self._added_roots if r in open_now] + [p]
     self._pending = [r for r in self._pending if r in open_now] + [p]
     try: self.sync_index()
@@ -521,10 +533,11 @@ def check(self:LocalHost, path, must_exist=False, reading=False):
 # %% ../nbs/01_host.ipynb #9f11dcff
 @patch(as_prop=True)
 def roots_note(self:LocalHost):
-    "A summary of root and read access."
+    "A summary of root and read access, naming the folders open for reading only."
     n = len(self._roots)
-    return (f'{n} folder(s); reads may name any path on this machine, writes may not'
+    note = (f'{n} folder(s); reads may name any path on this machine, writes may not'
             if self.read_outside else f'{n} folder(s); nothing outside them is readable')
+    return note + (f'; read-only, never written: {", ".join(self.read_roots)}' if self.read_roots else '')
 
 # %% ../nbs/01_host.ipynb #32df96e2
 @patch
@@ -555,7 +568,7 @@ def _walk(self:LocalHost, root):
 
 # %% ../nbs/01_host.ipynb #3c10f362
 @patch
-def walk(self:LocalHost): return [p for r in self._roots for p in self._walk(r)]
+def walk(self:LocalHost): return [p for r in self._search_roots for p in self._walk(r)]
 
 # %% ../nbs/01_host.ipynb #26c39f55
 @patch
@@ -610,7 +623,7 @@ def sync_index(self:LocalHost, wait=False, force=False):
                 self._index_errors.append(host_err(e))
                 self._pending = []
                 return
-            for root in list(self._roots):
+            for root in list(self._search_roots):
                 try:
                     k = Kosha(dir=Path(root), busy_timeout=BUSY_TIMEOUT_MS)
                     k.sync(dir=Path(root), verbose=False, force=force, pyproject=True, graph=self.graph)
@@ -655,7 +668,7 @@ def _rg(self:LocalHost, query, limit, regex=False, ignore_case=False, path_filte
     if every_file: kw.update(hidden=True, ignore=False, skip_dir=sorted(SKIP_DIRS), exclude=[f'*{s}' for s in sorted(SKIP_SUFFIXES)])
     hits, counts = [], {}
     try:
-        for root in self._roots:
+        for root in self._search_roots:
             pull = None if not per_file else max(limit * 8, limit)
             for m in rg(pattern, root=root, max_results=pull, **kw):
                 if getattr(m, 'kind', 'match') != 'match': continue
@@ -745,7 +758,7 @@ def search(self:LocalHost, query, limit=20):
 # %% ../nbs/01_host.ipynb #9b9d27c3
 @patch(as_prop=True)
 def search_note(self:LocalHost):
-    n, tot = len(self._indexes), len(self._roots)
+    n, tot = len(self._indexes), len(self._search_roots)
     if n:
         where = f'{n} of {tot} folder(s)' if self._pending else f'{tot} folder(s)'
         return f'Kosha semantic + keyword index over {where} and environment fused with ripgrep{self._rerank_note}'
