@@ -2,6 +2,14 @@
 
 <!-- do not remove -->
 
+## 0.1.7
+
+- Folders can be opened for reading only. `LocalHost(read_roots=)` and `add_root(path, readonly=True)` open them, and `read_roots` lists them. `roots` stays the folders writes may reach.
+- `grep`, `ls` with no path or `recursive=True`, the code index and file reads search read roots too. A root inside another is searched with it, once.
+- A write, or a shell command whose folder is in a read root, is refused with `READ_ONLY`. A picture there can be shown.
+- A read root applies the credential deny list that `read_outside` applies, so a read root as wide as `~` does not open `.ssh`.
+- `roots_note` names the read-only folders.
+
 ## 0.1.6
 
 - `clip_json` keeps a dict within `n` by shortening its longest strings, so a long `result` no longer pushes a git report past its budget. A long list stays a list: the items that fit, then a last item saying how many more.
