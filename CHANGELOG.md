@@ -2,6 +2,14 @@
 
 <!-- do not remove -->
 
+## 0.1.4
+
+- `clip` and `clip_lines` count their note against `n`. A clipped result is at most `n` characters whenever `n` is longer than its note, so a harness that cuts at the same budget keeps the note.
+- `clip(keep=True)` saves the whole text with `spill` and names the file in the note. `spill_dir` is one folder per process; `Sandbox.check` allows reads inside it and refuses writes.
+- The tools that cannot page keep the rest this way: `run_shell`, `shell_output`, `run_python`, `inspect_python`, `read_terminal`, `read_url`, `research`, `page_text`, `page_eval`, `api_load`, `api_call`, `memory_search`, `memory_read`, `ask_memory`, the git tools and `read_skill`.
+- Every tool clips to its factory's `mx`. `read_skill`, the git tools and the memory tools no longer return two or three times the budget, and `read_url`, `web_search` and the session tools no longer ignore it.
+- The `run_shell` truncation note no longer suggests `| tail`.
+
 ## 0.1.3
 
 - `Media(str)`: a tool result that carries pictures in `.media`. `screenshot` returns one, so a harness can show the model the picture as well as the path.
