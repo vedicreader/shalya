@@ -526,7 +526,7 @@ def shell_tools(host, mx=MAX_TOOL_CHARS):
         if failed(got): return got
         code, out = got
         head = f'exit {code}' + ('' if code == 0 else '  (command FAILED)')
-        body = clip((out or '').rstrip() or '(no output)', max(500, mx - len(ERR) - len(head) - 1), keep=True)
+        body = clip((out or '').rstrip() or '(no output)', max(1, mx - len(ERR) - len(head) - 1), keep=True)
         return f'{head}\n{body}' if code == 0 else f'{ERR}{head}\n{body}'
 
     @writes

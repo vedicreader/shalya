@@ -12,7 +12,7 @@ __all__ = ['MAX_TOOL_CHARS', 'MAX_HITS', 'MAX_GREP_HITS', 'MAX_API', 'MAX_FILE',
            'is_write', 'acts', 'has_effect', 'one_line', 'summary', 'summarise']
 
 # %% ../nbs/00_core.ipynb #8ff4e050
-import json, os, tempfile, uuid
+import json, os, tempfile, threading, uuid
 from fnmatch import fnmatch
 from fastcore.basics import AttrDict, first, listify
 from fastcore.foundation import L
@@ -74,11 +74,12 @@ def denied(path, patterns=DENY):
     return any(fnmatch(s, pat.lower()) for pat in patterns)
 
 # %% ../nbs/00_core.ipynb #30649626
-_SPILL = []   # this process's spill folder, made on first use
+_SPILL, _SPILL_LOCK = [], threading.Lock()   # this process's spill folder, made on first use
 
 def spill_dir():
-    "The folder results too long to send whole are saved in: one per process, readable through any `Sandbox`."
-    if not _SPILL: _SPILL.append(Path(tempfile.mkdtemp(prefix='shalya-spill-')).resolve())
+    "The folder results too long to send whole are saved in: one per process, private to this OS user, readable and never writable through every `Sandbox` in the process. File names are random."
+    with _SPILL_LOCK:
+        if not _SPILL: _SPILL.append(Path(tempfile.mkdtemp(prefix='shalya-spill-')).resolve())
     return _SPILL[0]
 
 def spill(text):
@@ -151,21 +152,36 @@ def clip(s, n=MAX_TOOL_CHARS,
     return cut + note(len(cut))
 
 def clip_json(r, n=MAX_TOOL_CHARS):
-    "`r` as indented JSON that stays JSON: whole when it fits in `n`, else its plain fields and a `truncated` note naming the file that holds the whole."
+    """`r` as indented JSON that stays JSON within `n`, whenever `n` is longer than the note: whole when it fits;
+    a dict as its plain fields, the longest strings shortened, with a `truncated` note; a list as the items that
+    fit and a last item saying how many more. The note names the file that holds the whole."""
     s = json.dumps(r, indent=2)
-    if len(s) <= n or not isinstance(r, dict): return clip(s, n, keep=True)
+    if len(s) <= n or not isinstance(r, (dict, list)): return clip(s, n, keep=True)
+    note = f'{len(s)} chars; the whole is saved to {spill(s)}; read it with view_file'
+    if isinstance(r, list):
+        out = lambda k: json.dumps(r[:k] + [f'…[{len(r) - k} more; {note}]'], indent=2)
+        lo, hi = 0, len(r)
+        while lo < hi:
+            mid = (lo + hi + 1) // 2
+            if len(out(mid)) <= n: lo = mid
+            else: hi = mid - 1
+        return out(lo)
     plain = {k: v for k, v in r.items() if not isinstance(v, (list, dict))}
-    left = ', '.join(k for k in r if k not in plain) or 'nothing'
-    plain['truncated'] = f'{len(s)} chars, so {left} left out; the whole is saved to {spill(s)}; read it with view_file'
-    return json.dumps(plain, indent=2)
+    plain['truncated'] = f"{', '.join(k for k in r if k not in plain) or 'nothing'} left out; {note}"
+    while len(out := json.dumps(plain, indent=2)) > n:
+        long = [k for k, v in plain.items() if k != 'truncated' and isinstance(v, str) and len(v) > 40]
+        if not long: break
+        k = max(long, key=lambda k: len(plain[k]))
+        plain[k] = plain[k][:len(plain[k]) // 2] + '…'
+    return out
 
 # %% ../nbs/00_core.ipynb #7ca20dbc
 def clip_lines(lines, start=1, n=MAX_TOOL_CHARS, more='', empty='(nothing)'):
-    "Render `lines` within the budget, and say which line to resume from."
+    "Render `lines` within `n` chars, the note included whenever `n` is longer than the note, and say which line to resume from."
     lines = listify(lines)
     if not lines: return empty
     if len(whole := '\n'.join(map(str, lines))) <= n: return whole
-    out, used, room = [], 0, n - min(n // 2, 70 + len(more))   # what the note may need, from the budget
+    out, used, room = [], 0, max(1, n - 70 - len(more))   # what the note may need, from the budget
     for i, line in enumerate(lines):
         line = str(line)
         if used + len(line) + 1 > room:
