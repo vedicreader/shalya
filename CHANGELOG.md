@@ -2,6 +2,13 @@
 
 <!-- do not remove -->
 
+## 0.1.6
+
+- `clip_json` keeps a dict within `n` by shortening its longest strings, so a long `result` no longer pushes a git report past its budget. A long list stays a list: the items that fit, then a last item saying how many more.
+- `clip_lines` reserves its whole note, so a long hint no longer pushes a result past `n`.
+- `run_shell` no longer forces a 500-character body under a smaller budget.
+- `spill_dir` is made once, under a lock. Its folder is private to the OS user, and every `Sandbox` in the process can read it and none can write it.
+
 ## 0.1.5
 
 - The git tools return JSON that stays JSON. 0.1.4 clipped a report longer than the budget as text, so a harness reading `undo` and `head` from it lost them. `clip_json` returns the whole document when it fits, and otherwise its plain fields with a `truncated` note naming the file that holds the whole.
