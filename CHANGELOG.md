@@ -2,6 +2,10 @@
 
 <!-- do not remove -->
 
+## 0.1.5
+
+- The git tools return JSON that stays JSON. 0.1.4 clipped a report longer than the budget as text, so a harness reading `undo` and `head` from it lost them. `clip_json` returns the whole document when it fits, and otherwise its plain fields with a `truncated` note naming the file that holds the whole.
+
 ## 0.1.4
 
 - `clip` and `clip_lines` count their note against `n`. A clipped result is at most `n` characters whenever `n` is longer than its note, so a harness that cuts at the same budget keeps the note.
