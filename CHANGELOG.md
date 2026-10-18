@@ -2,6 +2,14 @@
 
 <!-- do not remove -->
 
+## 0.1.10
+
+- `Host.read_guard`, when set, is asked before a read tool sends content to the model. It gets a `ReadCheck` (`path`, `tool`, `kind`, the turn's `model` and `local`, and `text` loaded on first use) and returns None to send it, a string to send instead, or a `Refusal`. A guard that raises refuses the read.
+- `view_file` (text and pictures), `grep`, `search_code`, `similar_code`, `outline`, `public_api`, `notebook_cells`, `view_cell`, `git_diff` (file by file), `read_url`, `page_text`, `screenshot` and the reference pictures of `generate_image` go through it, as do the diffs `replace_text` and `edit_cell` return.
+- A refusal reaches the model as `ERROR: <kind>: <path>: <why>`. A reference picture is never sent masked.
+- `Host.model_local` returns `(local, model)` for the turn's model. `LocalHost` takes `read_guard=` and `model_local=`.
+- With no guard set, every tool returns what it did before.
+
 ## 0.1.9
 
 - A `search_code` hit's hint names only the tools that reach it on this host. A hit inside the open folders gets `view_file`/`replace_text`. A hit in a read root, or anywhere with `read_outside`, is read-only. Any other hit, such as an installed package on a host that does not read outside its folders, is named as outside the open folders. `reach_hint` builds the hint.
