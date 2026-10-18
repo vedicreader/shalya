@@ -2,6 +2,10 @@
 
 <!-- do not remove -->
 
+## 0.1.9
+
+- A `search_code` hit's hint names only the tools that reach it on this host. A hit inside the open folders gets `view_file`/`replace_text`. A hit in a read root, or anywhere with `read_outside`, is read-only. Any other hit, such as an installed package on a host that does not read outside its folders, is named as outside the open folders. `reach_hint` builds the hint.
+
 ## 0.1.8
 
 - `remember` takes optional `cue`, `component`, `evidence` and `confidence`. With any of them set, it stores one `field: value` line per field, with `lesson` first. A vault titles the note by that first line. Without them, `remember` stores the text unchanged.
