@@ -7,11 +7,11 @@ Docs: https://vedicreader.github.io/shalya/tools.html.md"""
 # %% auto #0
 __all__ = ['LESSON_COMPONENTS', 'LESSON_CONFIDENCE', 'WATCH_KINDS', 'RESPONSES_API', 'IMAGE_API', 'IMAGE_EDIT_API', 'IMAGE_MODEL',
            'IMAGE_SIZES', 'API_VENDORS', 'MAX_IMAGE_BYTES', 'MAX_IMAGES', 'OPTIN', 'GROUPS', 'readable', 'resolved',
-           'code_tools', 'picture_mime', 'file_tools', 'exhash_tools', 'notebook_tools', 'web_tools', 'research_tools',
-           'browser_tools', 'lesson_text', 'memory_tools', 'watch_tools', 'ask_tools', 'session_tools', 'shell_tools',
-           'api_tools', 'skill_tools', 'author_tools', 'media_dir', 'mime_for', 'save_media', 'image_available',
-           'image_refs', 'image_targets', 'image_dest', 'api_model', 'image_tools', 'git_repo', 'git_tools',
-           'legacy_tools', 'tools_for', 'tool_groups', 'group_of', 'read_only']
+           'reach_hint', 'code_tools', 'picture_mime', 'file_tools', 'exhash_tools', 'notebook_tools', 'web_tools',
+           'research_tools', 'browser_tools', 'lesson_text', 'memory_tools', 'watch_tools', 'ask_tools',
+           'session_tools', 'shell_tools', 'api_tools', 'skill_tools', 'author_tools', 'media_dir', 'mime_for',
+           'save_media', 'image_available', 'image_refs', 'image_targets', 'image_dest', 'api_model', 'image_tools',
+           'git_repo', 'git_tools', 'legacy_tools', 'tools_for', 'tool_groups', 'group_of', 'read_only']
 
 # %% ../nbs/02_tools.ipynb #a71f9b84
 import functools, json, mimetypes, os, re, shlex, threading, uuid
@@ -44,6 +44,17 @@ def resolved(host, path, writing=False, reading=False, must_exist=False):
     except Exception as e: return None, err(f'cannot use {path}', e)
 
 # %% ../nbs/02_tools.ipynb #38740e63
+def reach_hint(host, path):
+    "What a model may do with a search hit at `path` on `host`: view and edit, view only, or neither."
+    nb = str(path).lower().endswith('.ipynb')
+    if not resolved(host, path, writing=True)[1]:
+        return ('NOTEBOOK -- use this exact path with notebook_cells, then view_cell/edit_cell' if nb
+                else 'FILE -- use this exact path with view_file/replace_text')
+    if not resolved(host, path, reading=True)[1]:
+        return ('NOTEBOOK -- read-only here: notebook_cells, then view_cell, with this exact path; edits are refused' if nb
+                else 'FILE -- read-only here: view_file with this exact path; edits are refused')
+    return 'outside the open folders -- no read tool reaches this path here; the line above is all search shows'
+
 def code_tools(host, mx=MAX_TOOL_CHARS):
     "Code search and structure tools."
 
@@ -53,11 +64,7 @@ def code_tools(host, mx=MAX_TOOL_CHARS):
         hits = host.search(query, limit=MAX_HITS)
         if not hits: return f'no matches ({host.search_note})'
         rows = []
-        for h in hits:
-            target = ('NOTEBOOK -- use this exact path with notebook_cells, then view_cell/edit_cell'
-                      if str(h.path).lower().endswith('.ipynb')
-                      else 'FILE -- use this exact path with view_file/replace_text')
-            rows.append(f'{h.path}:{h.line}  {h.symbol or ""}  {h.text}\n  {target}')
+        for h in hits: rows.append(f'{h.path}:{h.line}  {h.symbol or ""}  {h.text}\n  {reach_hint(host, h.path)}')
         return clip(f'[{host.search_note}]\n' + '\n'.join(rows), mx)
 
     @summary(lambda a: f'Similar to {a.get("path","")}:{a.get("line", 1)}')
