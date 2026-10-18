@@ -79,10 +79,11 @@ def _pyskills():
     return out
 
 # %% ../nbs/03_skills.ipynb #83b04339
-def skill_dirs(roots=(), cfg=None):
-    "Where SKILL.md files are looked for, in increasing precedence: user first. A project can override."
+def skill_dirs(roots=(), cfg=None, learned=None):
+    "Where SKILL.md files are looked for, in increasing precedence: `learned` first, then the user's, then each project's."
     from pathlib import Path
     ds = []
+    if learned is not None: ds.append(Path(learned)/'skills')
     if cfg is not None: ds.append(Path(cfg)/'skills')
     ds.append(Path.home()/'.agents'/'skills')
     for r in roots: ds += [Path(r)/'.leela'/'skills', Path(r)/'.agents'/'skills']
@@ -106,11 +107,11 @@ def _md_skills(d):
                          where=str(f), _text=body))
     return out
 
-def discover(roots=(), cfg=None, extra=()):
+def discover(roots=(), cfg=None, extra=(), learned=None):
     "Every skill available to this agent. Pyskills, then `skill_dirs`, then `extra`. Later winning."
     by_name = {}
     for s in _pyskills(): by_name[s.name] = s
-    for d in skill_dirs(roots, cfg):
+    for d in skill_dirs(roots, cfg, learned):
         for s in _md_skills(d): by_name[s.name] = s
     for s in extra or (): by_name[s.name] = s
     return sorted(by_name.values(), key=lambda s: s.name)
