@@ -32,6 +32,8 @@ class Host(ABC):
     group = 'file'          #: every host has the path boundary the file tools need
     without = frozenset()   #: groups this instance cannot do, whatever its class declares
     writes = True           #: whether `write` works. A host that cannot is given no write tools
+    read_guard = None       #: `(ReadCheck) -> None | str | Refusal`, asked before a read tool sends content; None sends everything
+    model_local = None      #: `() -> (local, model)`: the turn's model, for `read_guard`; the agent fills it
 
     @property
     def provides(self):
@@ -448,11 +450,14 @@ class LocalHost(Host, CodeHost, WebHost, NotebookHost, SessionHost, ShellHost, M
                  read_outside=False,    # let read-only tools name any path on this machine
                  deny=DENY,             # what `read_outside` still refuses to open
                  read_roots=(),         # folders the read tools search and no write may touch
-                 tmux=None):            # None detects `$TMUX`; False off; True on; or this host's own pane (target or `Pane`)
+                 tmux=None,             # None detects `$TMUX`; False off; True on; or this host's own pane (target or `Pane`)
+                 read_guard=None,       # `(ReadCheck) -> None | str | Refusal`: what the read tools may send
+                 model_local=None):     # `() -> (local, model)` for the turn's model
         self.sandbox = Sandbox(roots, read_outside=read_outside, deny=deny, read_roots=read_roots)
         self._added_roots = []         # excluded when resuming
         self.ns = ifnone(ns, {'__name__': '__main__'})
         self._approvals, self._note, self.web = approvals, note, web
+        self.read_guard, self.model_local = read_guard, model_local
         self.transcript = []
         self._indexes, self._index_errors, self._index_thread = [], [], None
         self._pending = list(self._search_roots)

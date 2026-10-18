@@ -7,11 +7,11 @@ Docs: https://vedicreader.github.io/shalya/tools.html.md"""
 # %% auto #0
 __all__ = ['LESSON_COMPONENTS', 'LESSON_CONFIDENCE', 'WATCH_KINDS', 'RESPONSES_API', 'IMAGE_API', 'IMAGE_EDIT_API', 'IMAGE_MODEL',
            'IMAGE_SIZES', 'API_VENDORS', 'MAX_IMAGE_BYTES', 'MAX_IMAGES', 'OPTIN', 'GROUPS', 'readable', 'resolved',
-           'reach_hint', 'code_tools', 'picture_mime', 'file_tools', 'exhash_tools', 'notebook_tools', 'web_tools',
-           'research_tools', 'browser_tools', 'lesson_text', 'memory_tools', 'watch_tools', 'ask_tools',
+           'reach_hint', 'screen_hits', 'code_tools', 'picture_mime', 'file_tools', 'exhash_tools', 'notebook_tools',
+           'web_tools', 'research_tools', 'browser_tools', 'lesson_text', 'memory_tools', 'watch_tools', 'ask_tools',
            'session_tools', 'shell_tools', 'api_tools', 'skill_tools', 'author_tools', 'media_dir', 'mime_for',
            'save_media', 'image_available', 'image_refs', 'image_targets', 'image_dest', 'api_model', 'image_tools',
-           'git_repo', 'git_tools', 'legacy_tools', 'tools_for', 'tool_groups', 'group_of', 'read_only']
+           'git_repo', 'screen_diff', 'git_tools', 'legacy_tools', 'tools_for', 'tool_groups', 'group_of', 'read_only']
 
 # %% ../nbs/02_tools.ipynb #a71f9b84
 import functools, json, mimetypes, os, re, shlex, threading, uuid
@@ -25,7 +25,7 @@ from fastcore.xtras import detect_mime
 from .core import (Hit, ERR, MAX_TOOL_CHARS, MAX_HITS, MAX_GREP_HITS, MAX_API, GIT_TOOLS,
                          GIT_READ_TOOLS, GIT_WRITE_TOOLS, WRITE_TOOLS, clip, clip_json, clip_lines, cmds,
                          edits, apply_edits, diff_text, err, failed, attempt, is_write, writes, acts, has_effect,
-                         ACTING_TOOLS, summary, summarise, one_line as _1, DENY, denied, Media)
+                         ACTING_TOOLS, summary, summarise, one_line as _1, DENY, denied, Media, Refusal, guard_read, screened)
 from .host import (Host, HostError, LocalHost, host_err, CodeHost, WebHost, BrowserHost, NotebookHost,
                          MemoryHost, AskHost, WatchHost, SessionHost, ShellHost, ApiHost, GitHost)
 from .skills import Skill, find, skill_index
@@ -55,13 +55,29 @@ def reach_hint(host, path):
                 else 'FILE -- read-only here: view_file with this exact path; edits are refused')
     return 'outside the open folders -- no read tool reaches this path here; the line above is all search shows'
 
+def screen_hits(host, hits, tool):
+    "`hits` as `host.read_guard` lets each file's lines go: whole, masked line for line, or one refusal row per file."
+    if getattr(host, 'read_guard', None) is None: return list(hits)
+    hits, by = list(hits), {}
+    for h in hits: by.setdefault(str(h.path), []).append(h)
+    said = {p: guard_read(host, p, lambda hs=hs: '\n'.join(str(h.text) for h in hs), tool, 'hits') for p, hs in by.items()}
+    pos = {id(h): n for hs in by.values() for n, h in enumerate(hs)}
+    def row(h):
+        p = str(h.path); r, n = said[p], pos[id(h)]
+        if r is None: return h
+        if isinstance(r, Refusal): return None if n else Hit(p, h.line, '', str(r))
+        lines = r.splitlines()
+        if len(lines) == len(by[p]): return Hit(p, h.line, getattr(h, 'symbol', ''), lines[n])
+        return None if n else Hit(p, h.line, '', r)   # a mask that changed the line count is one row
+    return [x for h in hits if (x := row(h)) is not None]
+
 def code_tools(host, mx=MAX_TOOL_CHARS):
     "Code search and structure tools."
 
     @summary(lambda a: f'Search {_1(a.get("query"))}')
     def search_code(query: str) -> str:
         "Search the open folders and installed packages for `query`: semantic when an index is ready, literal otherwise."
-        hits = host.search(query, limit=MAX_HITS)
+        hits = screen_hits(host, host.search(query, limit=MAX_HITS), 'search_code')
         if not hits: return f'no matches ({host.search_note})'
         rows = []
         for h in hits: rows.append(f'{h.path}:{h.line}  {h.symbol or ""}  {h.text}\n  {reach_hint(host, h.path)}')
@@ -72,7 +88,7 @@ def code_tools(host, mx=MAX_TOOL_CHARS):
         "Find implementations similar to the function at `path`:`line`."
         p, refused = resolved(host, path, reading=True)
         if refused: return refused
-        hits = host.peers(str(p), int(line), limit=MAX_HITS)
+        hits = screen_hits(host, host.peers(str(p), int(line), limit=MAX_HITS), 'similar_code')
         if not hits: return f'nothing similar ({host.search_note})'
         return clip('\n'.join(f'{h.path}:{h.line}  {h.symbol or ""}  {h.text}' for h in hits), mx)
 
@@ -83,7 +99,7 @@ def code_tools(host, mx=MAX_TOOL_CHARS):
         if refused: return refused
         syms = host.symbols(str(p))
         if not syms: return f'no symbols in {path}'
-        return clip('\n'.join(f'{int(getattr(s, "score", 0))*" "}{s.line}: {s.symbol}' for s in syms), mx)
+        return clip(str(screened(host, p, '\n'.join(f'{int(getattr(s, "score", 0))*" "}{s.line}: {s.symbol}' for s in syms), 'outline')), mx)
 
     @summary(lambda a: f'Grep {_1(a.get("pattern",""))}' + (f' in {a["path_filter"]}' if a.get('path_filter') else ''))
     def grep(pattern: str, path_filter: str = '', regex: bool = True, ignore_case: bool = False) -> str:
@@ -96,6 +112,7 @@ def code_tools(host, mx=MAX_TOOL_CHARS):
         except Exception: fast = None
         if fast is not None:
             if not fast: return f'no matches for {pattern!r}'
+            fast = screen_hits(host, fast, 'grep')
             capped = len(fast) >= MAX_GREP_HITS
             head = f'{len(fast)}{"+" if capped else ""} match(es)'
             rows = [f'{h.path}:{h.line}: {h.text}' for h in fast]
@@ -110,12 +127,12 @@ def code_tools(host, mx=MAX_TOOL_CHARS):
             scanned += 1
             for i, line in enumerate(text.splitlines(), 1):
                 if rx.search(line):
-                    hits.append(f'{sp}:{i}: {line.strip()[:200]}')
+                    hits.append(Hit(sp, i, '', line.strip()[:200]))
                     if len(hits) >= MAX_GREP_HITS: capped = True; break
             if capped: break
         if not hits: return f'no matches for {pattern!r} in {scanned} file(s)'
         head = f'{len(hits)}{"+" if capped else ""} match(es) in {scanned} file(s) searched'
-        return clip_lines([head] + hits, n=mx, more='narrow `pattern` or set `path_filter`')
+        return clip_lines([head] + [f'{h.path}:{h.line}: {h.text}' for h in screen_hits(host, hits, 'grep')], n=mx, more='narrow `pattern` or set `path_filter`')
 
     @summary(lambda a: f'List {a.get("path") or "(open folders)"}' + (f' matching {a["pattern"]}' if a.get('pattern') else ''))
     def ls(path: str = '', pattern: str = '', recursive: bool = False) -> str:
@@ -154,7 +171,7 @@ def code_tools(host, mx=MAX_TOOL_CHARS):
         try: api = host.public_api(package)
         except Exception as e: return err(f'cannot list the API of {package}', e)
         if not api: return (f'nothing public indexed for {package!r}. covers installed packages and open folders, not stdlib')
-        rows = [f'{h.symbol}  {h.path}:{h.line}  {h.text}' for h in api]
+        rows = [f'{h.symbol}  {h.path}:{h.line}  {h.text}' for h in screen_hits(host, api, 'public_api')]
         return clip_lines([f'{len(rows)} public name(s) in {package}'] + rows, n=mx, more='read one with view_file')
 
     tools = [search_code, grep, ls, outline]
@@ -184,6 +201,11 @@ def picture_mime(head):
     if head[:4] == b'RIFF' and head[8:12] == b'WEBP': return 'image/webp'
     return next((m for sig, m in _PICTURES if head.startswith(sig)), None)
 
+def _shown(host, p, text, tool):
+    "`Media` of the picture at `p`, or what `host.read_guard` sends instead: its text, or the refusal."
+    r = guard_read(host, p, lambda: Path(p).read_bytes(), tool, 'image')
+    return Media(text, [str(p)]) if r is None else str(r)
+
 def _picture(host, p):
     "`Media` naming the picture at `p`, an error when it is one that may not go, or None when `p` is not a picture."
     try:
@@ -195,7 +217,12 @@ def _picture(host, p):
     try: host.check(p, reading=True) if readonly else host.check(p)   # `read_outside` lets text through, never a picture
     except Exception as e: return err(f'{p} is a picture outside the open folders', e)
     if (n := p.stat().st_size) > MAX_IMAGE_BYTES: return err(f'{p} is a {mime} picture over the {MAX_IMAGE_BYTES >> 20} MB one may be')
-    return Media(f'{p} is a {mime} picture of {n:,} bytes; it follows as an image when this model takes images.', [str(p)])
+    return _shown(host, p, f'{p} is a {mime} picture of {n:,} bytes; it follows as an image when this model takes images.', 'view_file')
+
+def _diff_shown(host, p, diff, tool):
+    "An edit's diff, or what `host.read_guard` sends instead; the edit is made either way."
+    r = screened(host, p, diff, tool, 'diff')
+    return f'(the diff is withheld) {r}' if isinstance(r, Refusal) else r
 
 def file_tools(host, mx=MAX_TOOL_CHARS):
     "Reading and editing files by exact text. Read-only where the host cannot write."
@@ -218,6 +245,7 @@ def file_tools(host, mx=MAX_TOOL_CHARS):
         try: text = host.read(str(p))
         except Exception: text = None
         if text is None and not p.exists(): return err(f'no such file: {p}')
+        if isinstance(text := screened(host, p, text, 'view_file'), Refusal): return str(text)
         try: view = str(lnhashview(text, start or None, end or None) if text is not None else lnhashview_file(str(p), start or None, end or None))
         except (OSError, UnicodeError) as e: return err(f'{p} is not text or a picture; view_file reads those two', e)
         return clip_lines(view.splitlines(), start=(start or 1), n=mx,
@@ -235,7 +263,7 @@ def file_tools(host, mx=MAX_TOOL_CHARS):
         if refused: return refused
         try: host.write(str(p), after)
         except Exception as e: return err('write failed', e)
-        return clip(f'replaced {n} block(s) in {p}\n' + diff_text(before, after, str(p)), mx)
+        return clip(f'replaced {n} block(s) in {p}\n' + _diff_shown(host, p, diff_text(before, after, str(p)), 'replace_text'), mx)
 
     @writes
     @summary(lambda a: f'Create {a.get("path","")}')
@@ -278,15 +306,17 @@ def notebook_tools(host, mx=MAX_TOOL_CHARS):
     @summary(lambda a: f'Cells of {a.get("path","")}')
     def notebook_cells(path: str) -> str:
         "List a notebook's cells as `id  type  first line`; the ids are what `view_cell` and `edit_cell` address."
-        rows = attempt('could not read notebook', lambda: host.nb_cells(str(readable(host, path))))
-        if isinstance(rows, str): return rows
-        return clip('\n'.join(f'{i}  {t:8} {(s or "").strip().splitlines()[0][:100] if (s or "").strip() else ""}' for i, t, s in rows) or '(empty notebook)', mx)
+        got = attempt('could not read notebook', lambda: (lambda p: (p, host.nb_cells(str(p))))(readable(host, path)))
+        if isinstance(got, str): return got
+        p, rows = got
+        return clip(str(screened(host, p, '\n'.join(f'{i}  {t:8} {(s or "").strip().splitlines()[0][:100] if (s or "").strip() else ""}' for i, t, s in rows) or '(empty notebook)', 'notebook_cells', 'cell')), mx)
 
     @summary(lambda a: f'View {a.get("path","")} cell {a.get("cell_id","?")}')
     def view_cell(path: str, cell_id: str) -> str:
         "One notebook cell's source, numbered; copy `oldText` for `edit_cell` from here."
-        try: _, _, src = host.nb_cell(str(readable(host, path, must_exist=True)), cell_id)
+        try: p = readable(host, path, must_exist=True); _, _, src = host.nb_cell(str(p), cell_id)
         except Exception as e: return err('could not read cell', e)
+        if isinstance(src := screened(host, p, src, 'view_cell', 'cell'), Refusal): return str(src)
         return clip_lines([f'{i}: {l}' for i, l in enumerate(src.splitlines() or [''], 1)], n=mx)
 
     @writes
@@ -300,7 +330,7 @@ def notebook_tools(host, mx=MAX_TOOL_CHARS):
         if refused: return refused
         try: cid = host.nb_set_cell(str(p), cell_id, after)
         except Exception as e: return err('could not write cell', e)
-        return clip(f'replaced {n} block(s) in cell {cid} of {p}\n' + diff_text(before, after, f'{p}#{cid}'), mx)
+        return clip(f'replaced {n} block(s) in cell {cid} of {p}\n' + _diff_shown(host, p, diff_text(before, after, f'{p}#{cid}'), 'edit_cell'), mx)
 
     @writes
     @summary(lambda a: f'Add {a.get("cell_type","code")} cell to {a.get("path","")}')
@@ -328,7 +358,7 @@ def web_tools(host, mx=MAX_TOOL_CHARS):
     def read_url(url: str, remember: bool = True) -> str:
         "Read `url` as text suited to its kind (article, PDF, repo file, transcript); the page enters durable memory unless `remember=False`."
         d = host.read_url(url, remember=remember)
-        return clip(d.text if d else f'could not read {url} ({host.research_note})', mx, keep=True)
+        return clip(str(screened(host, url, d.text, 'read_url', 'url')) if d else f'could not read {url} ({host.research_note})', mx, keep=True)
 
     def no_save_read(url: str) -> str:
         "Read one web page without saving it to durable memory."
@@ -370,13 +400,14 @@ def browser_tools(host, mx=MAX_TOOL_CHARS):
     def screenshot(page: str = '') -> str:
         "Save a picture of `page` (the latest when empty); it comes back as an image when this model takes images."
         r = attempt('could not take the screenshot', lambda: host.screenshot(page))
-        return r if failed(r) else Media(f'screenshot saved to {r}; it follows as an image when this model takes images.', [str(r)])
+        return r if failed(r) else _shown(host, r, f'screenshot saved to {r}; it follows as an image when this model takes images.', 'screenshot')
 
     @acts
     @summary(lambda a: 'Read page' + (f' {a["page"]}' if a.get('page') else ''))
     def page_text(page: str = '') -> str:
         "The page (the latest when empty) as markdown."
-        return clip(attempt('could not read the page', lambda: host.page_text(page)), mx, keep=True)
+        r = attempt('could not read the page', lambda: host.page_text(page))
+        return clip(r if failed(r) else str(screened(host, page or 'page', r, 'page_text', 'page')), mx, keep=True)
 
     @acts
     @summary(lambda a: 'Reload page' + (f' {a["page"]}' if a.get('page') else ''))
@@ -720,8 +751,8 @@ def _post_edit(prompt, size, n, images, timeout=300, model=IMAGE_MODEL):
     if model.startswith('gpt-image') and 'mini' not in model: data['input_fidelity'] = 'high'   # keep a reference face, not a paraphrase of it
     return _reply(httpx.post(IMAGE_EDIT_API, timeout=timeout, headers=_hdrs(), files=[('image[]', i) for i in images], data=data)).get('data') or []
 
-def image_refs(host, paths):
-    "`(refs, '')` for pictures inside the host's roots as `(name, bytes, mime)`, or `([], err)` for the first one refused."
+def image_refs(host, paths, model=IMAGE_MODEL):
+    "`(refs, '')` for pictures inside the host's roots as `(name, bytes, mime)`, or `([], err)` for the first one refused, `host.read_guard` included."
     paths = [paths] if isinstance(paths, str) else list(paths or [])
     if len(paths) > MAX_IMAGES: return [], err(f'{len(paths)} reference pictures; send at most {MAX_IMAGES}')
     out = []
@@ -731,6 +762,8 @@ def image_refs(host, paths):
         if p.stat().st_size > MAX_IMAGE_BYTES: return [], err(f'{p} is over the {MAX_IMAGE_BYTES >> 20} MB a reference picture may be')
         with open(p, 'rb') as f: mime = picture_mime(f.read(16))
         if mime is None: return [], err(f'not a picture: {p}', 'a reference must be a PNG, JPEG, WebP or GIF by its bytes')
+        if (r := guard_read(host, p, p.read_bytes, 'generate_image', 'image', model=model, local=False)) is not None:   # a picture cannot go masked
+            return [], str(r if isinstance(r, Refusal) else Refusal('a reference picture cannot be sent masked, so none was sent', path=str(p)))
         out.append((p.name, p.read_bytes(), mime))
     return out, ''
 
@@ -792,7 +825,7 @@ def image_tools(host, mx=MAX_TOOL_CHARS, session='', draws_itself=None, from_rep
         if size not in IMAGE_SIZES: return err('unknown size', f'{size!r}; use one of {", ".join(IMAGE_SIZES)}')
         try: n = max(1, min(int(n or 1), 4))
         except (TypeError, ValueError): return err('`n` must be a whole number from 1 to 4', repr(n))
-        refs, refused = image_refs(host, images)
+        refs, refused = image_refs(host, images, api_model(model or IMAGE_MODEL))
         if refused: return refused
         dests, refused = targets(path, n) if path else ([], '')   # every name cleared before anything is drawn
         if refused: return refused
@@ -855,6 +888,20 @@ def git_repo(host, path=''):
         raise ValueError(f'Git root {found.root} is outside the open folders; open the repository root first')
     return found
 
+def screen_diff(host, root, diff):
+    "A git diff as `host.read_guard` lets each file's part go; a part naming no file is asked about as `root`."
+    if getattr(host, 'read_guard', None) is None: return diff
+    def one(s):
+        if not s: return s
+        m = re.match(r'diff --git "?a/(.+?)"? "?b/(.+?)"?$', s.split('\n', 1)[0])
+        ps = dict.fromkeys([m[2], m[1]] if m else [''])   # a rename shows both sides
+        for q in ps:
+            r = screened(host, Path(root)/q, s, 'git_diff', 'diff')
+            if isinstance(r, Refusal): return f'{r}\n'
+            s = r if r.endswith('\n') else r + '\n'
+        return s
+    return ''.join(one(s) for s in re.split(r'(?m)^(?=diff --git )', diff))
+
 def git_tools(host, mx=MAX_TOOL_CHARS):
     "Git bound to one open repository, kept inside the host's roots; writes report an undo token."
     if host is not None: os.environ.setdefault('GIT_TERMINAL_PROMPT', '0')   # a real host runs git; naming the tools does not
@@ -875,7 +922,7 @@ def git_tools(host, mx=MAX_TOOL_CHARS):
     @summary(lambda a: 'Git diff' + (' (staged)' if a.get('staged') else ''))
     def git_diff(staged: bool = False, path: str = '') -> str:
         "Unified diff of the working tree, or of the index with `staged`; `path` narrows to a file or folder."
-        return answer('git diff', path, lambda r: r.diff(path=str(host.check(path)) if path else '', staged=staged) or '(no changes)', text=True)
+        return answer('git diff', path, lambda r: screen_diff(host, r.root, r.diff(path=str(host.check(path)) if path else '', staged=staged)) or '(no changes)', text=True)
     @summary(lambda a: f'Git log {a.get("n", 10)}')
     def git_log(n: int = 10, path: str = '') -> str:
         "The last `n` commits: short id, author, subject."
