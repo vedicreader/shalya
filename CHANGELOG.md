@@ -2,6 +2,12 @@
 
 <!-- do not remove -->
 
+## 0.1.8
+
+- `remember` takes optional `cue`, `component`, `evidence` and `confidence`. With any of them set, it stores one `field: value` line per field, with `lesson` first. A vault titles the note by that first line. Without them, `remember` stores the text unchanged.
+- `component` is one of `LESSON_COMPONENTS` (`rule`, `skill`, `extension`, `tool`, `memory`) and `confidence` one of `LESSON_CONFIDENCE` (`low`, `medium`, `high`). Any other value, or fields with blank text, returns an `ERROR:` result. `lesson_text` builds the block.
+- `skill_dirs` and `discover` take a `learned` folder. Its `skills` folder is first on the search path. Its skills override installed package skills and lose to every folder a person writes.
+
 ## 0.1.7
 
 - Folders can be opened for reading only. `LocalHost(read_roots=)` and `add_root(path, readonly=True)` open them, and `read_roots` lists them. `roots` stays the folders writes may reach.
