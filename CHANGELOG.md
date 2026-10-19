@@ -2,6 +2,10 @@
 
 <!-- do not remove -->
 
+## 0.1.14
+
+- `parse_lesson` reads a lesson `lesson_text` wrote back into its fields, from a vault note's `field: value` lines or a memory file's ` | `-joined line with its `- [key] **title**: ` head. It returns None for a plain note. `lessons` finds every lesson in a memory file or vault note. `LESSON_FIELDS` names the fields in order.
+
 ## 0.1.13
 
 - `post_image` (tools) is public, because Ramabana's tests replace it. `_post_image` stays as an alias. `generate_image` calls `post_image`, so a test replaces `shalya.tools.post_image`.
