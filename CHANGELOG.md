@@ -2,6 +2,10 @@
 
 <!-- do not remove -->
 
+## 0.1.13
+
+- `post_image` (tools) is public, because Ramabana's tests replace it. `_post_image` stays as an alias. `generate_image` calls `post_image`, so a test replaces `shalya.tools.post_image`.
+
 ## 0.1.12
 
 - `fuse` (host), `post_responses` (tools), `describe` and `mod_skill` (skills) are public, because Ramabana imports them. The `_`-prefixed names stay as aliases. `discover` calls `mod_skill`, so code that replaces how a module becomes a skill replaces `shalya.skills.mod_skill`; replacing `_mod_skill` no longer has an effect.
