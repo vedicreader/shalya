@@ -10,8 +10,9 @@ __all__ = ['LESSON_COMPONENTS', 'LESSON_CONFIDENCE', 'WATCH_KINDS', 'RESPONSES_A
            'reach_hint', 'screen_hits', 'code_tools', 'picture_mime', 'file_tools', 'exhash_tools', 'notebook_tools',
            'web_tools', 'research_tools', 'browser_tools', 'lesson_text', 'memory_tools', 'watch_tools', 'ask_tools',
            'session_tools', 'shell_tools', 'api_tools', 'skill_tools', 'author_tools', 'media_dir', 'mime_for',
-           'save_media', 'image_available', 'image_refs', 'image_targets', 'image_dest', 'api_model', 'image_tools',
-           'git_repo', 'screen_diff', 'git_tools', 'legacy_tools', 'tools_for', 'tool_groups', 'group_of', 'read_only']
+           'save_media', 'image_available', 'image_refs', 'image_targets', 'image_dest', 'api_model', 'post_responses',
+           'image_tools', 'git_repo', 'screen_diff', 'git_tools', 'legacy_tools', 'tools_for', 'tool_groups',
+           'group_of', 'read_only']
 
 # %% ../nbs/02_tools.ipynb #a71f9b84
 import functools, json, mimetypes, os, re, shlex, threading, uuid
@@ -794,11 +795,12 @@ def api_model(model):
         if s.startswith(v): return s[len(v):]
     return s
 
-def _post_responses(prompt, model, timeout=300):
+def post_responses(prompt, model, timeout=300):
     "Return a Responses API image-generation reply."
     import httpx
     return _reply(httpx.post(RESPONSES_API, timeout=timeout, headers=_hdrs(),
                              json={'model': api_model(model), 'input': prompt, 'tools': [{'type': 'image_generation'}]}))
+_post_responses = post_responses   # the old name
 
 # %% ../nbs/02_tools.ipynb #7a99e2b6
 def image_tools(host, mx=MAX_TOOL_CHARS, session='', draws_itself=None, from_reply=None, model_id='',
@@ -834,7 +836,7 @@ def image_tools(host, mx=MAX_TOOL_CHARS, session='', draws_itself=None, from_rep
         rows = lambda rs: [{'mime': 'image/png', 'data': b64decode(r['b64_json'])} for r in rs if r.get('b64_json')]
         try:
             if refs: media = rows(_post_edit(prompt, size, n, refs, model=api_model(model or IMAGE_MODEL)))
-            elif not model and own: media = from_reply(_post_responses(prompt, mid))
+            elif not model and own: media = from_reply(post_responses(prompt, mid))
             else: media = rows(_post_image(prompt, size, n, model=api_model(model or IMAGE_MODEL)))
         except Exception as e: return err('could not generate the image', e)
         if not media: return err('the model returned no image', 'the reply carried no picture')

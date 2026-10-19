@@ -2,6 +2,10 @@
 
 <!-- do not remove -->
 
+## 0.1.12
+
+- `fuse` (host), `post_responses` (tools), `describe` and `mod_skill` (skills) are public, because Ramabana imports them. The `_`-prefixed names stay as aliases. `discover` calls `mod_skill`, so code that replaces how a module becomes a skill replaces `shalya.skills.mod_skill`; replacing `_mod_skill` no longer has an effect.
+
 ## 0.1.11
 
 - `LocalHost.inspect_python` without a kernel deep-copies each name the code reads, so `radii.append(99)` leaves the real `radii` alone. Objects `deepcopy` refuses, and the namespace a user's function reads through its globals, stay shared.

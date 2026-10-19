@@ -8,7 +8,7 @@ Docs: https://vedicreader.github.io/shalya/host.html.md"""
 __all__ = ['SKIP_DIRS', 'SKIP_SUFFIXES', 'MAX_VARS', 'LD_CHARS', 'PANE_LINES', 'CONTENT_SEL', 'BLOCK_SEL', 'THIN_PAGE',
            'MAX_PAGE', 'MIN_SECTION', 'READERS', 'Capability', 'Host', 'nb_read', 'CodeHost', 'WebHost', 'BrowserHost',
            'NotebookHost', 'MemoryHost', 'AskHost', 'WatchHost', 'SessionHost', 'ShellHost', 'ApiHost', 'GitHost',
-           'ld_json', 'LocalHost', 'md_title', 'read_page', 'implemented']
+           'fuse', 'ld_json', 'LocalHost', 'md_title', 'read_page', 'implemented']
 
 # %% ../nbs/01_host.ipynb #2f4ef978
 import ast, copy, json, os, re, shutil, sys, uuid
@@ -406,7 +406,7 @@ def _md_doc(d):
     body = next((str(d[k]) for k in ('source', 'transcript', 'text', 'content', 'summary', 'abstract') if d.get(k)), '')
     return '\n'.join(head + [''] + [body]).strip() if head else body.strip()
 
-def _fuse(legs, limit):
+def fuse(legs, limit):
     "Fuse ranked `Hit` lists by `path:line`."
     from litesearch import rrf_all
     legs = [list(l) for l in legs if l]
@@ -423,6 +423,7 @@ def _fuse(legs, limit):
     fused = rrf_all(lists, id_key='_fid', limit=limit)
     return [by_key[r['_fid']] for r in fused if r.get('_fid') in by_key]
 
+_fuse = fuse   # the old name
 def ld_json(html):
     "Parse `schema.org` JSON-LD blocks from `html`."
     out = []
@@ -757,7 +758,7 @@ def search(self:LocalHost, query, limit=20):
     "The code index and the literal scan, fused by rank rather than tried in order."
     if not (query or '').strip(): return []
     rg = self._rg(query, limit)
-    if (hits := _fuse([self._semantic(query, limit), rg or []], limit)): return hits
+    if (hits := fuse([self._semantic(query, limit), rg or []], limit)): return hits
     return [] if rg is not None else self._scan(query, limit)
 
 # %% ../nbs/01_host.ipynb #9b9d27c3
