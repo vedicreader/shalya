@@ -10,9 +10,9 @@ __all__ = ['LESSON_COMPONENTS', 'LESSON_CONFIDENCE', 'WATCH_KINDS', 'RESPONSES_A
            'reach_hint', 'screen_hits', 'code_tools', 'picture_mime', 'file_tools', 'exhash_tools', 'notebook_tools',
            'web_tools', 'research_tools', 'browser_tools', 'lesson_text', 'memory_tools', 'watch_tools', 'ask_tools',
            'session_tools', 'shell_tools', 'api_tools', 'skill_tools', 'author_tools', 'media_dir', 'mime_for',
-           'save_media', 'image_available', 'image_refs', 'image_targets', 'image_dest', 'api_model', 'post_responses',
-           'image_tools', 'git_repo', 'screen_diff', 'git_tools', 'legacy_tools', 'tools_for', 'tool_groups',
-           'group_of', 'read_only']
+           'save_media', 'image_available', 'post_image', 'image_refs', 'image_targets', 'image_dest', 'api_model',
+           'post_responses', 'image_tools', 'git_repo', 'screen_diff', 'git_tools', 'legacy_tools', 'tools_for',
+           'tool_groups', 'group_of', 'read_only']
 
 # %% ../nbs/02_tools.ipynb #a71f9b84
 import functools, json, mimetypes, os, re, shlex, threading, uuid
@@ -740,11 +740,12 @@ def _reply(r):
     if r.status_code >= 400: raise RuntimeError(f'{r.status_code} {r.reason_phrase}: {r.text[:500]}')
     return r.json()
 
-def _post_image(prompt, size, n, timeout=120, model=IMAGE_MODEL):
+def post_image(prompt, size, n, timeout=120, model=IMAGE_MODEL):
     "Raw `data` rows from the images endpoint."
     import httpx
     return _reply(httpx.post(IMAGE_API, timeout=timeout, headers=_hdrs(), json={'model': model, 'prompt': prompt, 'size': size, 'n': n})).get('data') or []
 
+_post_image = post_image   # the old name
 def _post_edit(prompt, size, n, images, timeout=300, model=IMAGE_MODEL):
     "Raw `data` rows from the edits endpoint, drawn from `images`, a list of `(name, bytes, mime)`."
     import httpx
@@ -837,7 +838,7 @@ def image_tools(host, mx=MAX_TOOL_CHARS, session='', draws_itself=None, from_rep
         try:
             if refs: media = rows(_post_edit(prompt, size, n, refs, model=api_model(model or IMAGE_MODEL)))
             elif not model and own: media = from_reply(post_responses(prompt, mid))
-            else: media = rows(_post_image(prompt, size, n, model=api_model(model or IMAGE_MODEL)))
+            else: media = rows(post_image(prompt, size, n, model=api_model(model or IMAGE_MODEL)))
         except Exception as e: return err('could not generate the image', e)
         if not media: return err('the model returned no image', 'the reply carried no picture')
         def save(i, m):
