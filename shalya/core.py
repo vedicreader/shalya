@@ -38,11 +38,11 @@ ERR = 'ERROR: '
 class HostError(Exception): "A host refusal."
 
 def host_err(e):
-    "A caught exception, for a user-facing surface."
+    "Exception `e` as `Type: message`, for showing to a user or a model."
     return f'{type(e).__name__}: {e}'
 
 def err(what, e=None):
-    "One tool failure, spelled the way every other tool spells it."
+    "A tool failure message: `ERROR: ` and `what`, followed by exception `e` when given."
     return f'{ERR}{what}' + (f': {host_err(e)}' if e is not None else '')
 
 def failed(result):
@@ -64,7 +64,7 @@ def attempt(what, f):
 WITHHELD = 'withheld'
 
 class ReadCheck:
-    "One read a `read_guard` decides on. `text` loads on first use, so a guard deciding on `path` alone reads nothing."
+    "One read for a `read_guard` to decide on; `text` is loaded only when the guard reads it."
     def __init__(self, path, tool='', kind='text', load=None, model='', local=None): store_attr()
     @functools.cached_property
     def text(self): return None if self.load is None else self.load()
@@ -106,7 +106,7 @@ DENY = ('*/.ssh/*', '*/.aws/*', '*/.gnupg/*', '*/.config/gcloud/*', '*/.netrc', 
 class Unsafe(HostError): "A path that resolves outside every open root, or one refused for safety."
 
 def denied(path, patterns=DENY):
-    "Whether `path` matches a refused credential path, in any case: a case-insensitive disk opens `.SSH` as `.ssh`."
+    "Whether `path` matches one of the refused credential `patterns`, ignoring case."
     s = Path(path).as_posix().lower()
     return any(fnmatch(s, pat.lower()) for pat in patterns)
 
@@ -114,7 +114,7 @@ def denied(path, patterns=DENY):
 _SPILL, _SPILL_LOCK = [], threading.Lock()   # this process's spill folder, made on first use
 
 def spill_dir():
-    "The folder results too long to send whole are saved in: one per process, private to this OS user, readable and never writable through every `Sandbox` in the process. File names are random."
+    "The private folder, one per process, where results too long to send whole are saved; every `Sandbox` may read it and none may write it."
     with _SPILL_LOCK:
         if not _SPILL: _SPILL.append(Path(tempfile.mkdtemp(prefix='shalya-spill-')).resolve())
     return _SPILL[0]
@@ -202,9 +202,7 @@ def clip(s, n=MAX_TOOL_CHARS,
     return cut + note(len(cut))
 
 def clip_json(r, n=MAX_TOOL_CHARS):
-    """`r` as indented JSON that stays JSON within `n`, whenever `n` is longer than the note: whole when it fits;
-    a dict as its plain fields, the longest strings shortened, with a `truncated` note; a list as the items that
-    fit and a last item saying how many more. The note names the file that holds the whole."""
+    "`r` as indented JSON of at most `n` characters that is still valid JSON, with the whole saved by `spill` when it does not fit."
     s = json.dumps(r, indent=2)
     if len(s) <= n or not isinstance(r, (dict, list)): return clip(s, n, keep=True)
     note = f'{len(s)} chars; the whole is saved to {spill(s)}; read it with view_file'
@@ -248,7 +246,7 @@ def clip_lines(lines, start=1, n=MAX_TOOL_CHARS, more='', empty='(nothing)'):
 
 # %% ../nbs/00_core.ipynb #d67ed39a
 def cmds(commands):
-    "Models emit JSON and exhash wants tuples, nested ones included: `[[...]]` becomes `[(...)]`."
+    "Parse exhash `commands`, as JSON or lists, into the tuples exhash expects, nested lists included."
     if isinstance(commands, str): commands = json.loads(commands)
     if not isinstance(commands, list): raise ValueError('commands must be a JSON list of command arrays')
     def _t(c):
@@ -297,12 +295,12 @@ def apply_edits(text, es):
 
 # %% ../nbs/00_core.ipynb #c6041489
 def diff_text(before, after, path='file'):
-    "Return a unified diff."
+    "A unified diff from `before` to `after`, labelled with `path`."
     return str_diff(before, after, n=2, names=(f'a/{path}', f'b/{path}'))
 
 # %% ../nbs/00_core.ipynb #399d9f51
 def writes(f):
-    "Mark a tool as one that changes something. `Approvals` puts these in front of a person."
+    "Mark tool `f` as one that changes something, so an approval step can put it in front of a person."
     f.writes = True
     return f
 
@@ -316,7 +314,7 @@ def acts(f):
     return f
 
 def has_effect(t):
-    "Whether `t` acts. Orthogonal to `is_write`: these are the effects approval does not gate."
+    "Whether tool `t` acts without writing a user file, the kind of effect approval does not gate."
     return bool(getattr(t, 'acts', False))
 
 def one_line(v, n=90):

@@ -1,4 +1,4 @@
-"""Every tool an agent is given, and which of them one host can actually support.
+"""Every tool an agent can be given, and how to pick the ones a host can support.
 
 Docs: https://vedicreader.github.io/shalya/tools.html.md"""
 
@@ -32,11 +32,11 @@ from .skills import Skill, find, skill_index
 
 # %% ../nbs/02_tools.ipynb #837ae38d
 def readable(host, path, must_exist=False):
-    "Resolve a path a tool is only going to read. `reading=True` is the read-outside allowance."
+    "Resolve `path` for reading only, which lets a host with `read_outside` allow paths beyond its open folders."
     return host.check(path, must_exist=must_exist, reading=True)
 
 def resolved(host, path, writing=False, reading=False, must_exist=False):
-    "`(path, '')`, or `(None, err)` when the host refuses it: raising would end the turn."
+    "Resolve `path` on `host` as `(path, '')`, or `(None, error)` when the host refuses it."
     try:
         p = readable(host, path, must_exist) if reading else host.check(path, must_exist=must_exist)
         if writing and hasattr(host, 'check_write'): host.check_write(p)
@@ -72,7 +72,7 @@ def screen_hits(host, hits, tool):
     return [x for h in hits if (x := row(h)) is not None]
 
 def code_tools(host, mx=MAX_TOOL_CHARS):
-    "Code search and structure tools."
+    "Tools to search code and see its structure: search_code, grep, ls, outline, and with an index similar_code and public_api."
 
     @summary(lambda a: f'Search {_1(a.get("query"))}')
     def search_code(query: str) -> str:
@@ -196,7 +196,7 @@ def _replace(read, es, what=''):
 _PICTURES = ((b'\x89PNG\r\n\x1a\n', 'image/png'), (b'\xff\xd8\xff', 'image/jpeg'), (b'GIF87a', 'image/gif'), (b'GIF89a', 'image/gif'))
 
 def picture_mime(head):
-    "The MIME of a PNG, JPEG, GIF or WebP from its first bytes, else None; the name of the file plays no part."
+    "The MIME type of a PNG, JPEG, GIF or WebP picture from its first bytes, or None; the file name is ignored."
     head = bytes(head or b'')
     if head[:4] == b'RIFF' and head[8:12] == b'WEBP': return 'image/webp'
     return next((m for sig, m in _PICTURES if head.startswith(sig)), None)
@@ -225,7 +225,7 @@ def _diff_shown(host, p, diff, tool):
     return f'(the diff is withheld) {r}' if isinstance(r, Refusal) else r
 
 def file_tools(host, mx=MAX_TOOL_CHARS):
-    "Reading and editing files by exact text. Read-only where the host cannot write."
+    "Tools to read files and edit them by exact text: view_file, replace_text, create_file and add_root, or view_file alone where the host cannot write."
 
     @writes
     @summary(lambda a: f'Open folder {a.get("path","")}' + (' read-only' if a.get('readonly') else ''))
@@ -281,7 +281,7 @@ def file_tools(host, mx=MAX_TOOL_CHARS):
 
 # %% ../nbs/02_tools.ipynb #16ef86e9
 def exhash_tools(host, mx=MAX_TOOL_CHARS):
-    "The hash-addressed editor, offered only where a caller asks for it (`optin=('exhash',)`)."
+    "The opt-in `edit_file` tool, which edits lines addressed by the hashes `view_file` shows."
 
     @writes
     @summary(lambda a: f'Edit {a.get("path","")}')
@@ -301,7 +301,7 @@ def exhash_tools(host, mx=MAX_TOOL_CHARS):
 
 # %% ../nbs/02_tools.ipynb #3c171dfb
 def notebook_tools(host, mx=MAX_TOOL_CHARS):
-    "Notebooks, addressed by cell id rather than by line."
+    "Tools to list, read, edit and add notebook cells, addressed by cell id."
 
     @summary(lambda a: f'Cells of {a.get("path","")}')
     def notebook_cells(path: str) -> str:
@@ -345,7 +345,7 @@ def notebook_tools(host, mx=MAX_TOOL_CHARS):
 
 # %% ../nbs/02_tools.ipynb #68bb2099
 def web_tools(host, mx=MAX_TOOL_CHARS):
-    "The web, for the questions whose answer depends on current documentation."
+    "Tools to search the web and read one page: web_search and read_url."
 
     @summary(lambda a: f'Web search: {_1(a.get("query"))}')
     def web_search(query: str) -> str:
@@ -374,7 +374,7 @@ def _can(host, group):
     return host is None or getattr(host, 'can', lambda g: None)(group) is not False
 
 def research_tools(host, mx=MAX_TOOL_CHARS):
-    "The slow web tool, offered where a caller asks for it (`optin=('research',)`)."
+    "The opt-in `research` tool, which reads the top web results for a query into one cited digest."
 
     @acts
     @summary(lambda a: f'Research: {_1(a.get("query"))}')
@@ -387,7 +387,7 @@ def research_tools(host, mx=MAX_TOOL_CHARS):
 
 # %% ../nbs/02_tools.ipynb #22e28b56
 def browser_tools(host, mx=MAX_TOOL_CHARS):
-    "A browser tab the agent drives, to see a page the way a person does."
+    "Tools to drive a browser tab: open, screenshot, read and reload a page, and click, type or run JavaScript in it."
 
     @acts
     @summary(lambda a: f'Browse {_1(a.get("url"), 110)}')
@@ -446,7 +446,7 @@ def lesson_text(
     evidence='',   # what in the conversation shows it
     confidence='', # one of `LESSON_CONFIDENCE`
 ):
-    "`text` unchanged when no other field is set, else one `field: value` line per non-blank field, `lesson` first."
+    "Format a lesson for `remember`: `text` alone, or one `field: value` line per filled field, `lesson` first."
     f = {k: ' '.join(v.split()) for k, v in dict(lesson=text, cue=cue, component=component, evidence=evidence, confidence=confidence).items()}
     if f['component'] and f['component'] not in LESSON_COMPONENTS: raise ValueError(f'component must be one of {", ".join(LESSON_COMPONENTS)}')
     if f['confidence'] and f['confidence'] not in LESSON_CONFIDENCE: raise ValueError(f'confidence must be one of {", ".join(LESSON_CONFIDENCE)}')
@@ -455,7 +455,7 @@ def lesson_text(
     return '\n'.join(f'{k}: {v}' for k, v in f.items() if v)
 
 def memory_tools(host, mx=MAX_TOOL_CHARS):
-    "Durable pages and research recalled as document sections rather than flat snippets."
+    "Tools to search, read, add to and delete from durable memory, which returns whole document sections."
 
     @summary(lambda a: f'Memory search: {_1(a.get("query"))}')
     def memory_search(query: str, limit: int = 8) -> str:
@@ -493,7 +493,7 @@ def memory_tools(host, mx=MAX_TOOL_CHARS):
 WATCH_KINDS = {'url': 'url', 'remind': 'remind', 'search': 'web', 'folder': 'folder'}   #: the model's kind -> the vault's action
 
 def watch_tools(host, mx=MAX_TOOL_CHARS):
-    "Standing interests: what to put back on the desk later, and what has come due now."
+    "Tools to set up, list and cancel watches: pages, web searches and folders to re-check, and reminders."
 
     @acts
     @summary(lambda a: f'Watch {a.get("kind","url")} {_1(a.get("target"), 80)} every {a.get("every","1d")}')
@@ -527,7 +527,7 @@ def watch_tools(host, mx=MAX_TOOL_CHARS):
 
 # %% ../nbs/02_tools.ipynb #27b30123
 def ask_tools(host, mx=MAX_TOOL_CHARS):
-    "Model-backed answers from memory."
+    "The `ask_memory` tool, which answers a question from remembered research with citations."
 
     @summary(lambda a: f'Ask memory: {_1(a.get("question"))}')
     def ask_memory(question: str, document: str = '', instruction: str = '') -> str:
@@ -545,7 +545,7 @@ def ask_tools(host, mx=MAX_TOOL_CHARS):
 
 # %% ../nbs/02_tools.ipynb #5632a9ae
 def session_tools(host, mx=MAX_TOOL_CHARS):
-    "The live kernel the user is working in, and the terminal they are looking at."
+    "Tools for the user's live Python session and terminal: run_python, inspect_python, restart_kernel and read_terminal."
 
     @writes
     @summary(lambda a: f'Run python: {_1((a.get("code") or "").strip().splitlines()[0] if a.get("code") else "")}')
@@ -575,7 +575,7 @@ def session_tools(host, mx=MAX_TOOL_CHARS):
 
 # %% ../nbs/02_tools.ipynb #0eb6a349
 def shell_tools(host, mx=MAX_TOOL_CHARS):
-    "Shell command tools."
+    "Tools to run shell commands, in the foreground or in the background."
 
     @writes
     @summary(lambda a: f'Run {_1(a.get("command"), 110)}')
@@ -617,7 +617,7 @@ def shell_tools(host, mx=MAX_TOOL_CHARS):
 
 # %% ../nbs/02_tools.ipynb #80208a7b
 def api_tools(host, mx=MAX_TOOL_CHARS):
-    "Read an API specification, browse what it declares, and call one operation."
+    "Tools to load an OpenAPI specification, list its operations and call one: api_load, api_ops and api_call."
 
     @summary(lambda a: f'Load API spec {_1(a.get("src"), 80)}')
     def api_load(src: str, name: str = '') -> str:
@@ -649,7 +649,7 @@ def api_tools(host, mx=MAX_TOOL_CHARS):
 
 # %% ../nbs/02_tools.ipynb #6ae4e312
 def skill_tools(host, get_skills, mx=MAX_TOOL_CHARS):
-    "Reading the skills the system prompt lists."
+    "The `read_skill` tool, which returns the full text of a skill the system prompt lists."
 
     @summary(lambda a: f'Read skill {a.get("name","?")}')
     def read_skill(name: str) -> str:
@@ -665,7 +665,7 @@ def skill_tools(host, get_skills, mx=MAX_TOOL_CHARS):
 
 # %% ../nbs/02_tools.ipynb #dab555b1
 def author_tools(host, mx=MAX_TOOL_CHARS):
-    "Writing a project skill, offered where a caller asks for it (`optin=('author',)`)."
+    "The opt-in `create_skill` tool, which writes a new skill under `.agents/skills/` in the first open folder."
 
     @writes
     @summary(lambda a: f'Create skill {a.get("name","?")}')
@@ -706,20 +706,20 @@ MAX_IMAGES = 8               #: reference pictures one call may send
 
 # %% ../nbs/02_tools.ipynb #14d82ec8
 def media_dir(session=''):
-    "Return the session's media directory."
+    "The `media` folder under `session`, created if needed."
     d = Path(session or '.') / 'media'
     d.mkdir(parents=True, exist_ok=True)
     return d
 
 def mime_for(path):
-    "Detect a file's MIME type from bytes, then its suffix."
+    "A file's MIME type from its first bytes, then from its suffix, defaulting to image/png."
     try:
         with open(path, 'rb') as f: m = detect_mime(f.read(64))
     except OSError: m = None
     return m or mimetypes.guess_type(str(path))[0] or 'image/png'
 
 def save_media(m, session='', stem='image'):
-    "Save one media item under the session and return its path."
+    "Save one media item as the next numbered file in the session's media folder and return its path."
     mime = m.get('mime') or 'image/png'
     ext = mimetypes.guess_extension(mime) or '.' + mime.split('/')[-1]
     d = media_dir(session)
@@ -788,7 +788,7 @@ def image_dest(host, path):
     return p, ''
 
 def api_model(model):
-    "Strip a supported API-vendor prefix from a model id."
+    "A model id without its `openai/` or `azure/` prefix."
     s = str(model or '')
     for v in API_VENDORS:
         if s.startswith(v): return s[len(v):]
@@ -803,7 +803,7 @@ def _post_responses(prompt, model, timeout=300):
 # %% ../nbs/02_tools.ipynb #7a99e2b6
 def image_tools(host, mx=MAX_TOOL_CHARS, session='', draws_itself=None, from_reply=None, model_id='',
                 on_media=None):
-    "Drawing: by the turn's own model where it can, and by the images endpoint where it cannot."
+    "The `generate_image` tool, which draws pictures with the turn's own model where it can and with OpenAI's image endpoints otherwise."
 
     def targets(path, n):
         "`path` and its `-2`, `-3` siblings for `n` pictures, each resolved and cleared by `image_dest`, or `([], err)`."
@@ -903,7 +903,7 @@ def screen_diff(host, root, diff):
     return ''.join(one(s) for s in re.split(r'(?m)^(?=diff --git )', diff))
 
 def git_tools(host, mx=MAX_TOOL_CHARS):
-    "Git bound to one open repository, kept inside the host's roots; writes report an undo token."
+    "Git tools for repositories inside the host's open folders; each write reports an undo token and the new state."
     if host is not None: os.environ.setdefault('GIT_TERMINAL_PROMPT', '0')   # a real host runs git; naming the tools does not
     repo = functools.partial(git_repo, host)
     def answer(what, path, make, text=False):
@@ -963,7 +963,7 @@ def git_tools(host, mx=MAX_TOOL_CHARS):
 
 # %% ../nbs/02_tools.ipynb #27cb24b1
 def legacy_tools(host, mx=MAX_TOOL_CHARS):
-    "One-release shims for names an MCP client may still send; each answers through its replacement. Gone in 0.2.0."
+    "Shims, for one release, for old tool names an MCP client may still send; each calls its replacement."
     ct, st, mt, wa, gt = ({t.__name__: t for t in f(host, mx)} if _can(host, grp) else {}
                           for grp, f in (('code', code_tools), ('session', session_tools), ('memory', memory_tools), ('watch', watch_tools), ('git', git_tools)))
     out = []
@@ -1013,7 +1013,7 @@ def legacy_tools(host, mx=MAX_TOOL_CHARS):
 
 #: the opt-in name -> its factory, and each opt-in tool -> the capability group a catalog files it under
 def _browser_optin(host, mx=MAX_TOOL_CHARS):
-    "The browser group for a host that has one: opt-in, since it can drive pages, Leela's own included."
+    "The browser tools, for a host that declares the browser group."
     return browser_tools(host, mx) if host is None or host.can('browser') else []
 
 OPTIN = {'exhash': exhash_tools, 'research': research_tools, 'author': author_tools, 'legacy': legacy_tools,
@@ -1032,7 +1032,7 @@ GROUPS = ((CodeHost, code_tools), (Host, file_tools), (NotebookHost, notebook_to
           (GitHost, git_tools))
 
 def tools_for(host, get_skills=None, extra=(), mx=MAX_TOOL_CHARS, drop=(), image=None, optin=()):
-    "Every tool this host declares it can support, the opt-in groups named in `optin`, then whatever else was registered."
+    "The tools for every group `host` provides, less `drop`, plus skills, image tools, the `optin` groups and `extra`."
     drop, optin = set(drop or ()), listify(optin)
     if (unknown := set(optin) - set(OPTIN)): raise ValueError(f'unknown optin {sorted(unknown)}; one of {", ".join(OPTIN)}')
     tools = [t for cap, f in GROUPS if cap.group not in drop and host.can(cap.group) for t in f(host, mx)]
@@ -1044,7 +1044,7 @@ def tools_for(host, get_skills=None, extra=(), mx=MAX_TOOL_CHARS, drop=(), image
 # %% ../nbs/02_tools.ipynb #d6587fa0
 @functools.cache
 def tool_groups():
-    "Every tool name shalya can build, mapped to the group that owns it; `image`, `skill` and the opt-ins included."
+    "Every tool name shalya can build, mapped to its group, including the image, skill and opt-in tools."
     out = {}
     for cap, factory in GROUPS:
         for t in factory(None): out[t.__name__] = cap.group
@@ -1065,7 +1065,7 @@ def _writing(t): return is_write(t) or getattr(t, '__name__', '') in WRITE_TOOLS
 def _acting(t):  return has_effect(t) or getattr(t, '__name__', '') in ACTING_TOOLS
 
 def read_only(tools, max_calls=None, writes=False, effects=True, block=()):
-    "The tools an agent may have when it must not act, optionally behind a hard call budget."
+    "`tools` without write tools (or without any tool that acts, with `effects=False`), optionally behind a budget of `max_calls` calls."
     blocked = set(block or ())
     allowed = []
     for t in tools:

@@ -1,4 +1,4 @@
-"""The application under an agent, and how it says what it can do.
+"""The application an agent works inside, and how it says what it can do.
 
 Docs: https://vedicreader.github.io/shalya/host.html.md"""
 
@@ -1193,10 +1193,7 @@ def _reader_doc(fossick, url, say, mx):
                     kind=_READER_KIND[kind], sections=[], strategy=_READER_STRATEGY[kind])
 
 def read_page(fossick, url, sel=None, note=None, readers=READERS, thin=THIN_PAGE, mx=MAX_PAGE):
-    """One url as markdown, or None. `sel` is a css selector to prefer over every guess.
-
-    `text`, `url`, `title`, `kind`, `sections`, and the `strategy` that produced the text.
-    """
+    "One URL as markdown, with its title, kind, sections and extraction strategy, or None; `sel` is a CSS selector to try first."
     url, say = str(url or '').strip(), note or (lambda msg: None)
     if not url: return None
     if getattr(fossick, 'read', None) is not None:      # fossick reads arxiv/gh/youtube/pdf itself
@@ -1250,7 +1247,7 @@ def read_url(self:LocalHost, url, remember=True, sel=None):
 # %% ../nbs/01_host.ipynb #85171ef8
 @patch
 def research(self:LocalHost, query):
-    "The cited corpus fossick assembled: its `digest`, and not the record it assembled it from."
+    "A cited digest of the top web results for `query`, written by fossick."
     return str((self._fossick().research(str(query)) or {}).get('digest') or '')
 
 # %% ../nbs/01_host.ipynb #fac19fe7

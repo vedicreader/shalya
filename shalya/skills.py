@@ -1,4 +1,4 @@
-"""Know-how an agent can read when it needs it, and extensions a user can drop in.
+"""Instructions an agent reads when it needs them, and extensions a user can drop in.
 
 Docs: https://vedicreader.github.io/shalya/skills.html.md"""
 
@@ -29,7 +29,7 @@ def _describe(text, mx=300):
 
 @dataclass
 class Skill:
-    'One skill: how to name it, when it applies, and how to get the whole text.'
+    'One skill: its name, where it came from, when it applies, and a way to load its full text.'
     name: str
     source: str                   # 'pyskill' | 'md'
     description: str = ''
@@ -37,7 +37,7 @@ class Skill:
     _text: object = field(default=None, repr=False)
 
     def text(self):
-        'The full skill body, clipped. Never raises: a broken skill reports itself as one.'
+        'The full skill body, clipped to `MAX_SKILL_CHARS`; a skill that cannot be read returns a message saying so.'
         try: t = self._text() if callable(self._text) else (self._text or '')
         except Exception as e: return f'could not read skill {self.name}: {host_err(e)}'
         t = str(t)
@@ -108,7 +108,7 @@ def _md_skills(d):
     return out
 
 def discover(roots=(), cfg=None, extra=(), learned=None):
-    "Every skill available to this agent. Pyskills, then `skill_dirs`, then `extra`. Later winning."
+    "Every skill available to the agent, sorted by name: pyskills, then `skill_dirs`, then `extra`, a later one replacing an earlier one of the same name."
     by_name = {}
     for s in _pyskills(): by_name[s.name] = s
     for d in skill_dirs(roots, cfg, learned):
@@ -127,7 +127,7 @@ def _clip_desc(s, n=SKILL_DESC_MAX):
     return s[:cut if cut > 0 else n].rstrip(' .,;:\u2014-') + '\u2026'
 
 def skill_index(skills):
-    "Render skill names and clipped descriptions for the system prompt."
+    "The system-prompt block listing each skill's name and clipped description."
     if not skills: return ''
     rows = '\n'.join(f'- `{s.name}`: {_clip_desc(s.description)}' for s in skills)
     return ('\n\n## Skills\n\nUse `read_skill(name)` before doing the work a skill covers. '
@@ -147,7 +147,7 @@ EVENTS = ('session_start', 'before_turn', 'after_turn', 'before_tool', 'after_to
 
 # %% ../nbs/03_skills.ipynb #18873bfa
 class Registry:
-    "Extension registration surface."
+    "What an extension's `setup(reg)` may add: tools, skills, commands, hooks and an approval policy."
 
     def __init__(self, host=None, agent=None):
         self.host, self.agent = host, agent
@@ -224,7 +224,7 @@ class Registry:
         return out
 
 def ext_dirs(roots=(), cfg=None, project=False):
-    "Return enabled extension directories."
+    "The extension folders to load: `cfg/extensions`, and with `project=True` each root's `.leela/extensions`."
     ds = []
     if cfg is not None: ds.append(Path(cfg)/'extensions')
     if project:
@@ -232,7 +232,7 @@ def ext_dirs(roots=(), cfg=None, project=False):
     return ds
 
 def load(reg, roots=(), cfg=None, project=False, paths=()):
-    "Load extensions and call each `setup(reg)`. Re-runnable: `drop_loaded` takes back one load."
+    "Run each extension file and call its `setup(reg)`, recording in `reg.notes` what each added or why it failed."
     mark, files = reg.mark(), []
     for d in ext_dirs(roots, cfg, project):
         if Path(d).is_dir(): files += sorted(p for p in Path(d).glob('*.py') if not p.name.startswith('_'))
