@@ -22,6 +22,7 @@ dependencies = ["fastcore>=2.1.16","exhash>=0.4.9","vishalakshi>=0.1.17","fastsp
 
 [project.optional-dependencies]
 tmux = ["fastmux>=0.0.2"]
+dev = ["nbdev>=3.3.11", "notebook>=7.6.1", "pytest>=8.0.0", "fastmux>=0.0.2"]
 
 [project.urls]
 Repository = "https://github.com/vedicreader/shalya"
@@ -42,5 +43,6 @@ include = ["/shalya", "/README.md", "/pyproject.toml"]
 [tool.hatch.version]
 path = "shalya/__init__.py"
 
+# CI and the docs build install `.[dev]`; the group points at the extra so `uv sync` keeps working.
 [dependency-groups]
-dev = ["nbdev>=3.3.11", "notebook>=7.6.1", "pytest>=8.0.0"]
+dev = ["shalya[dev]"]

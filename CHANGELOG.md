@@ -2,6 +2,12 @@
 
 <!-- do not remove -->
 
+## 0.1.11
+
+- `LocalHost.inspect_python` without a kernel deep-copies each name the code reads, so `radii.append(99)` leaves the real `radii` alone. Objects `deepcopy` refuses, and the namespace a user's function reads through its globals, stay shared.
+- `cmd_stop` reports `stopped` for a command it killed, even when the shell exits `137` before its own `SIGKILL` lands.
+- The `dev` extra holds the test and docs dependencies, `fastmux` included; the `dev` group points at it.
+
 ## 0.1.10
 
 - `Host.read_guard`, when set, is asked before a read tool sends content to the model. It gets a `ReadCheck` (`path`, `tool`, `kind`, the turn's `model` and `local`, and `text` loaded on first use) and returns None to send it, a string to send instead, or a `Refusal`. A guard that raises refuses the read.

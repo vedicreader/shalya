@@ -11,7 +11,7 @@ __all__ = ['SKIP_DIRS', 'SKIP_SUFFIXES', 'MAX_VARS', 'LD_CHARS', 'PANE_LINES', '
            'ld_json', 'LocalHost', 'md_title', 'read_page', 'implemented']
 
 # %% ../nbs/01_host.ipynb #2f4ef978
-import ast, json, os, re, shutil, sys, uuid
+import ast, copy, json, os, re, shutil, sys, uuid
 from abc import ABC, abstractmethod
 from fastcore.basics import AttrDict, first, ifnone, patch
 from fastcore.parallel import startthread
@@ -871,18 +871,28 @@ def run_python(self:LocalHost, code):
     except Exception as e: return f'{host_err(e)}'
 
 # %% ../nbs/01_host.ipynb #ea5138cc
+def _isolated(ns, code):
+    "`ns` with the names `code` reads deep-copied, so changing them changes nothing outside; what cannot be copied is shared."
+    try: names = {n.id for n in ast.walk(ast.parse(str(code))) if isinstance(n, ast.Name)}
+    except SyntaxError: names = set()
+    res, memo = dict(ns), {}
+    for k in names & res.keys():
+        try: res[k] = copy.deepcopy(res[k], memo)
+        except Exception: pass
+    return res
+
 @patch
 def inspect_python(self:LocalHost, code, scope='isolated'):
-    "Run `code` without rebinding anything the user made. A kernel enforces this; a copy approximates it."
+    "Run `code` without changing anything the user made. A kernel enforces this; in process it runs on copies."
     if scope not in self.scopes: return f'this host only honours {self.scopes}'
     if self.kernel is not None: return self.kernel.inspect(code, scope)
-    try: return self._exec(code, dict(self.ns))
+    try: return self._exec(code, _isolated(self.ns, code))
     except Exception as e: return f'{host_err(e)}'
 
 # %% ../nbs/01_host.ipynb #de83c89e
 @patch(as_prop=True)
 def scopes(self:LocalHost):
-    "What `inspect_python` honours. A kernel says for itself; in process it is the shallow copy alone."
+    "What `inspect_python` honours. A kernel says for itself; in process it is the copy alone."
     return self.kernel.scopes if self.kernel is not None else ('isolated',)
 
 # %% ../nbs/01_host.ipynb #369d2058
@@ -1031,7 +1041,7 @@ def cmd_output(self:LocalHost, run_id, tail=200):
     if isinstance(r, tuple):
         p, log = r
         code = p.poll()
-        state = 'running' if code is None else 'stopped' if code < 0 else f'exit {code}'
+        state = 'running' if code is None else 'stopped' if code < 0 or getattr(p, 'stopped', False) else f'exit {code}'
         return state, _tail(log.read_text(errors='replace') if log.exists() else '', tail)
     if 'state' in r: return r['state'], _tail(r['text'], tail)
     try: code = r.wait(timeout_ms=0); return ('running' if r.running else f'exit {code}' if code is not None else 'stopped'), r.display(tail or PANE_LINES).text
@@ -1045,6 +1055,7 @@ def cmd_stop(self:LocalHost, run_id):
     if isinstance(r, tuple):
         p = r[0]
         if p.poll() is None:
+            p.stopped = True   # the shell may exit 137 before its own SIGKILL lands
             try: os.killpg(p.pid, signal.SIGKILL)
             except Exception: p.kill()
             p.wait(5)
