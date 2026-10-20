@@ -2,6 +2,11 @@
 
 <!-- do not remove -->
 
+## 0.1.16
+
+- `generate_image` with no session folder saves under `media/` in the host's first open folder, checked by `host.check`. It used to save under the process's working directory, so a desktop app put pictures in its own data folder rather than the project.
+- `media_dir` and `save_media` take `host=`. Without a session they use the host's open folder, and with neither they raise `ValueError` instead of writing to the working directory.
+
 ## 0.1.15
 
 - `generate_image` draws through any OpenAI-shaped image API, not OpenAI's by name. `image_tools(route=)` takes a function returning `{base_url, api_key, model}`, or a sentence saying how to set a model up, which the tool returns instead of calling anything. Without one it is `openai_route`, OpenAI's API with `OPENAI_API_KEY`, as before. `turn_route=` gives the endpoint and key of the turn's own model for when it draws itself through the Responses API, which used to go to OpenAI whatever served the turn.

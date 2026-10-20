@@ -730,9 +730,13 @@ MAX_IMAGE_BYTES = 20 << 20   #: bytes of one reference picture; the same cap a t
 MAX_IMAGES = 8               #: reference pictures one call may send
 
 # %% ../nbs/02_tools.ipynb #14d82ec8
-def media_dir(session=''):
-    "The `media` folder under `session`, created if needed."
-    d = Path(session or '.') / 'media'
+def media_dir(session='', host=None):
+    "The `media` folder under `session`, else under `host`'s first open folder, created if needed; never the working directory."
+    if session: d = Path(session)/'media'
+    elif host is None: raise ValueError('no folder for media: pass a session folder or a host')
+    else:
+        d, refused = resolved(host, 'media', writing=True)
+        if refused: raise ValueError(refused)
     d.mkdir(parents=True, exist_ok=True)
     return d
 
@@ -743,11 +747,11 @@ def mime_for(path):
     except OSError: m = None
     return m or mimetypes.guess_type(str(path))[0] or 'image/png'
 
-def save_media(m, session='', stem='image'):
-    "Save one media item as the next numbered file in the session's media folder and return its path."
+def save_media(m, session='', stem='image', host=None):
+    "Save one media item as the next numbered file in `media_dir(session, host)` and return its path."
     mime = m.get('mime') or 'image/png'
     ext = mimetypes.guess_extension(mime) or '.' + mime.split('/')[-1]
-    d = media_dir(session)
+    d = media_dir(session, host)
     seen = [int(g.group(1)) for p in d.glob(f'{stem}-*')
             if (g := re.match(rf'{re.escape(stem)}-(\d+)$', p.stem))]
     n = 1 + max(seen, default=0)   # the highest used, not the count, so a delete frees no name
@@ -881,7 +885,7 @@ def image_tools(host, mx=MAX_TOOL_CHARS, session='', draws_itself=None, from_rep
         except Exception as e: return err('could not generate the image', e)
         if not media: return err('the model returned no image', 'the reply carried no picture')
         def save(i, m):
-            if not dests: return save_media(m, session, 'generated')
+            if not dests: return save_media(m, session, 'generated', host)
             if i >= len(dests): raise ValueError(f'the model drew {len(media)} pictures for {len(dests)} names')
             dests[i].parent.mkdir(parents=True, exist_ok=True)
             d, refused = image_dest(host, str(dests[i]))   # again, now the folders exist
