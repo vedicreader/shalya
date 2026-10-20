@@ -8,7 +8,7 @@ Docs: https://vedicreader.github.io/shalya/host.html.md"""
 __all__ = ['SKIP_DIRS', 'SKIP_SUFFIXES', 'MAX_VARS', 'LD_CHARS', 'PANE_LINES', 'CONTENT_SEL', 'BLOCK_SEL', 'THIN_PAGE',
            'MAX_PAGE', 'MIN_SECTION', 'READERS', 'Capability', 'Host', 'nb_read', 'CodeHost', 'WebHost', 'BrowserHost',
            'NotebookHost', 'MemoryHost', 'AskHost', 'WatchHost', 'SessionHost', 'ShellHost', 'ApiHost', 'GitHost',
-           'fuse', 'ld_json', 'LocalHost', 'md_title', 'read_page', 'implemented']
+           'fuse', 'ld_json', 'LocalHost', 'path_scope', 'md_title', 'read_page', 'implemented']
 
 # %% ../nbs/01_host.ipynb #2f4ef978
 import ast, copy, json, os, re, shutil, sys, uuid
@@ -662,6 +662,23 @@ def wait_index(self:LocalHost, timeout=None):
     if self._index_thread is not None: self._index_thread.join(timeout)
     return self.index_ready
 
+# %% ../nbs/01_host.ipynb #13cfb967
+def path_scope(pf, root):
+    "`path_filter` as a regex over paths relative to `root`: `''` filters nothing, None when it names a place outside `root`."
+    pf, root = str(pf or '').strip(), Path(root)
+    if not pf: return ''
+    if pf[0] in '/~':
+        p = Path(pf).expanduser().resolve()
+        if p != root and not p.is_relative_to(root): return None
+        return '' if p == root else '^' + re.escape(str(p.relative_to(root))) + '(/|$)'
+    if any(c in pf for c in '*?'): return '(?i)' + re.escape(pf).replace(r'\*', '.*').replace(r'\?', '.') + ('' if pf.endswith('*') else '$')
+    rel = pf.removeprefix('./').rstrip('/')
+    if rel in ('', '.'): return ''
+    head, _, rest = rel.partition('/')
+    for r in (rel, rest if head == root.name else ''):   # a model often starts the path with the root's own name
+        if r and (root/r).exists(): return '^' + re.escape(r) + '(/|$)'
+    return '(?i)' + re.escape(rel)
+
 # %% ../nbs/01_host.ipynb #5e852338
 @patch
 def _rg(self:LocalHost, query, limit, regex=False, ignore_case=False, path_filter='', per_file=5, every_file=False):
@@ -670,13 +687,13 @@ def _rg(self:LocalHost, query, limit, regex=False, ignore_case=False, path_filte
     except Exception: return None
     pattern = query if regex else re.escape(query)
     kw = dict(case_sensitive=(False if ignore_case else None), smart_case=not ignore_case, max_filesize=MAX_FILE, timeout_ms=20_000)
-    if path_filter: kw['glob'] = f'*{path_filter}*'
     if every_file: kw.update(hidden=True, ignore=False, skip_dir=sorted(SKIP_DIRS), exclude=[f'*{s}' for s in sorted(SKIP_SUFFIXES)])
     hits, counts = [], {}
     try:
         for root in self._search_roots:
+            if (rx := path_scope(path_filter, root)) is None: continue
             pull = None if not per_file else max(limit * 8, limit)
-            for m in rg(pattern, root=root, max_results=pull, **kw):
+            for m in rg(pattern, root=root, max_results=pull, **(dict(kw, path_re=rx) if rx else kw)):
                 if getattr(m, 'kind', 'match') != 'match': continue
                 path = Path(m.path)
                 if not path.is_absolute(): path = Path(root)/path

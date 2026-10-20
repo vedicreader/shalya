@@ -7,13 +7,13 @@ Docs: https://vedicreader.github.io/shalya/tools.html.md"""
 # %% auto #0
 __all__ = ['LESSON_COMPONENTS', 'LESSON_CONFIDENCE', 'LESSON_FIELDS', 'WATCH_KINDS', 'OPENAI_BASE', 'RESPONSES_API', 'IMAGE_API',
            'IMAGE_EDIT_API', 'IMAGE_MODEL', 'IMAGE_SIZES', 'API_VENDORS', 'MAX_IMAGE_BYTES', 'MAX_IMAGES', 'OPTIN',
-           'GROUPS', 'readable', 'resolved', 'reach_hint', 'screen_hits', 'code_tools', 'picture_mime', 'file_tools',
-           'exhash_tools', 'notebook_tools', 'web_tools', 'research_tools', 'browser_tools', 'lesson_text',
-           'memory_tools', 'parse_lesson', 'lessons', 'watch_tools', 'ask_tools', 'session_tools', 'shell_tools',
-           'api_tools', 'skill_tools', 'author_tools', 'media_dir', 'mime_for', 'save_media', 'image_available',
-           'openai_route', 'post_image', 'image_refs', 'image_targets', 'image_dest', 'api_model', 'post_responses',
-           'image_tools', 'git_repo', 'screen_diff', 'git_tools', 'legacy_tools', 'tools_for', 'tool_groups',
-           'group_of', 'read_only']
+           'GROUPS', 'readable', 'resolved', 'reach_hint', 'screen_hits', 'outside_note', 'code_tools', 'picture_mime',
+           'file_tools', 'exhash_tools', 'notebook_tools', 'web_tools', 'research_tools', 'browser_tools',
+           'lesson_text', 'memory_tools', 'parse_lesson', 'lessons', 'watch_tools', 'ask_tools', 'session_tools',
+           'shell_tools', 'api_tools', 'skill_tools', 'author_tools', 'media_dir', 'mime_for', 'save_media',
+           'image_available', 'openai_route', 'post_image', 'image_refs', 'image_targets', 'image_dest', 'api_model',
+           'post_responses', 'image_tools', 'git_repo', 'screen_diff', 'git_tools', 'legacy_tools', 'tools_for',
+           'tool_groups', 'group_of', 'read_only']
 
 # %% ../nbs/02_tools.ipynb #a71f9b84
 import functools, json, mimetypes, os, re, shlex, threading, uuid
@@ -28,7 +28,7 @@ from .core import (Hit, ERR, MAX_TOOL_CHARS, MAX_HITS, MAX_GREP_HITS, MAX_API, G
                          GIT_READ_TOOLS, GIT_WRITE_TOOLS, WRITE_TOOLS, clip, clip_json, clip_lines, cmds,
                          edits, apply_edits, diff_text, err, failed, attempt, is_write, writes, acts, has_effect,
                          ACTING_TOOLS, summary, summarise, one_line as _1, DENY, denied, Media, Refusal, guard_read, screened)
-from .host import (Host, HostError, LocalHost, host_err, CodeHost, WebHost, BrowserHost, NotebookHost,
+from .host import (Host, HostError, LocalHost, host_err, path_scope, CodeHost, WebHost, BrowserHost, NotebookHost,
                          MemoryHost, AskHost, WatchHost, SessionHost, ShellHost, ApiHost, GitHost)
 from .skills import Skill, find, skill_index
 
@@ -73,6 +73,16 @@ def screen_hits(host, hits, tool):
         return None if n else Hit(p, h.line, '', r)   # a mask that changed the line count is one row
     return [x for h in hits if (x := row(h)) is not None]
 
+def outside_note(host, path, what):
+    "Why `what` cannot cover `path`, an absolute path outside every open folder; `''` when it is inside one or not absolute."
+    s = str(path or '').strip()
+    if not s or s[0] not in '/~': return ''
+    p = Path(s).expanduser().resolve()
+    if any(p == (r := Path(x).resolve()) or p.is_relative_to(r) for x in (*host.roots, *getattr(host, 'read_roots', ()))): return ''
+    how = ('read its files with view_file, or list it one level at a time with ls' if getattr(host, 'read_outside', False)
+           else 'nothing outside them is readable here')
+    return f'{s} is outside the open folders, and {what} covers only those: {how}'
+
 def code_tools(host, mx=MAX_TOOL_CHARS):
     "Tools to search code and see its structure: search_code, grep, ls, outline, and with an index similar_code and public_api."
 
@@ -105,8 +115,9 @@ def code_tools(host, mx=MAX_TOOL_CHARS):
 
     @summary(lambda a: f'Grep {_1(a.get("pattern",""))}' + (f' in {a["path_filter"]}' if a.get('path_filter') else ''))
     def grep(pattern: str, path_filter: str = '', regex: bool = True, ignore_case: bool = False) -> str:
-        "Lines matching `pattern` in the open folders; `path_filter` is a path substring; `regex=False` matches literally."
+        "Lines matching `pattern` in the open folders; `path_filter` is a folder or file, relative to an open folder or absolute, else a path substring or glob, any case; `regex=False` matches literally."
         if not str(pattern or '').strip(): return err('grep needs a pattern')
+        if (out := outside_note(host, path_filter, 'grep')): return out
         flags = re.IGNORECASE if ignore_case else 0
         try: rx = re.compile(pattern if regex else re.escape(pattern), flags)
         except re.error as e: return err('bad pattern', e)
@@ -120,9 +131,17 @@ def code_tools(host, mx=MAX_TOOL_CHARS):
             rows = [f'{h.path}:{h.line}: {h.text}' for h in fast]
             return clip_lines([head] + rows, n=mx, more='narrow `pattern` or set `path_filter`')
         pf, hits, scanned, capped = str(path_filter or '').lower(), [], 0, False
+        roots = sorted({Path(r).resolve() for r in (*host.roots, *getattr(host, 'read_roots', ()))}, key=lambda r: len(r.parts))
+        def kept(sp):
+            "Whether `path_filter` lets `sp` through, judged from the outermost open folder holding it, as `LocalHost.grep` does."
+            if not pf: return True
+            r = next((r for r in roots if Path(sp).is_relative_to(r)), None)
+            if r is None: return pf in sp.lower()
+            rx = path_scope(path_filter, r)
+            return rx == '' or (rx is not None and bool(re.search(rx, str(Path(sp).relative_to(r)))))
         for p in host.walk():
             sp = str(p)
-            if pf and pf not in sp.lower(): continue
+            if not kept(sp): continue
             try: text = host.read(sp)
             except Exception: continue
             if not text: continue
@@ -147,8 +166,12 @@ def code_tools(host, mx=MAX_TOOL_CHARS):
         pat = str(pattern or '').lower()
         hit = (lambda s: fnmatch(s.lower(), pat)) if any(c in pat for c in '*?[') else (lambda s: pat in s.lower())
         if recursive:
-            below = lambda f: next((str(Path(f).relative_to(r)) for r in roots if Path(f).is_relative_to(r)), None)
-            ps = [str(f) for f in host.walk() if (rel := below(f)) is not None and (not pat or hit(Path(f).name) or hit(rel))]
+            if str(path or '').strip() and (out := outside_note(host, roots[0], 'a recursive listing')): return out
+            fs, seen, ps = [Path(f) for f in host.walk()], set(), []
+            for r in roots:   # each folder's files in order: the walk's order is not stable
+                for f in sorted(f for f in fs if f.is_relative_to(r) and f not in seen):
+                    seen.add(f)
+                    if not pat or hit(f.name) or hit(str(f.relative_to(r))): ps.append(str(f))
             return clip_lines(ps, n=mx, more='narrow `pattern`', empty='no matching files')
         out = []
         for d in roots:

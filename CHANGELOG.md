@@ -2,6 +2,12 @@
 
 <!-- do not remove -->
 
+## 0.1.17
+
+- `grep`'s `path_filter` finds a folder or file the way a model writes it: `pkg`, `pkg/sub/`, `./pkg/sub`, an absolute path inside an open folder, or one starting with the open folder's own name. It also matches in any case. Through ripgrep it matched only a file name or a whole relative path, so a folder filter returned "no matches" for text the file held. `path_scope` turns a filter into the pattern both ripgrep and the tool's own file scan use. A glob such as `*.py` still works.
+- `grep` with an absolute `path_filter` outside every open folder, and a recursive `ls` of such a folder, say that the path is outside the open folders and what to do instead. They used to answer "no matches" and "no matching files" for a folder `view_file` could read.
+- A recursive `ls` lists each folder's files in sorted order. The order used to change from call to call.
+
 ## 0.1.16
 
 - `generate_image` with no session folder saves under `media/` in the host's first open folder, checked by `host.check`. It used to save under the process's working directory, so a desktop app put pictures in its own data folder rather than the project.
