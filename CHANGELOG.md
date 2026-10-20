@@ -2,6 +2,10 @@
 
 <!-- do not remove -->
 
+## 0.1.19
+
+- `run_cmd` and `run_cmd_bg` give the command `/dev/null` as standard input. A command used to inherit the host's standard input, which in a terminal app is the terminal itself. It could read the user's keystrokes, or turn the terminal non-blocking, which the app shares; ramabana's CLI then froze. A command that reads standard input now gets end of file at once, so `cat` with no file returns instead of waiting for the timeout. Both already ran in their own session, so a timeout or `cmd_stop` kills the command the same way.
+
 ## 0.1.18
 
 - Every parameter of every tool has a description in its JSON schema. Each one is a docments comment on the parameter, which `get_schema` reads, so `mk_toolspec` and native tool calling carry it to the model. Parameter detail moved out of the tool docstrings, which are now one-line summaries. Signatures, defaults and behaviour are unchanged.

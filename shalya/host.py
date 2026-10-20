@@ -976,7 +976,7 @@ def open_pane(self:LocalHost, command, title='', where='right'):
     import subprocess
     if (me := self.tmux_pane) is None: raise HostError('not inside tmux')
     p = _pane_cmd(me, command, where)
-    if title: subprocess.run(['tmux', 'select-pane', '-t', p.id, '-T', title], check=True)
+    if title: subprocess.run(['tmux', 'select-pane', '-t', p.id, '-T', title], check=True, stdin=subprocess.DEVNULL)
     self._panes[p.id] = p
     return p.id
 
@@ -1014,8 +1014,8 @@ def run_cmd(self:LocalHost, command, cwd=None, timeout=120):
     "Run a shell command in a new process group. Interleave stdout and stderr. Kill the process group on timeout."
     import subprocess
     if not str(command or '').strip(): return 0, ''   # an empty command runs nothing
-    p = subprocess.Popen(str(command), shell=True, cwd=str(self._cwd(cwd)), text=True, errors='replace', stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT, start_new_session=True)
+    p = subprocess.Popen(str(command), shell=True, cwd=str(self._cwd(cwd)), text=True, errors='replace', stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, start_new_session=True)
     try: out, _ = p.communicate(timeout=max(1, int(timeout)))
     except subprocess.TimeoutExpired:
         import signal
@@ -1041,7 +1041,7 @@ def run_cmd_bg(self:LocalHost, command, cwd=None):
     if (me := self.tmux_pane) is not None: self._bg[rid] = _pane_cmd(me, command, 'below', cwd=str(d))
     else:
         log = tempfile.NamedTemporaryFile('w', prefix='shalya-bg-', suffix='.log', delete=False)
-        p = subprocess.Popen(str(command), shell=True, cwd=str(d), stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+        p = subprocess.Popen(str(command), shell=True, cwd=str(d), stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
         log.close()
         self._bg[rid] = (p, Path(log.name))
     return rid
