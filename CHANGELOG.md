@@ -2,6 +2,11 @@
 
 <!-- do not remove -->
 
+## 0.1.15
+
+- `generate_image` draws through any OpenAI-shaped image API, not OpenAI's by name. `image_tools(route=)` takes a function returning `{base_url, api_key, model}`, or a sentence saying how to set a model up, which the tool returns instead of calling anything. Without one it is `openai_route`, OpenAI's API with `OPENAI_API_KEY`, as before. `turn_route=` gives the endpoint and key of the turn's own model for when it draws itself through the Responses API, which used to go to OpenAI whatever served the turn.
+- `post_image`, `post_responses` and the edits call take `base_url` and `api_key`; without them they call OpenAI with `OPENAI_API_KEY`, as before. `OPENAI_BASE` names OpenAI's base URL.
+
 ## 0.1.14
 
 - `parse_lesson` reads a lesson `lesson_text` wrote back into its fields, from a vault note's `field: value` lines or a memory file's ` | `-joined line with its `- [key] **title**: ` head. It returns None for a plain note. `lessons` finds every lesson in a memory file or vault note. `LESSON_FIELDS` names the fields in order.
