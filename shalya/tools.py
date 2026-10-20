@@ -87,8 +87,9 @@ def code_tools(host, mx=MAX_TOOL_CHARS):
     "Tools to search code and see its structure: search_code, grep, ls, outline, and with an index similar_code and public_api."
 
     @summary(lambda a: f'Search {_1(a.get("query"))}')
-    def search_code(query: str) -> str:
-        "Search the open folders and installed packages for `query`: semantic when an index is ready, literal otherwise."
+    def search_code(query: str,  # words describing the code, or a symbol name
+                    ) -> str:
+        "Search the open folders and installed packages: semantic when an index is ready, literal otherwise."
         hits = screen_hits(host, host.search(query, limit=MAX_HITS), 'search_code')
         if not hits: return f'no matches ({host.search_note})'
         rows = []
@@ -96,7 +97,9 @@ def code_tools(host, mx=MAX_TOOL_CHARS):
         return clip(f'[{host.search_note}]\n' + '\n'.join(rows), mx)
 
     @summary(lambda a: f'Similar to {a.get("path","")}:{a.get("line", 1)}')
-    def similar_code(path: str, line: int = 1) -> str:
+    def similar_code(path: str,     # file holding the function
+                     line: int = 1, # a line inside the function
+                     ) -> str:
         "Find implementations similar to the function at `path`:`line`."
         p, refused = resolved(host, path, reading=True)
         if refused: return refused
@@ -105,7 +108,8 @@ def code_tools(host, mx=MAX_TOOL_CHARS):
         return clip('\n'.join(f'{h.path}:{h.line}  {h.symbol or ""}  {h.text}' for h in hits), mx)
 
     @summary(lambda a: f'Outline {a.get("path","")}')
-    def outline(path: str) -> str:
+    def outline(path: str,  # source file, relative to an open folder or absolute
+                ) -> str:
         "The defs and classes in one file, with line numbers."
         p, refused = resolved(host, path, reading=True)
         if refused: return refused
@@ -114,8 +118,12 @@ def code_tools(host, mx=MAX_TOOL_CHARS):
         return clip(str(screened(host, p, '\n'.join(f'{int(getattr(s, "score", 0))*" "}{s.line}: {s.symbol}' for s in syms), 'outline')), mx)
 
     @summary(lambda a: f'Grep {_1(a.get("pattern",""))}' + (f' in {a["path_filter"]}' if a.get('path_filter') else ''))
-    def grep(pattern: str, path_filter: str = '', regex: bool = True, ignore_case: bool = False) -> str:
-        "Lines matching `pattern` in the open folders; `path_filter` is a folder or file, relative to an open folder or absolute, else a path substring or glob, any case; `regex=False` matches literally."
+    def grep(pattern: str,              # regular expression, or literal text with `regex=False`
+             path_filter: str = '',     # folder or file, relative to an open folder or absolute, else a path substring or glob; any case
+             regex: bool = True,        # False matches `pattern` literally
+             ignore_case: bool = False, # match letters in either case
+             ) -> str:
+        "Lines matching `pattern` in the open folders."
         if not str(pattern or '').strip(): return err('grep needs a pattern')
         if (out := outside_note(host, path_filter, 'grep')): return out
         flags = re.IGNORECASE if ignore_case else 0
@@ -156,8 +164,11 @@ def code_tools(host, mx=MAX_TOOL_CHARS):
         return clip_lines([head] + [f'{h.path}:{h.line}: {h.text}' for h in screen_hits(host, hits, 'grep')], n=mx, more='narrow `pattern` or set `path_filter`')
 
     @summary(lambda a: f'List {a.get("path") or "(open folders)"}' + (f' matching {a["pattern"]}' if a.get('pattern') else ''))
-    def ls(path: str = '', pattern: str = '', recursive: bool = False) -> str:
-        "List a folder (each open root when empty): subfolders first, then files with sizes; `pattern` filters file names (or paths below the folder when `recursive`)."
+    def ls(path: str = '',          # folder to list; empty lists each open folder
+           pattern: str = '',       # substring or glob for file names, or for paths below the folder when `recursive`
+           recursive: bool = False, # list every file below the folder instead of one level
+           ) -> str:
+        "List a folder: subfolders first, then files with sizes."
         if str(path or '').strip():
             p, refused = resolved(host, path, reading=True)
             if refused: return refused
@@ -190,7 +201,8 @@ def code_tools(host, mx=MAX_TOOL_CHARS):
         return clip_lines(out, n=mx, more='name a subdirectory to list it', empty='(nothing)')
 
     @summary(lambda a: f'Public API of {a.get("package","?")}')
-    def public_api(package: str) -> str:
+    def public_api(package: str,  # importable name, e.g. `fastcore.basics`
+                   ) -> str:
         "Every public name a package exports, with its docstring and where it is defined."
         if not str(package or '').strip(): return err('public_api needs a package name')
         try: api = host.public_api(package)
@@ -254,16 +266,21 @@ def file_tools(host, mx=MAX_TOOL_CHARS):
 
     @writes
     @summary(lambda a: f'Open folder {a.get("path","")}' + (' read-only' if a.get('readonly') else ''))
-    def add_root(path: str, readonly: bool = False) -> str:
-        "Add an existing folder the user named to the read and write boundary, or with `readonly` to what the read tools search and no write touches."
+    def add_root(path: str,              # existing folder the user named
+                 readonly: bool = False, # open it for the read tools only; no write touches it
+                 ) -> str:
+        "Add a folder the user named to the read and write boundary, or to the read tools alone."
         try: p = host.add_root(path, readonly=True) if readonly else host.add_root(path)
         except Exception as e: return err(f'could not open {path}', e)
         ro = list(getattr(host, 'read_roots', ()) or ())
         return f'opened {p}{" read-only" if readonly else ""}. Open folders: ' + ', '.join(host.roots) + (f'; read-only: {", ".join(ro)}' if ro else '')
 
     @summary(lambda a: f'View {a.get("path","")}' + (f':{a.get("start","")}-{a.get("end","")}' if a.get('start') or a.get('end') else ''))
-    def view_file(path: str, start: int = 0, end: int = 0) -> str:
-        "Read `path` as `lineno|hash|content` lines; `start`/`end` bound the range. A picture comes back as an image."
+    def view_file(path: str,      # file, relative to an open folder or absolute
+                  start: int = 0, # first line to show; 0 is the top
+                  end: int = 0,   # last line to show; 0 is the bottom
+                  ) -> str:
+        "Read a file as `lineno|hash|content` lines; a picture comes back as an image."
         p, refused = resolved(host, path, reading=True)
         if refused: return refused
         if (pic := _picture(host, p)): return pic
@@ -278,7 +295,8 @@ def file_tools(host, mx=MAX_TOOL_CHARS):
 
     @writes
     @summary(lambda a: f'Edit {a.get("path","")}')
-    def replace_text(path: str, edits: list[dict],  # [{"oldText": "exact text", "newText": "replacement"}, ...]
+    def replace_text(path: str,         # text file to edit
+                     edits: list[dict], # [{"oldText": "exact text", "newText": "replacement"}, ...]
                      ) -> str:
         "Replace exact text in a file: each `{oldText, newText}` must match once; all apply or none; returns the diff."
         p, refused = resolved(host, path, writing=True)
@@ -292,7 +310,9 @@ def file_tools(host, mx=MAX_TOOL_CHARS):
 
     @writes
     @summary(lambda a: f'Create {a.get("path","")}')
-    def create_file(path: str, text: str = '') -> str:
+    def create_file(path: str,      # file to create or overwrite
+                    text: str = '', # the whole new contents
+                    ) -> str:
         "Create or overwrite a whole file; change an existing one with `replace_text`."
         p, refused = resolved(host, path, writing=True)
         if refused: return refused
@@ -310,7 +330,8 @@ def exhash_tools(host, mx=MAX_TOOL_CHARS):
 
     @writes
     @summary(lambda a: f'Edit {a.get("path","")}')
-    def edit_file(path: str, commands: list[list],  # exhash commands, each addressed by a `lineno|hash|` prefix from `view_file`: [["3|a1b2|", "s", "old", "new"], ...]
+    def edit_file(path: str,           # text file to edit
+                  commands: list[list], # exhash commands, each addressed by a `lineno|hash|` prefix from `view_file`: [["3|a1b2|", "s", "old", "new"], ...]
                   ) -> str:
         "Apply exhash commands addressed by the `lineno|hash|` prefixes `view_file` shows; writes only if every command succeeds."
         p, refused = resolved(host, path, writing=True)
@@ -329,7 +350,8 @@ def notebook_tools(host, mx=MAX_TOOL_CHARS):
     "Tools to list, read, edit and add notebook cells, addressed by cell id."
 
     @summary(lambda a: f'Cells of {a.get("path","")}')
-    def notebook_cells(path: str) -> str:
+    def notebook_cells(path: str,  # .ipynb file
+                       ) -> str:
         "List a notebook's cells as `id  type  first line`; the ids are what `view_cell` and `edit_cell` address."
         got = attempt('could not read notebook', lambda: (lambda p: (p, host.nb_cells(str(p))))(readable(host, path)))
         if isinstance(got, str): return got
@@ -337,7 +359,9 @@ def notebook_tools(host, mx=MAX_TOOL_CHARS):
         return clip(str(screened(host, p, '\n'.join(f'{i}  {t:8} {(s or "").strip().splitlines()[0][:100] if (s or "").strip() else ""}' for i, t, s in rows) or '(empty notebook)', 'notebook_cells', 'cell')), mx)
 
     @summary(lambda a: f'View {a.get("path","")} cell {a.get("cell_id","?")}')
-    def view_cell(path: str, cell_id: str) -> str:
+    def view_cell(path: str,    # .ipynb file
+                  cell_id: str, # id, or a unique prefix of one, from `notebook_cells`
+                  ) -> str:
         "One notebook cell's source, numbered; copy `oldText` for `edit_cell` from here."
         try: p = readable(host, path, must_exist=True); _, _, src = host.nb_cell(str(p), cell_id)
         except Exception as e: return err('could not read cell', e)
@@ -346,7 +370,9 @@ def notebook_tools(host, mx=MAX_TOOL_CHARS):
 
     @writes
     @summary(lambda a: f'Edit {a.get("path","")} cell {a.get("cell_id","?")}')
-    def edit_cell(path: str, cell_id: str, edits: list[dict],  # [{"oldText": "exact text", "newText": "replacement"}, ...]
+    def edit_cell(path: str,         # .ipynb file
+                  cell_id: str,      # id, or a unique prefix of one, from `notebook_cells`
+                  edits: list[dict], # [{"oldText": "exact text", "newText": "replacement"}, ...]
                   ) -> str:
         "Replace exact text in one cell: each `{oldText, newText}` must match once; all apply or none; returns the diff."
         p, refused = resolved(host, path, writing=True)
@@ -359,8 +385,12 @@ def notebook_tools(host, mx=MAX_TOOL_CHARS):
 
     @writes
     @summary(lambda a: f'Add {a.get("cell_type","code")} cell to {a.get("path","")}')
-    def add_cell(path: str, source: str, index: int = -1, cell_type: str = 'code') -> str:
-        "Insert a new cell into a notebook at `index` (-1 appends); creates the notebook if needed."
+    def add_cell(path: str,              # .ipynb file; created if missing
+                 source: str,            # the new cell's text
+                 index: int = -1,        # position to insert at; -1 appends
+                 cell_type: str = 'code', # `code` or `markdown`
+                 ) -> str:
+        "Insert a new cell into a notebook; creates the notebook if needed."
         p, refused = resolved(host, path, writing=True)
         if refused: return refused
         said = attempt('could not add cell', lambda: host.nb_add_cell(str(p), source, int(index), cell_type))
@@ -373,19 +403,23 @@ def web_tools(host, mx=MAX_TOOL_CHARS):
     "Tools to search the web and read one page: web_search and read_url."
 
     @summary(lambda a: f'Web search: {_1(a.get("query"))}')
-    def web_search(query: str) -> str:
+    def web_search(query: str,  # words to search the web for
+                   ) -> str:
         "Search the web and return titles and URLs."
         docs = host.web_search(query, n=MAX_HITS)
         if not docs: return f'no results ({host.research_note})'
         return clip('\n'.join(f'{d.title}\n  {d.url}' for d in docs), mx)
 
     @summary(lambda a: f'Web fetch: {_1(a.get("url"), 120)}')
-    def read_url(url: str, remember: bool = True) -> str:
-        "Read `url` as text suited to its kind (article, PDF, repo file, transcript); the page enters durable memory unless `remember=False`."
+    def read_url(url: str,              # http(s) address
+                 remember: bool = True, # keep the page in durable memory
+                 ) -> str:
+        "Read a URL as text suited to its kind: article, PDF, repo file or transcript."
         d = host.read_url(url, remember=remember)
         return clip(str(screened(host, url, d.text, 'read_url', 'url')) if d else f'could not read {url} ({host.research_note})', mx, keep=True)
 
-    def no_save_read(url: str) -> str:
+    def no_save_read(url: str,  # http(s) address
+                     ) -> str:
         "Read one web page without saving it to durable memory."
         return read_url(url, False)
     no_save_read.__name__ = 'read_url'
@@ -403,7 +437,8 @@ def research_tools(host, mx=MAX_TOOL_CHARS):
 
     @acts
     @summary(lambda a: f'Research: {_1(a.get("query"))}')
-    def research(query: str) -> str:
+    def research(query: str,  # question or topic to settle
+                 ) -> str:
         "Search the web and read the top results into one cited digest; slower than `web_search`, for what one page will not settle."
         return clip(host.research(query) or f'nothing found ({host.research_note})', mx, keep=True)
 
@@ -416,46 +451,57 @@ def browser_tools(host, mx=MAX_TOOL_CHARS):
 
     @acts
     @summary(lambda a: f'Browse {_1(a.get("url"), 110)}')
-    def browse(url: str) -> str:
+    def browse(url: str,  # http(s) address to open
+               ) -> str:
         "Open `url` in the agent's own tab and return the page id and title."
         return attempt('could not open the page', lambda: host.browse(str(url or '').strip()))
 
     @acts
     @summary(lambda a: 'Screenshot' + (f' {a["page"]}' if a.get('page') else ''))
-    def screenshot(page: str = '') -> str:
-        "Save a picture of `page` (the latest when empty); it comes back as an image when this model takes images."
+    def screenshot(page: str = '',  # page id from `browse`; empty is the latest
+                   ) -> str:
+        "Save a picture of a page; it comes back as an image when this model takes images."
         r = attempt('could not take the screenshot', lambda: host.screenshot(page))
         return r if failed(r) else _shown(host, r, f'screenshot saved to {r}; it follows as an image when this model takes images.', 'screenshot')
 
     @acts
     @summary(lambda a: 'Read page' + (f' {a["page"]}' if a.get('page') else ''))
-    def page_text(page: str = '') -> str:
-        "The page (the latest when empty) as markdown."
+    def page_text(page: str = '',  # page id from `browse`; empty is the latest
+                  ) -> str:
+        "A page as markdown."
         r = attempt('could not read the page', lambda: host.page_text(page))
         return clip(r if failed(r) else str(screened(host, page or 'page', r, 'page_text', 'page')), mx, keep=True)
 
     @acts
     @summary(lambda a: 'Reload page' + (f' {a["page"]}' if a.get('page') else ''))
-    def page_reload(page: str = '') -> str:
-        "Reload the page (the latest when empty) and return its title."
+    def page_reload(page: str = '',  # page id from `browse`; empty is the latest
+                    ) -> str:
+        "Reload a page and return its title."
         return attempt('could not reload the page', lambda: host.page_reload(page))
 
     @writes
     @summary(lambda a: f'Click {a.get("x", "?")},{a.get("y", "?")}')
-    def page_click(page: str, x: int, y: int) -> str:
-        "Click at viewport point `x`, `y` on the page."
+    def page_click(page: str, # page id from `browse`
+                   x: int,    # pixels from the viewport's left edge
+                   y: int,    # pixels from the viewport's top edge
+                   ) -> str:
+        "Click a point in the page's viewport."
         return attempt('could not click', lambda: host.page_click(page, int(x), int(y)))
 
     @writes
     @summary(lambda a: f'Type {_1(a.get("text"), 60)}')
-    def page_type(page: str, text: str) -> str:
-        "Type `text` into the page's focused element."
+    def page_type(page: str, # page id from `browse`
+                  text: str, # keystrokes for the focused element
+                  ) -> str:
+        "Type into the page's focused element."
         return attempt('could not type', lambda: host.page_type(page, str(text)))
 
     @writes
     @summary(lambda a: f'Run in page: {_1(a.get("js"), 80)}')
-    def page_eval(page: str, js: str) -> str:
-        "Evaluate `js` in the page and return its value as text."
+    def page_eval(page: str, # page id from `browse`
+                  js: str,   # JavaScript expression to evaluate
+                  ) -> str:
+        "Evaluate JavaScript in the page and return its value as text."
         return clip(attempt('could not evaluate', lambda: host.page_eval(page, str(js))), mx, keep=True)
 
     return [browse, screenshot, page_text, page_reload, page_click, page_type, page_eval]
@@ -483,23 +529,33 @@ def memory_tools(host, mx=MAX_TOOL_CHARS):
     "Tools to search, read, add to and delete from durable memory, which returns whole document sections."
 
     @summary(lambda a: f'Memory search: {_1(a.get("query"))}')
-    def memory_search(query: str, limit: int = 8) -> str:
+    def memory_search(query: str,    # what to look for
+                      limit: int = 8, # most sections to return
+                      ) -> str:
         "Search remembered pages and return matching sections with breadcrumbs, each with its `age` in seconds and whether it is `stale`."
         rows = attempt('memory search failed', lambda: (lambda r: r if isinstance(r, dict) else list(r))(host.memory_search(query, int(limit))))   # a vault's context is one object
         return rows if isinstance(rows, str) else clip(json.dumps(rows, default=str), mx, keep=True)
 
     @summary(lambda a: f'Memory read {a.get("ref") or "(roots)"}')
-    def memory_read(ref: str = '') -> str:
-        "Browse or read memory: empty lists every document, a document id or title shows its headings, a node id (`doc#n`) returns the section text."
+    def memory_read(ref: str = '',  # empty, a document id or title, or a section's node id (`doc#n`)
+                    ) -> str:
+        "Browse or read memory: every document, one document's headings, or one section's text."
         ref = str(ref or '').strip()
         f = (lambda: host.memory_read(ref)) if re.fullmatch(r'.+#\d+', ref) else (lambda: host.memory_tree(ref))
         got = attempt('memory read failed', f)
         return got if isinstance(got, str) else clip(json.dumps(got, default=str), mx, keep=True)
 
     @summary(lambda a: f'Remember {_1(a.get("title") or a.get("text"))}')
-    def remember(text: str, title: str = '', tags: str = '', key: str = '',
-                 cue: str = '', component: str = '', evidence: str = '', confidence: str = '') -> str:
-        "Store a conclusion in durable memory; `tags` is comma-separated; the same `key` later replaces this note instead of adding one; a lesson from a mistake adds `cue`, `component` (rule, skill, extension, tool or memory), `evidence` and `confidence` (low, medium or high)."
+    def remember(text: str,            # the conclusion, or for a lesson what to do next time
+                 title: str = '',      # short title for the note
+                 tags: str = '',       # comma-separated tags
+                 key: str = '',        # stable id; a later note with the same key replaces this one
+                 cue: str = '',        # lesson only: the situation it applies to
+                 component: str = '',  # lesson only: rule, skill, extension, tool or memory
+                 evidence: str = '',   # lesson only: what in the conversation shows it
+                 confidence: str = '', # lesson only: low, medium or high
+                 ) -> str:
+        "Store a conclusion, or a lesson learned from a mistake, in durable memory."
         kw = {'key': key} if key else {}
         d = attempt('could not remember', lambda: host.remember(lesson_text(text, cue, component, evidence, confidence), title=title or None,
                                                                 tags=[t.strip() for t in tags.split(',') if t.strip()], **kw))
@@ -507,7 +563,8 @@ def memory_tools(host, mx=MAX_TOOL_CHARS):
 
     @writes
     @summary(lambda a: f'Forget {a.get("doc_id","?")}')
-    def memory_forget(doc_id: str) -> str:
+    def memory_forget(doc_id: str,  # document id from `memory_read` or `memory_search`
+                      ) -> str:
         "Delete a remembered document and its index data; only at the user's request."
         ok = attempt('memory purge failed', lambda: host.memory_forget(doc_id))
         return ok if failed(ok) else ('forgot document' if ok else 'document was not forgotten')
@@ -544,8 +601,14 @@ def watch_tools(host, mx=MAX_TOOL_CHARS):
 
     @acts
     @summary(lambda a: f'Watch {a.get("kind","url")} {_1(a.get("target"), 80)} every {a.get("every","1d")}')
-    def watch(target: str, kind: str = 'url', every: str = '1d', note: str = '', instructions: str = '', pattern: str = '') -> str:
-        "Keep re-reading `target` every `every`: kind `url` (a page), `remind` (text filed on schedule), `search` (a web query), `folder` (a path; needs `instructions`, `pattern` narrows)."
+    def watch(target: str,           # a URL, reminder text, web query or folder path, as `kind` says
+              kind: str = 'url',     # `url`, `remind`, `search` or `folder`
+              every: str = '1d',     # interval between checks: 30m, 6h, 1d, 1w or 1M
+              note: str = '',        # why it is watched, kept with the watch
+              instructions: str = '', # folder only, and required: the brief its reviewer gets
+              pattern: str = '',     # folder only: globs limiting which files count
+              ) -> str:
+        "Re-check a page, web search or folder on a schedule, or file a reminder."
         if kind not in WATCH_KINDS: return err('watch', ValueError(f'kind must be one of {", ".join(WATCH_KINDS)}'))
         ok = getattr(host, 'watch_actions', None) or ('remind',)
         if WATCH_KINDS[kind] not in ok: return err('watch', ValueError(f'this host only watches {", ".join(k for k, a in WATCH_KINDS.items() if a in ok)}'))
@@ -555,8 +618,9 @@ def watch_tools(host, mx=MAX_TOOL_CHARS):
         return w if isinstance(w, str) else f"watching {kind} {target} as {w['id']}, every {every}"
 
     @summary(lambda a: 'List watches' + (' (due)' if a.get('due_only') else ''))
-    def list_watches(due_only: bool = False) -> str:
-        "Every watch and reminder, soonest first, as `id  kind  every  runs  last status  target`; `due_only` keeps what has come due."
+    def list_watches(due_only: bool = False,  # only what has come due
+                     ) -> str:
+        "Every watch and reminder, soonest first, as `id  kind  every  runs  last status  target`."
         ws = attempt('could not list watches', lambda: host.watches(due_only=bool(due_only)))
         if isinstance(ws, str): return ws
         if not ws: return 'nothing is being watched'
@@ -565,7 +629,8 @@ def watch_tools(host, mx=MAX_TOOL_CHARS):
 
     @writes
     @summary(lambda a: f'Cancel watch {a.get("watch_id","?")}')
-    def cancel_watch(watch_id: str) -> str:
+    def cancel_watch(watch_id: str,  # id from `list_watches`
+                     ) -> str:
         "Delete a watch by id at the user's request."
         said = attempt('could not cancel', lambda: host.unwatch(watch_id))
         return said if failed(said) else f'cancelled {watch_id}'
@@ -577,8 +642,11 @@ def ask_tools(host, mx=MAX_TOOL_CHARS):
     "The `ask_memory` tool, which answers a question from remembered research with citations."
 
     @summary(lambda a: f'Ask memory: {_1(a.get("question"))}')
-    def ask_memory(question: str, document: str = '', instruction: str = '') -> str:
-        "Answer a question from remembered research, with citations; `document` limits the source; private sources withhold identifying details, so `instruction` asks for a count, total, comparison or yes/no instead."
+    def ask_memory(question: str,         # the question, in plain words
+                   document: str = '',    # document id or title to answer from alone
+                   instruction: str = '', # for private sources, which withhold identifying details: ask for a count, total, comparison or yes/no
+                   ) -> str:
+        "Answer a question from remembered research, with citations."
         r = attempt('could not ask memory', lambda: host.ask(question, ref=document or None, instruction=instruction))
         if isinstance(r, str): return r
         rows = [str(r.get('answer') or '(no answer)')]
@@ -596,14 +664,17 @@ def session_tools(host, mx=MAX_TOOL_CHARS):
 
     @writes
     @summary(lambda a: f'Run python: {_1((a.get("code") or "").strip().splitlines()[0] if a.get("code") else "")}')
-    def run_python(code: str) -> str:
+    def run_python(code: str,  # Python statements
+                   ) -> str:
         "Run Python in the user's live namespace; bind results to new names, since rebinding or deleting the user's variables is refused."
         return clip(attempt('run failed', lambda: host.run_python(code)), mx, keep=True)
 
     @acts
     @summary(lambda a: f'Inspect: {_1((a.get("code") or "").strip().splitlines()[0] if a.get("code") else "")}' + ('' if (a.get('scope') or 'isolated') == 'isolated' else f'  [{a["scope"]}]'))
-    def inspect_python(code: str = '', scope: str = 'isolated') -> str:
-        "Look at live variables without changing them; empty `code` lists them; `scope` is `isolated` (sandboxed copy) or `overlay` (real interpreter, private layer)."
+    def inspect_python(code: str = '',         # expression or statements to evaluate; empty lists the variables
+                       scope: str = 'isolated', # `isolated` (sandboxed copy) or `overlay` (real interpreter, private layer)
+                       ) -> str:
+        "Look at live variables without changing them."
         if not str(code or '').strip(): return clip(attempt('inspection failed', lambda: host.list_vars() or '(empty session)'), mx, keep=True)
         return clip(attempt('inspection failed', lambda: host.inspect_python(code, scope=scope)), mx, keep=True)
 
@@ -614,7 +685,8 @@ def session_tools(host, mx=MAX_TOOL_CHARS):
         return clip(attempt('restart failed', host.restart_kernel), mx)
 
     @summary(lambda a: 'Read terminal')
-    def read_terminal(lines: int = 200) -> str:
+    def read_terminal(lines: int = 200,  # how many recent lines
+                      ) -> str:
         "Read recent IDE terminal output without running a command."
         return clip(host.terminal_text(int(lines)) or 'the terminal has printed nothing yet', mx, keep=True)
 
@@ -626,8 +698,11 @@ def shell_tools(host, mx=MAX_TOOL_CHARS):
 
     @writes
     @summary(lambda a: f'Run {_1(a.get("command"), 110)}')
-    def run_shell(command: str, cwd: str = '', timeout: int = 120) -> str:
-        "Run one terminating command (`cwd` inside the open folders, killed after `timeout` s) and return exit code and output; servers go to `run_shell_bg`."
+    def run_shell(command: str,      # one shell command that exits
+                  cwd: str = '',     # working folder, inside the open folders
+                  timeout: int = 120, # seconds before the command is killed
+                  ) -> str:
+        "Run one terminating command and return its exit code and output; servers go to `run_shell_bg`."
         cmd = str(command or '').strip()
         if not cmd: return err('no command given')
         got = attempt('command could not be run', lambda: host.run_cmd(cmd, cwd=(str(cwd).strip() or None), timeout=int(timeout)))
@@ -639,7 +714,9 @@ def shell_tools(host, mx=MAX_TOOL_CHARS):
 
     @writes
     @summary(lambda a: f'Run in background {_1(a.get("command"), 100)}')
-    def run_shell_bg(command: str, cwd: str = '') -> str:
+    def run_shell_bg(command: str,  # a command that keeps running, such as a server
+                     cwd: str = '', # working folder, inside the open folders
+                     ) -> str:
         "Start a command that keeps running and return its id; read it with `shell_output`, end it with `shell_stop`."
         cmd = str(command or '').strip()
         if not cmd: return err('no command given')
@@ -647,8 +724,10 @@ def shell_tools(host, mx=MAX_TOOL_CHARS):
         return rid if failed(rid) else f'started {rid}; read it with shell_output({rid!r})'
 
     @summary(lambda a: f'Read {a.get("run_id", "?")}')
-    def shell_output(run_id: str, tail: int = 200) -> str:
-        "A background command's state and its last `tail` lines."
+    def shell_output(run_id: str,    # id from `run_shell_bg`
+                     tail: int = 200, # how many of the last lines to return
+                     ) -> str:
+        "A background command's state and its last lines."
         got = attempt('no such command', lambda: host.cmd_output(run_id, int(tail)))
         if isinstance(got, str): return got
         state, text = got
@@ -656,7 +735,8 @@ def shell_tools(host, mx=MAX_TOOL_CHARS):
 
     @acts
     @summary(lambda a: f'Stop {a.get("run_id", "?")}')
-    def shell_stop(run_id: str) -> str:
+    def shell_stop(run_id: str,  # id from `run_shell_bg`
+                   ) -> str:
         "Stop a background command."
         return attempt('could not stop', lambda: host.cmd_stop(run_id))
 
@@ -667,14 +747,20 @@ def api_tools(host, mx=MAX_TOOL_CHARS):
     "Tools to load an OpenAPI specification, list its operations and call one: api_load, api_ops and api_call."
 
     @summary(lambda a: f'Load API spec {_1(a.get("src"), 80)}')
-    def api_load(src: str, name: str = '') -> str:
+    def api_load(src: str,       # URL or path of the document
+                 name: str = '', # what to call it; empty takes the spec's own name
+                 ) -> str:
         "Load an OpenAPI or discovery document and return its operation count and groups."
         try: return clip(json.dumps(host.api_load(src, name), default=str), mx, keep=True)
         except Exception as e: return err('could not load the spec', e)
 
     @summary(lambda a: 'API operations' + (f' in {a["group"]}' if a.get('group') else '') + (f' matching {_1(a["match"], 40)}' if a.get('match') else ''))
-    def api_ops(group: str = '', name: str = '', match: str = '', offset: int = 0) -> str:
-        "List loaded API operations and signatures; filter with `group` or `match`, page with `offset`."
+    def api_ops(group: str = '', # one operation group from `api_load`
+                name: str = '',  # a loaded spec's name; empty is any
+                match: str = '', # text the operations must match
+                offset: int = 0, # operations to skip, for the next page
+                ) -> str:
+        "List loaded API operations and their signatures."
         try:
             rows = host.api_ops(group, name, match, offset=offset)
             total = host.api_count(group=group, name=name, match=match)
@@ -687,8 +773,11 @@ def api_tools(host, mx=MAX_TOOL_CHARS):
 
     @acts
     @summary(lambda a: f'API call {a.get("operation","?")}')
-    def api_call(operation: str, name: str = '', params: dict = None) -> str:
-        "Call `operation` with the declared `params`. Undeclared parameters are errors."
+    def api_call(operation: str,     # operation name from `api_ops`
+                 name: str = '',      # a loaded spec's name; empty is any
+                 params: dict = None, # the operation's declared parameters by name; others are errors
+                 ) -> str:
+        "Call one loaded API operation."
         try: return clip(json.dumps(host.api_call(operation, name, **(params or {})), default=str), mx, keep=True)
         except Exception as e: return err(f'{operation} failed', e)
 
@@ -699,7 +788,8 @@ def skill_tools(host, get_skills, mx=MAX_TOOL_CHARS):
     "The `read_skill` tool, which returns the full text of a skill the system prompt lists."
 
     @summary(lambda a: f'Read skill {a.get("name","?")}')
-    def read_skill(name: str) -> str:
+    def read_skill(name: str,  # skill name, or a unique prefix, as the system prompt lists it
+                   ) -> str:
         "Read a discovered skill in full before doing the work it covers."
         ss = get_skills()
         s = find(ss, name)
@@ -716,8 +806,11 @@ def author_tools(host, mx=MAX_TOOL_CHARS):
 
     @writes
     @summary(lambda a: f'Create skill {a.get("name","?")}')
-    def create_skill(name: str, description: str, instructions: str) -> str:
-        "Create `.agents/skills/NAME/SKILL.md` (kebab-case `name`; `description` says when it applies; `instructions` is its Markdown body) without overwriting one; `/reload` advertises it."
+    def create_skill(name: str,         # lowercase kebab-case, e.g. notebook-tests
+                     description: str,  # when the skill applies
+                     instructions: str, # the skill's Markdown body
+                     ) -> str:
+        "Create `.agents/skills/NAME/SKILL.md` without overwriting one; `/reload` advertises it."
         name = str(name or '').strip()
         if not re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*', name):
             return 'skill name must be lowercase kebab-case (for example, notebook-tests)'
@@ -879,11 +972,14 @@ def image_tools(host, mx=MAX_TOOL_CHARS, session='', draws_itself=None, from_rep
 
     @acts
     @summary(lambda a: f'Draw: {_1(a.get("prompt"), 100)}')
-    def generate_image(prompt: str, size: str = '1024x1024', n: int = 1, model: str = '',
+    def generate_image(prompt: str,             # what to draw
+                       size: str = '1024x1024', # 1024x1024, 1536x1024, 1024x1536 or auto
+                       n: int = 1,              # how many pictures, 1 to 4
+                       model: str = '',         # image model; non-empty draws through the images endpoint
                        images: list[str] = [],  # reference pictures in the open folders: faces, style and palette are drawn from these
                        path: str = '',          # where to save inside the open folders, e.g. refs/rama_exile.png; empty saves under media/
                        ) -> str:
-        "Generate and save images, drawn from reference `images` when given; `size` is 1024x1024, 1536x1024, 1024x1536 or auto; a non-empty `model` uses the images endpoint."
+        "Generate and save images, drawn from reference `images` when given."
         r = (route or openai_route)()
         if isinstance(r, str): return err('image generation is unavailable', r)
         at = dict(base_url=r.get('base_url'), api_key=r.get('api_key'))
@@ -922,10 +1018,13 @@ def image_tools(host, mx=MAX_TOOL_CHARS, session='', draws_itself=None, from_rep
 
     @acts
     @summary(lambda a: f'Draw: {_1(a.get("prompt"), 100)}')
-    def draw_only(prompt: str, size: str = '1024x1024', n: int = 1, model: str = '',
+    def draw_only(prompt: str,             # what to draw
+                  size: str = '1024x1024', # 1024x1024, 1536x1024, 1024x1536 or auto
+                  n: int = 1,              # how many pictures, 1 to 4
+                  model: str = '',         # image model; non-empty draws through the images endpoint
                   images: list[str] = [],  # reference pictures in the open folders: faces, style and palette are drawn from these
                   ) -> str:
-        "Generate images into media/, drawn from reference `images` when given; `size` is 1024x1024, 1536x1024, 1024x1536 or auto; a non-empty `model` uses the images endpoint."
+        "Generate images into media/, drawn from reference `images` when given."
         return generate_image(prompt, size, n, model, images)
     draw_only.__name__ = draw_only.__qualname__ = 'generate_image'
     generate_image.read_only = draw_only   # a view that must not write draws, but saves nowhere it names
@@ -981,33 +1080,47 @@ def git_tools(host, mx=MAX_TOOL_CHARS):
             return clip(r, mx, keep=True) if text else clip_json(r, mx)
         except Exception as e: return err(what, e)
     @summary(lambda a: 'Git status')
-    def git_status(path: str = '') -> str:
+    def git_status(path: str = '',  # a path inside the repository; empty is the project
+                   ) -> str:
         "Branch, upstream, ahead/behind counts, local and remote branches, and every changed file."
         return answer('git status', path, _state)
     @summary(lambda a: f'Git divergence vs {a.get("against") or "upstream"}')
-    def git_divergence(against: str = '', path: str = '') -> str:
-        "How this branch differs from `against` (default its upstream), with fast-forward, merge, rebase and reset rehearsed: conflicts, where a rebase would stop, and a recommendation."
+    def git_divergence(against: str = '', # branch or ref to compare with; empty is the upstream
+                       path: str = '',    # a path inside the repository; empty is the project
+                       ) -> str:
+        "How this branch differs from `against`, with fast-forward, merge, rebase and reset rehearsed: conflicts, where a rebase would stop, and a recommendation."
         return answer('git divergence', path, lambda r: r.divergence(against))
     @summary(lambda a: 'Git diff' + (' (staged)' if a.get('staged') else ''))
-    def git_diff(staged: bool = False, path: str = '') -> str:
-        "Unified diff of the working tree, or of the index with `staged`; `path` narrows to a file or folder."
+    def git_diff(staged: bool = False, # diff the index instead of the working tree
+                 path: str = '',       # file or folder to narrow to; it also picks the repository
+                 ) -> str:
+        "Unified diff of the working tree or the index."
         return answer('git diff', path, lambda r: screen_diff(host, r.root, r.diff(path=str(host.check(path)) if path else '', staged=staged)) or '(no changes)', text=True)
     @summary(lambda a: f'Git log {a.get("n", 10)}')
-    def git_log(n: int = 10, path: str = '') -> str:
-        "The last `n` commits: short id, author, subject."
+    def git_log(n: int = 10,    # how many commits
+                path: str = '', # a path inside the repository; empty is the project
+                ) -> str:
+        "The latest commits: short id, author, subject."
         return answer('git log', path, lambda r: [{k: c[k] for k in ('short', 'author', 'subject')} for c in r.history(limit=int(n), ref='HEAD')])
     @writes
     @summary(lambda a: f'Git {"amend" if a.get("amend") else "commit"}: {_1(a.get("message"), 80)}' + (f' in {a["path"]}' if a.get('path') else ''))
-    def git_commit(message: str, paths: str = '', amend: bool = False, path: str = '') -> str:
-        "Commit what is staged (or stage `paths`, space-separated and relative to the repository, first) with `message` in the repository at `path`; `amend` folds it into the last commit; returns an `undo` token."
+    def git_commit(message: str,        # the commit message
+                   paths: str = '',     # space-separated paths, relative to the repository, to stage first
+                   amend: bool = False, # fold into the last commit instead
+                   path: str = '',      # a path inside the repository; empty is the project
+                   ) -> str:
+        "Commit what is staged, staging `paths` first; returns an `undo` token."
         def go(r):
             if (ps := shlex.split(paths or '')): r.stage(ps)
             return _report(r, r.commit(str(message), amend=amend))
         return answer('git commit', path, go)
     @writes
     @summary(lambda a: f'Git {"create" if a.get("create") else "checkout"} {a.get("branch","?")}')
-    def git_checkout(branch: str, create: bool = False, path: str = '') -> str:
-        "Switch to `branch` (a `REMOTE/BRANCH` makes a tracking branch); `create` makes a new branch from HEAD; uncommitted work is carried or refused, never lost."
+    def git_checkout(branch: str,          # branch to switch to; `REMOTE/BRANCH` makes a tracking branch
+                     create: bool = False, # make it as a new branch from HEAD
+                     path: str = '',       # a path inside the repository; empty is the project
+                     ) -> str:
+        "Switch branches; uncommitted work is carried or refused, never lost."
         b = str(branch or '').strip()
         def go(r):
             if create: r.create(b); return _report(r, f'created and switched to {b}')
@@ -1015,16 +1128,22 @@ def git_tools(host, mx=MAX_TOOL_CHARS):
         return answer('git checkout', path, go)
     @writes
     @summary(lambda a: f'Git stash {a.get("action", "push")}')
-    def git_stash(action: str = 'push', message: str = '', path: str = '') -> str:
-        "`push` sets the working changes aside (with `message`); `pop`, `apply` or `drop` acts on the latest stash."
+    def git_stash(action: str = 'push', # `push`, `pop`, `apply` or `drop`
+                  message: str = '',    # label for a `push`
+                  path: str = '',       # a path inside the repository; empty is the project
+                  ) -> str:
+        "Set the working changes aside, or pop, apply or drop the latest stash."
         ops = {'push': lambda r: r.stash(str(message or '')), 'pop': lambda r: r.stash_pop(),
                'apply': lambda r: r.stash_apply(), 'drop': lambda r: r.stash_drop()}
         if action not in ops: return err('git stash', ValueError(f'action must be one of {", ".join(ops)}'))
         return answer(f'git stash {action}', path, lambda r: _report(r, ops[action](r)))
     @writes
     @summary(lambda a: f'Git {a.get("op","fetch")}' + (' (publish)' if a.get('publish') else ''))
-    def git_remote(op: str = 'fetch', publish: bool = False, path: str = '') -> str:
-        "`fetch` all remotes, `pull` fast-forward only (autostash), or `push`; `publish` sets the upstream for a branch pushed the first time."
+    def git_remote(op: str = 'fetch',     # `fetch` all remotes, `pull` fast-forward only (autostash), or `push`
+                   publish: bool = False, # set the upstream when pushing a branch the first time
+                   path: str = '',        # a path inside the repository; empty is the project
+                   ) -> str:
+        "Fetch, pull or push the repository."
         if op not in REMOTE_OPS: return err('git remote', ValueError(f'op must be one of {", ".join(REMOTE_OPS)}'))
         go = (lambda r: r.push(publish=publish)) if op == 'push' else (lambda r: getattr(r, op)())
         return answer(f'git {op}', path, lambda r: _report(r, go(r)))
@@ -1038,7 +1157,8 @@ def legacy_tools(host, mx=MAX_TOOL_CHARS):
     out = []
     if ct:
         @summary(lambda a: f'List files {_1(a.get("pattern","")) or "(all)"}')
-        def list_files(pattern: str = '') -> str:
+        def list_files(pattern: str = '',  # substring or glob for file paths
+                       ) -> str:
             "Deprecated: use `ls(pattern=…, recursive=True)`."
             return ct['ls'](pattern=pattern, recursive=True)
         out.append(list_files)
@@ -1056,25 +1176,34 @@ def legacy_tools(host, mx=MAX_TOOL_CHARS):
         out.append(environment)
     if mt:
         @summary(lambda a: f'Memory tree {_1(a.get("document","")) or "(everything)"}')
-        def memory_tree(document: str = '') -> str:
+        def memory_tree(document: str = '',  # document id or title; empty lists every document
+                        ) -> str:
             "Deprecated: use `memory_read(ref)`."
             return mt['memory_read'](document)
         out.append(memory_tree)
     if wa:
         @acts
         @summary(lambda a: f'Remind every {a.get("every","1w")}: {_1(a.get("text"))}')
-        def set_reminder(text: str, every: str = '1w', note: str = '') -> str:
+        def set_reminder(text: str,         # what to be reminded of
+                         every: str = '1w', # interval, e.g. 1d or 1w
+                         note: str = '',    # why, kept with the reminder
+                         ) -> str:
             "Deprecated: use `watch(text, kind='remind', every=…)`."
             return wa['watch'](text, kind='remind', every=every, note=note)
         @acts
         @summary(lambda a: f'Watch {_1(a.get("url"), 100)} every {a.get("every","1d")}')
-        def watch_url(url: str, every: str = '1d', note: str = '') -> str:
+        def watch_url(url: str,           # page to re-read
+                      every: str = '1d',  # interval, e.g. 6h or 1d
+                      note: str = '',     # why it is watched, kept with the watch
+                      ) -> str:
             "Deprecated: use `watch(url, kind='url', every=…)`."
             return wa['watch'](url, kind='url', every=every, note=note)
         out += [set_reminder, watch_url]
     if gt:
         @summary(lambda a: f'Rehearse a rebase onto {a.get("onto","?")}')
-        def git_rebase_preview(onto: str, path: str = '') -> str:
+        def git_rebase_preview(onto: str,      # branch or ref to rebase onto
+                               path: str = '', # a path inside the repository; empty is the project
+                               ) -> str:
             "Deprecated: use `git_divergence(against=onto)`; its `rebase` option carries `stops_at` and `replayed`."
             return gt['git_divergence'](against=onto, path=path)
         out.append(git_rebase_preview)

@@ -2,6 +2,10 @@
 
 <!-- do not remove -->
 
+## 0.1.18
+
+- Every parameter of every tool has a description in its JSON schema. Each one is a docments comment on the parameter, which `get_schema` reads, so `mk_toolspec` and native tool calling carry it to the model. Parameter detail moved out of the tool docstrings, which are now one-line summaries. Signatures, defaults and behaviour are unchanged.
+
 ## 0.1.17
 
 - `grep`'s `path_filter` finds a folder or file the way a model writes it: `pkg`, `pkg/sub/`, `./pkg/sub`, an absolute path inside an open folder, or one starting with the open folder's own name. It also matches in any case. Through ripgrep it matched only a file name or a whole relative path, so a folder filter returned "no matches" for text the file held. `path_scope` turns a filter into the pattern both ripgrep and the tool's own file scan use. A glob such as `*.py` still works.
