@@ -2,6 +2,11 @@
 
 <!-- do not remove -->
 
+## 0.1.20
+
+- `LocalHost.tmux_pane` is the pane tmux started this process in, `$TMUX_PANE`. It was fastmux's `current_pane()`, the client's active pane, so `open_pane` and the panes built on it, such as Ramabana's now pane and its Getting started pane, opened beside whichever window was active when the session's own window was not. Without `$TMUX_PANE` it still falls back to `current_pane()`.
+- A host given a pane target as a string, `LocalHost(tmux='%3')` or `'session:window.pane'`, resolves it with `fastmux.Pane.fetch`. It called `fastmux.pane` and `fastmux._tmux`, which fastmux 0.0.2 and 0.0.3 do not have, so it raised `AttributeError`.
+
 ## 0.1.19
 
 - `run_cmd` and `run_cmd_bg` give the command `/dev/null` as standard input. A command used to inherit the host's standard input, which in a terminal app is the terminal itself. It could read the user's keystrokes, or turn the terminal non-blocking, which the app shares; ramabana's CLI then froze. A command that reads standard input now gets end of file at once, so `cat` with no file returns instead of waiting for the timeout. Both already ran in their own session, so a timeout or `cmd_stop` kills the command the same way.
