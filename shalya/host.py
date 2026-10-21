@@ -959,7 +959,8 @@ def tmux_pane(self:LocalHost):
     if self._pane is not None: return self._pane
     t = self._tmux
     if t is False or (t is None and not os.environ.get('TMUX')) or (fm := _fastmux()) is None: return None
-    p = t if isinstance(t, fm.Pane) else fm.pane(fm._tmux('display-message', '-p', '-t', t, '#{pane_id}').strip()) if isinstance(t, str) else fm.current_pane()
+    own = os.environ.get('TMUX_PANE')   # the pane tmux started this process in; `current_pane` is the client's active one
+    p = t if isinstance(t, fm.Pane) else fm.Pane.fetch(t) if isinstance(t, str) else fm.Pane.fetch(own) if own else fm.current_pane()
     if not isinstance(p, fm.Pane): raise HostError(f'{t!r} is not a tmux pane')
     self._pane = p
     return self._pane
