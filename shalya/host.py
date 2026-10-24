@@ -6,12 +6,13 @@ Docs: https://vedicreader.github.io/shalya/host.html.md"""
 
 # %% auto #0
 __all__ = ['SKIP_DIRS', 'SKIP_SUFFIXES', 'MAX_VARS', 'LD_CHARS', 'PANE_LINES', 'CONTENT_SEL', 'BLOCK_SEL', 'THIN_PAGE',
-           'MAX_PAGE', 'MIN_SECTION', 'READERS', 'Capability', 'Host', 'nb_read', 'CodeHost', 'WebHost', 'BrowserHost',
-           'NotebookHost', 'MemoryHost', 'AskHost', 'WatchHost', 'SessionHost', 'ShellHost', 'ApiHost', 'GitHost',
-           'fuse', 'ld_json', 'LocalHost', 'path_scope', 'md_title', 'read_page', 'implemented']
+           'MAX_PAGE', 'MIN_SECTION', 'READERS', 'Capability', 'Host', 'sqlite_path', 'refuse_sqlite', 'nb_read',
+           'CodeHost', 'WebHost', 'BrowserHost', 'NotebookHost', 'MemoryHost', 'AskHost', 'WatchHost', 'SessionHost',
+           'ShellHost', 'ApiHost', 'GitHost', 'fuse', 'ld_json', 'LocalHost', 'path_scope', 'md_title', 'read_page',
+           'implemented']
 
 # %% ../nbs/01_host.ipynb #2f4ef978
-import ast, copy, json, os, re, shutil, sys, uuid
+import ast, copy, json, os, re, shutil, signal, subprocess, sys, uuid
 from abc import ABC, abstractmethod
 from fastcore.basics import AttrDict, first, ifnone, patch
 from fastcore.parallel import startthread
@@ -91,9 +92,20 @@ class Host(ABC):
         "Tell the user something out of band. Never blocks. A host may drop it."
         pass
 
+# %% ../nbs/01_host.ipynb #sqlite-path-guard
+def sqlite_path(path):
+    "Whether the file name identifies a SQLite database or sidecar."
+    return str(path).lower().endswith((".db", ".sqlite", ".sqlite3", "-shm", "-wal", "-journal"))
+
+def refuse_sqlite(path):
+    "Refuse direct file access to SQLite databases and sidecars."
+    if sqlite_path(path): raise HostError(f"SQLite file access refused: {path}")
+
+
 # %% ../nbs/01_host.ipynb #a0ecfcde
 def nb_read(path):
     "A notebook whose every cell has an id: `c{i}` by position for the ones saved without (nbformat 4.4), so a listed id survives the next read."
+    refuse_sqlite(path)
     d = json.loads(Path(path).expanduser().read_text(encoding='utf-8'))
     if any('id' not in c for c in d.get('cells', ())):
         for i, c in enumerate(d['cells']): c.setdefault('id', f'c{i}')
@@ -551,21 +563,22 @@ def _walk(self:LocalHost, root):
     "Files under `root`, skipping the same generated dirs/suffixes `grep` covers."
     try:
         from rgapi import fd
-        rows = fd(root=root, skip_dir=sorted(SKIP_DIRS), max_filesize=MAX_FILE, exclude=[f'*{s}' for s in sorted(SKIP_SUFFIXES)])
+        rows = fd(root=root, skip_dir=sorted(SKIP_DIRS), max_filesize=MAX_FILE, exclude=[*[f'*{s}' for s in sorted(SKIP_SUFFIXES)], '*-shm', '*-wal', '*-journal'])
         for p in rows:
             p = Path(p)
             if not p.is_absolute(): p = Path(root)/p
-            if p.is_symlink() or not p.is_file(): continue
+            if p.is_symlink() or not p.is_file() or sqlite_path(p): continue
+            if any(x.startswith('.') for x in p.relative_to(root).parts): continue
             yield p
         return
     except Exception: pass
     fs = []
     for d,dnames,fnames in os.walk(root):
-        dnames[:] = [x for x in dnames if x not in SKIP_DIRS]
+        dnames[:] = [x for x in dnames if x not in SKIP_DIRS and not x.startswith('.')]
         for f in fnames:
             p = Path(d)/f
             if not p.is_file() or p.is_symlink(): continue
-            if p.suffix.lower() in SKIP_SUFFIXES: continue
+            if p.suffix.lower() in SKIP_SUFFIXES or sqlite_path(p) or f.startswith('.'): continue
             try:
                 if p.stat().st_size > MAX_FILE: continue
             except OSError: continue
@@ -579,7 +592,12 @@ def walk(self:LocalHost): return [p for r in self._search_roots for p in self._w
 # %% ../nbs/01_host.ipynb #26c39f55
 @patch
 def read(self:LocalHost, path):
-    try: return self.check(path, must_exist=True, reading=True).read_text(encoding='utf-8')
+    "Read text or return None on failure. Refuse SQLite paths with HostError."
+    refuse_sqlite(path)
+    try: p = self.check(path, must_exist=True, reading=True)
+    except Exception: return None
+    refuse_sqlite(p)
+    try: return p.read_text(encoding='utf-8')
     except Exception: return None
 
 # %% ../nbs/01_host.ipynb #fc9d7ee5
@@ -592,9 +610,11 @@ def write(self:LocalHost, path, text):
 # %% ../nbs/01_host.ipynb #ba75a7d3
 @patch
 def text_at(self:LocalHost, path):
-    "One file as a diffable document: a notebook as its cell sources, anything else as text."
+    "Read a diffable document or return None on error. Refuse SQLite paths with HostError."
+    refuse_sqlite(path)
     try: p = self.check(path)
     except Exception: return None
+    refuse_sqlite(p)
     if not p.exists(): return ''
     if p.suffix == '.ipynb':
         try:
@@ -616,32 +636,76 @@ def note(self:LocalHost, text):
         except Exception: pass
 
 # %% ../nbs/01_host.ipynb #9ebf4413
+_INDEX_SYNC_CODE = r'''
+import json, os, sys
+from pathlib import Path
+os.environ.setdefault("TQDM_DISABLE", "1")
+from kosha import Kosha
+from litesearch.core import BUSY_TIMEOUT_MS
+root, force, graph = json.loads(sys.argv[1])
+k = Kosha(dir=Path(root), busy_timeout=BUSY_TIMEOUT_MS)
+k.sync(
+    dir=Path(root), verbose=False, force=force, pyproject=True, graph=graph, in_parallel=False)
+k.graph  # Public API queries need graph tables even when graph sync is disabled.
+'''
+
+def _read_index(root):
+    "Open existing Kosha stores without running their writing constructors."
+    import apsw
+    from fastcore.xdg import xdg_data_home
+    from kosha import Kosha
+    from kosha.core import cast_emb
+    from kosha.graph import CodeGraph
+    from litesearch.core import database, BUSY_TIMEOUT_MS
+    from litesearch.utils import static_code_embedder, doc_encoder, query_encoder
+    def opened(path):
+        conn = apsw.Connection(str(path), flags=apsw.SQLITE_OPEN_READONLY)
+        return database(conn, wal=False, busy_timeout=BUSY_TIMEOUT_MS)
+    k = Kosha.__new__(Kosha)
+    k.root, k.xdg = Path(root), xdg_data_home()
+    k.cp, k.ce = k.root/".kosha"/"code.db", k.xdg/"kosha"/"env.db"
+    k.dp, k._docs = k.xdg/"kosha"/"docs.db", None
+    k.busy_timeout, k.efn = BUSY_TIMEOUT_MS, static_code_embedder()
+    k.emb_doc, k.emb_query = cast_emb(doc_encoder(k.efn)), cast_emb(query_encoder(k.efn))
+    k.codedb, k.envdb = opened(k.cp), opened(k.ce)
+    k.code_st, k.env_st = k.codedb.t.store, k.envdb.t.store
+    k.pkg_st, k.pkgs = k.envdb.t.pkg_store, k.envdb.t.packages
+    k.env_pd, k.code_rd = k.envdb.t.pkg_deps, k.codedb.t.repo_deps
+    k._graph = CodeGraph.__new__(CodeGraph)
+    k._graph.path = k.root/".kosha"/"graph.db"
+    k._graph.db = opened(k._graph.path)
+    for attr, table in dict(ge="graph_edges", gn="graph_nodes", cd="co_dispatch", fi="file_index", pa="pending_attr_calls", gm="graph_meta").items():
+        setattr(k._graph, attr, k._graph.db.t[table])
+    return k
+
 @patch
 def sync_index(self:LocalHost, wait=False, force=False):
-    "Run `Kosha.sync` for every open root, once, in a daemon thread. Each root publishes as it returns."
+    "Sync each open root in a child process and publish read-only indexes."
     if self._index_thread is None or not self._index_thread.is_alive():
+        self._pending = list(self._search_roots)
         def run():
-            try:
-                os.environ.setdefault('TQDM_DISABLE', '1')
-                from kosha import Kosha
-                from litesearch.core import BUSY_TIMEOUT_MS
-            except Exception as e:
-                self._index_errors.append(host_err(e))
-                self._pending = []
-                return
-            for root in list(self._search_roots):
+            for root in list(self._pending):
                 try:
-                    k = Kosha(dir=Path(root), busy_timeout=BUSY_TIMEOUT_MS)
-                    k.sync(dir=Path(root), verbose=False, force=force, pyproject=True, graph=self.graph)
-                    self._indexes.append(k)
-                except Exception as e: self._index_errors.append(host_err(e))
+                    for _ in range(2):
+                        result = subprocess.run([sys.executable, "-P", "-c", _INDEX_SYNC_CODE,
+                            json.dumps([root, force, self.graph])], cwd=root,
+                            stdin=subprocess.DEVNULL, capture_output=True, text=True)
+                        if result.returncode == 0:
+                            k = _read_index(root)
+                            self._indexes = [old for old in self._indexes if str(old.root) != root] + [k]
+                            break
+                        code = result.returncode
+                        status = signal.Signals(-code).name if code in {-s.value for s in signal.Signals} else f"exit {code}"
+                        self._index_errors.append(f"{root}: index child {status}: {one_line(result.stderr.strip(), 1200)}")
+                except Exception as e: self._index_errors.append(f"{root}: {host_err(e)}")
                 finally:
                     try: self._pending.remove(root)
                     except ValueError: pass
         self._index_thread = startthread(run, daemon=True)
-        self._index_thread.name = 'shalya-kosha-sync'
+        self._index_thread.name = "shalya-kosha-sync"
     if wait: self._index_thread.join()
     return self
+
 
 # %% ../nbs/01_host.ipynb #587e2e87
 @patch(as_prop=True)
@@ -687,7 +751,8 @@ def _rg(self:LocalHost, query, limit, regex=False, ignore_case=False, path_filte
     except Exception: return None
     pattern = query if regex else re.escape(query)
     kw = dict(case_sensitive=(False if ignore_case else None), smart_case=not ignore_case, max_filesize=MAX_FILE, timeout_ms=20_000)
-    if every_file: kw.update(hidden=True, ignore=False, skip_dir=sorted(SKIP_DIRS), exclude=[f'*{s}' for s in sorted(SKIP_SUFFIXES)])
+    kw['exclude'] = [*[f'*{s}' for s in sorted(SKIP_SUFFIXES)], '*.sqlite3', '*-shm', '*-wal', '*-journal']
+    if every_file: kw.update(hidden=False, ignore=False, skip_dir=sorted(SKIP_DIRS))
     hits, counts = [], {}
     try:
         for root in self._search_roots:
@@ -760,6 +825,7 @@ def _scan(self:LocalHost, query, limit):
     "Find literal matches by reading files."
     hits = []
     for p in self.walk():
+        if sqlite_path(p): continue
         try: text = p.read_text(encoding='utf-8')
         except Exception: continue
         if query not in text: continue

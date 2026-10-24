@@ -2,6 +2,12 @@
 
 <!-- do not remove -->
 
+## 0.1.21
+
+- `LocalHost.sync_index` writes each Kosha index in a child process. A failed child retries once. Errors name the folder and the exit code or signal. Successful indexes reopen read-only in the host.
+- Folder scans skip hidden folders and SQLite databases and sidecars. File tools refuse direct access to SQLite files before opening them.
+- Needs litesearch 0.1.59. Each connection sets its own busy timeout, writes commit in batches of 1,000 rows, and the WAL is truncated after bulk writes.
+
 ## 0.1.20
 
 - `LocalHost.tmux_pane` is the pane tmux started this process in, `$TMUX_PANE`. It was fastmux's `current_pane()`, the client's active pane, so `open_pane` and the panes built on it, such as Ramabana's now pane and its Getting started pane, opened beside whichever window was active when the session's own window was not. Without `$TMUX_PANE` it still falls back to `current_pane()`.

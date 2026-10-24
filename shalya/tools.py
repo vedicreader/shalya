@@ -28,7 +28,7 @@ from .core import (Hit, ERR, MAX_TOOL_CHARS, MAX_HITS, MAX_GREP_HITS, MAX_API, G
                          GIT_READ_TOOLS, GIT_WRITE_TOOLS, WRITE_TOOLS, clip, clip_json, clip_lines, cmds,
                          edits, apply_edits, diff_text, err, failed, attempt, is_write, writes, acts, has_effect,
                          ACTING_TOOLS, summary, summarise, one_line as _1, DENY, denied, Media, Refusal, guard_read, screened)
-from .host import (Host, HostError, LocalHost, host_err, path_scope, CodeHost, WebHost, BrowserHost, NotebookHost,
+from .host import (Host, HostError, LocalHost, host_err, path_scope, sqlite_path, refuse_sqlite, CodeHost, WebHost, BrowserHost, NotebookHost,
                          MemoryHost, AskHost, WatchHost, SessionHost, ShellHost, ApiHost, GitHost)
 from .skills import Skill, find, skill_index
 
@@ -40,7 +40,9 @@ def readable(host, path, must_exist=False):
 def resolved(host, path, writing=False, reading=False, must_exist=False):
     "Resolve `path` on `host` as `(path, '')`, or `(None, error)` when the host refuses it."
     try:
+        refuse_sqlite(path)
         p = readable(host, path, must_exist) if reading else host.check(path, must_exist=must_exist)
+        refuse_sqlite(p)
         if writing and hasattr(host, 'check_write'): host.check_write(p)
         return p, ''
     except Exception as e: return None, err(f'cannot use {path}', e)
@@ -126,6 +128,9 @@ def code_tools(host, mx=MAX_TOOL_CHARS):
         "Lines matching `pattern` in the open folders."
         if not str(pattern or '').strip(): return err('grep needs a pattern')
         if (out := outside_note(host, path_filter, 'grep')): return out
+        if sqlite_path(path_filter):
+            try: refuse_sqlite(path_filter)
+            except HostError as e: return err(f'cannot grep {path_filter}', e)
         flags = re.IGNORECASE if ignore_case else 0
         try: rx = re.compile(pattern if regex else re.escape(pattern), flags)
         except re.error as e: return err('bad pattern', e)
@@ -858,6 +863,7 @@ def media_dir(session='', host=None):
 
 def mime_for(path):
     "A file's MIME type from its first bytes, then from its suffix, defaulting to image/png."
+    refuse_sqlite(path)
     try:
         with open(path, 'rb') as f: m = detect_mime(f.read(64))
     except OSError: m = None
