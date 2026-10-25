@@ -2,6 +2,10 @@
 
 <!-- do not remove -->
 
+## 0.1.22
+- Needs litesearch>=0.1.61, which loads adhara, a native SQLite extension.
+- The `memory_search` tool says what `limit` counts: the sections from the vault's main shelf. A vault adds up to 2 sections from each other shelf.
+
 ## 0.1.21
 
 - `LocalHost.sync_index` writes each Kosha index in a child process. A failed child retries once. Errors name the folder and the exit code or signal. Successful indexes reopen read-only in the host.
