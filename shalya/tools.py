@@ -666,13 +666,14 @@ def ask_tools(host, mx=MAX_TOOL_CHARS):
 # %% ../nbs/02_tools.ipynb #5632a9ae
 def session_tools(host, mx=MAX_TOOL_CHARS):
     "Tools for the user's live Python session and terminal: run_python, inspect_python, restart_kernel and read_terminal."
+    def shown(tool, out): return clip(str(screened(host, 'python', out, tool, 'python')), mx, keep=True)
 
     @writes
     @summary(lambda a: f'Run python: {_1((a.get("code") or "").strip().splitlines()[0] if a.get("code") else "")}')
     def run_python(code: str,  # Python statements
                    ) -> str:
         "Run Python in the user's live namespace; bind results to new names, since rebinding or deleting the user's variables is refused."
-        return clip(attempt('run failed', lambda: host.run_python(code)), mx, keep=True)
+        return shown('run_python', attempt('run failed', lambda: host.run_python(code)))
 
     @acts
     @summary(lambda a: f'Inspect: {_1((a.get("code") or "").strip().splitlines()[0] if a.get("code") else "")}' + ('' if (a.get('scope') or 'isolated') == 'isolated' else f'  [{a["scope"]}]'))
@@ -680,8 +681,8 @@ def session_tools(host, mx=MAX_TOOL_CHARS):
                        scope: str = 'isolated', # `isolated` (sandboxed copy) or `overlay` (real interpreter, private layer)
                        ) -> str:
         "Look at live variables without changing them."
-        if not str(code or '').strip(): return clip(attempt('inspection failed', lambda: host.list_vars() or '(empty session)'), mx, keep=True)
-        return clip(attempt('inspection failed', lambda: host.inspect_python(code, scope=scope)), mx, keep=True)
+        if not str(code or '').strip(): return shown('inspect_python', attempt('inspection failed', lambda: host.list_vars() or '(empty session)'))
+        return shown('inspect_python', attempt('inspection failed', lambda: host.inspect_python(code, scope=scope)))
 
     @writes
     @summary(lambda a: 'Restart kernel')
@@ -693,13 +694,15 @@ def session_tools(host, mx=MAX_TOOL_CHARS):
     def read_terminal(lines: int = 200,  # how many recent lines
                       ) -> str:
         "Read recent IDE terminal output without running a command."
-        return clip(host.terminal_text(int(lines)) or 'the terminal has printed nothing yet', mx, keep=True)
+        text = host.terminal_text(int(lines)) or 'the terminal has printed nothing yet'
+        return clip(str(screened(host, 'terminal', text, 'read_terminal', 'shell')), mx, keep=True)
 
     return [run_python, inspect_python, restart_kernel, read_terminal]
 
 # %% ../nbs/02_tools.ipynb #0eb6a349
 def shell_tools(host, mx=MAX_TOOL_CHARS):
     "Tools to run shell commands, in the foreground or in the background."
+    started = {}   # run id -> command, so `shell_output` names the command to the read guard
 
     @writes
     @summary(lambda a: f'Run {_1(a.get("command"), 110)}')
@@ -713,8 +716,9 @@ def shell_tools(host, mx=MAX_TOOL_CHARS):
         got = attempt('command could not be run', lambda: host.run_cmd(cmd, cwd=(str(cwd).strip() or None), timeout=int(timeout)))
         if failed(got): return got
         code, out = got
+        if isinstance(out := screened(host, cmd, (out or '').rstrip(), 'run_shell', 'shell'), Refusal): return f'{out} (the command ran: exit {code})'
         head = f'exit {code}' + ('' if code == 0 else '  (command FAILED)')
-        body = clip((out or '').rstrip() or '(no output)', max(1, mx - len(ERR) - len(head) - 1), keep=True)
+        body = clip(out or '(no output)', max(1, mx - len(ERR) - len(head) - 1), keep=True)
         return f'{head}\n{body}' if code == 0 else f'{ERR}{head}\n{body}'
 
     @writes
@@ -726,7 +730,9 @@ def shell_tools(host, mx=MAX_TOOL_CHARS):
         cmd = str(command or '').strip()
         if not cmd: return err('no command given')
         rid = attempt('command could not be started', lambda: host.run_cmd_bg(cmd, cwd=(str(cwd).strip() or None)))
-        return rid if failed(rid) else f'started {rid}; read it with shell_output({rid!r})'
+        if failed(rid): return rid
+        started[rid] = cmd
+        return f'started {rid}; read it with shell_output({rid!r})'
 
     @summary(lambda a: f'Read {a.get("run_id", "?")}')
     def shell_output(run_id: str,    # id from `run_shell_bg`
@@ -736,6 +742,7 @@ def shell_tools(host, mx=MAX_TOOL_CHARS):
         got = attempt('no such command', lambda: host.cmd_output(run_id, int(tail)))
         if isinstance(got, str): return got
         state, text = got
+        if isinstance(text := screened(host, started.get(run_id, run_id), text or '', 'shell_output', 'shell'), Refusal): return f'{text} (state: {state})'
         return clip(f'{state}\n{text or "(no output yet)"}', mx, keep=True)
 
     @acts

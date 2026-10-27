@@ -119,6 +119,36 @@ def test_web_and_browser_reads_go_through_the_guard(tmp_path):
     h.read_guard = refuse
     assert w['read_url']('https://x.org').startswith('ERROR: withheld: https://x.org: ')
 
+KEY = 'sk-test' + 'abcdefghijklmnopqrstuvwxyzabcd'
+
+def test_shell_and_python_output_go_through_the_guard(tmp_path):
+    import time
+    (tmp_path/'keys.txt').write_text(f'token {KEY}\n')
+    seen = []
+    def hide(r): seen.append(r); return r.text.replace(KEY, '[SECRET]')
+    t = {f.__name__: f for f in tools_for(host(tmp_path, hide))}
+    assert t['run_shell']('cat keys.txt', cwd=str(tmp_path)) == 'exit 0\ntoken [SECRET]'
+    rid = t['run_shell_bg']('cat keys.txt; sleep 5', cwd=str(tmp_path)).split()[1].rstrip(';')
+    try:
+        for _ in range(100):
+            if 'token' in (out := t['shell_output'](rid)): break
+            time.sleep(0.05)
+    finally: t['shell_stop'](rid)
+    assert KEY not in out and '[SECRET]' in out and out.startswith('running\n'), out
+    py = t['run_python'](f'open({str(tmp_path/"keys.txt")!r}).read()')
+    assert KEY not in py and '[SECRET]' in py, py
+    ins = t['inspect_python'](repr(KEY))
+    assert KEY not in ins and '[SECRET]' in ins, ins
+    assert {(r.tool, r.kind) for r in seen} >= {('run_shell', 'shell'), ('shell_output', 'shell'), ('run_python', 'python'), ('inspect_python', 'python')}
+    assert {r.path for r in seen if r.kind == 'shell'} == {'cat keys.txt', 'cat keys.txt; sleep 5'}
+    plain = {f.__name__: f for f in tools_for(host(tmp_path))}
+    assert KEY in plain['run_shell']('cat keys.txt', cwd=str(tmp_path))
+    r = {f.__name__: f for f in tools_for(host(tmp_path, refuse))}['run_shell']('cat keys.txt', cwd=str(tmp_path))
+    assert r == 'ERROR: withheld: cat keys.txt: Local only, and this turn runs on a hosted model (the command ran: exit 0)'
+    term = host(tmp_path, refuse)
+    term.terminal_text = lambda n: f'$ cat keys.txt\ntoken {KEY}'
+    assert {f.__name__: f for f in tools_for(term)}['read_terminal']().startswith('ERROR: withheld: terminal: ')
+
 def test_a_reference_picture_is_never_sent_masked(proj):
     seen = []
     h = host(proj, lambda r: seen.append(r) or None, local=True)
