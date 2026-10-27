@@ -2,6 +2,10 @@
 
 <!-- do not remove -->
 
+## 0.1.23
+- Shell, terminal and Python output go through the host's `read_guard` before the model sees them, as file and web reads already did. `run_shell`, `shell_output` and `read_terminal` use the kind `shell`, with the command as the path; `run_python` and `inspect_python` use the kind `python`. A host can mask or withhold that output, for example to hide API keys.
+- When the guard withholds a command's output, the result still says that the command ran and gives its exit code or state, so the model does not run it again.
+
 ## 0.1.22
 - Needs litesearch>=0.1.61, which loads adhara, a native SQLite extension.
 - The `memory_search` tool says what `limit` counts: the sections from the vault's main shelf. A vault adds up to 2 sections from each other shelf.
