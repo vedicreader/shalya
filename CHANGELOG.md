@@ -2,6 +2,10 @@
 
 <!-- do not remove -->
 
+## 0.1.24
+- `read_page`, `LocalHost.read_url` and `LocalHost.research` no longer call fossick with `auto=True`. That setting could end in the logged-in debug Chrome on port 9223, with your cookies, for any URL an agent opened, and a page or a prompt can make an agent open any URL. A thin page still goes on to the headless browser and then stealth mode.
+- New `SESSION_HOSTS` (empty by default) and `session_ok(url, hosts)`. A host in `LocalHost.SESSION_HOSTS`, or a subdomain of one, may use `auto=True` again. Add only hosts you trust.
+
 ## 0.1.23
 - Shell, terminal and Python output go through the host's `read_guard` before the model sees them, as file and web reads already did. `run_shell`, `shell_output` and `read_terminal` use the kind `shell`, with the command as the path; `run_python` and `inspect_python` use the kind `python`. A host can mask or withhold that output, for example to hide API keys.
 - When the guard withholds a command's output, the result still says that the command ran and gives its exit code or state, so the model does not run it again.

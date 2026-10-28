@@ -6,14 +6,15 @@ Docs: https://vedicreader.github.io/shalya/host.html.md"""
 
 # %% auto #0
 __all__ = ['SKIP_DIRS', 'SKIP_SUFFIXES', 'MAX_VARS', 'LD_CHARS', 'PANE_LINES', 'CONTENT_SEL', 'BLOCK_SEL', 'THIN_PAGE',
-           'MAX_PAGE', 'MIN_SECTION', 'READERS', 'Capability', 'Host', 'sqlite_path', 'refuse_sqlite', 'nb_read',
-           'CodeHost', 'WebHost', 'BrowserHost', 'NotebookHost', 'MemoryHost', 'AskHost', 'WatchHost', 'SessionHost',
-           'ShellHost', 'ApiHost', 'GitHost', 'fuse', 'ld_json', 'LocalHost', 'path_scope', 'md_title', 'read_page',
-           'implemented']
+           'MAX_PAGE', 'MIN_SECTION', 'SESSION_HOSTS', 'READERS', 'Capability', 'Host', 'sqlite_path', 'refuse_sqlite',
+           'nb_read', 'CodeHost', 'WebHost', 'BrowserHost', 'NotebookHost', 'MemoryHost', 'AskHost', 'WatchHost',
+           'SessionHost', 'ShellHost', 'ApiHost', 'GitHost', 'fuse', 'ld_json', 'LocalHost', 'path_scope', 'md_title',
+           'session_ok', 'read_page', 'implemented']
 
 # %% ../nbs/01_host.ipynb #2f4ef978
 import ast, copy, json, os, re, shutil, signal, subprocess, sys, uuid
 from abc import ABC, abstractmethod
+from urllib.parse import urlparse
 from fastcore.basics import AttrDict, first, ifnone, patch
 from fastcore.parallel import startthread
 from fastcore.xtras import Path, exec_eval
@@ -1210,6 +1211,7 @@ BLOCK_SEL = ', '.join(f'{root} {tag}' for root in ('article', 'main', '[role="ma
 THIN_PAGE = 800      #: characters below which a fetch answered with a shell, not a page
 MAX_PAGE = 200_000   #: characters of one page kept
 MIN_SECTION = 80     #: characters below which a repeated `<article>` is a card, not a document
+SESSION_HOSTS = ()   #: hosts that may end in the logged-in debug Chrome; empty means none
 #: url pattern -> the fossick reader for it, its arguments, and what its result is.
 READERS = (
     (re.compile(r'https?://(www\.)?github\.com/[^/]+/[^/]+/(blob|raw)/', re.I), 'read_gh_file', {}, 'repo'),
@@ -1273,13 +1275,18 @@ def _extracted(rows):
 _READER_KIND = {'arxiv': 'paper', 'ghfile': 'repo', 'youtube': 'page', 'pdf': 'page'}
 _READER_STRATEGY = {'arxiv': 'read_arxiv', 'ghfile': 'read_gh_file', 'youtube': 'read_yt', 'pdf': 'pdf2md'}
 
-def _reader_doc(fossick, url, say, mx):
+def session_ok(url, hosts=SESSION_HOSTS):
+    "True when `url` is on one of `hosts` or a subdomain of one, so fossick may use the logged-in debug Chrome for it."
+    h = (urlparse(str(url)).hostname or '').lower()
+    return bool(h) and any(h == x or h.endswith('.' + x) for x in (str(o).lower().strip('.') for o in hosts) if x)
+
+def _reader_doc(fossick, url, say, mx, auto=False):
     "A target fossick reads with a dedicated reader (arxiv, gh file, youtube, pdf), adapted to read_page's contract."
     what_is = getattr(fossick, 'what_is', None)
     try: kind = what_is(url) if what_is else None
     except Exception: kind = None
     if kind not in _READER_KIND: return None
-    try: res = fossick.read(url)
+    try: res = fossick.read(url, auto=auto)
     except Exception as e:
         say(f'read could not read {url} ({host_err(e)}); fetching the page')
         return None
@@ -1288,12 +1295,13 @@ def _reader_doc(fossick, url, say, mx):
     return AttrDict(text=text, url=res.get('source') or url, title=res.get('title') or md_title(text, url),
                     kind=_READER_KIND[kind], sections=[], strategy=_READER_STRATEGY[kind])
 
-def read_page(fossick, url, sel=None, note=None, readers=READERS, thin=THIN_PAGE, mx=MAX_PAGE):
+def read_page(fossick, url, sel=None, note=None, readers=READERS, thin=THIN_PAGE, mx=MAX_PAGE, session_hosts=SESSION_HOSTS):
     "One URL as markdown, with its title, kind, sections and extraction strategy, or None; `sel` is a CSS selector to try first."
     url, say = str(url or '').strip(), note or (lambda msg: None)
     if not url: return None
+    auto = session_ok(url, session_hosts)   # only a trusted host may reach the logged-in debug Chrome
     if getattr(fossick, 'read', None) is not None:      # fossick reads arxiv/gh/youtube/pdf itself
-        if (got := _reader_doc(fossick, url, say, mx)) is not None: return got
+        if (got := _reader_doc(fossick, url, say, mx, auto)) is not None: return got
     else:
         for rx, name, kw, kind in readers:              # a fossick without `read`: shalya's own dispatch
             if not rx.search(url) or (reader := getattr(fossick, name, None)) is None: continue
@@ -1306,7 +1314,7 @@ def read_page(fossick, url, sel=None, note=None, readers=READERS, thin=THIN_PAGE
                 return AttrDict(text=text[:mx], url=url, title=titled or md_title(text, url),
                                 kind=kind, sections=[], strategy=name)
             break
-    try: page = fossick.fetch(url, auto=True)
+    try: page = fossick.fetch(url, auto=True) if auto else fossick.fetch(url)
     except Exception as e:
         say(f'could not fetch {url} ({host_err(e)})')
         page = None
@@ -1338,13 +1346,13 @@ def read_page(fossick, url, sel=None, note=None, readers=READERS, thin=THIN_PAGE
 def read_url(self:LocalHost, url, remember=True, sel=None):
     "One page as markdown. `remember=False` keeps sensitive or low-quality results ephemeral."
     return read_page(self._fossick(), url, sel=sel, note=self.note,
-                     readers=self.READERS, thin=self.THIN_PAGE)
+                     readers=self.READERS, thin=self.THIN_PAGE, session_hosts=self.SESSION_HOSTS)
 
 # %% ../nbs/01_host.ipynb #85171ef8
 @patch
 def research(self:LocalHost, query):
     "A cited digest of the top web results for `query`, written by fossick."
-    return str((self._fossick().research(str(query)) or {}).get('digest') or '')
+    return str((self._fossick().research(str(query), auto=False) or {}).get('digest') or '')
 
 # %% ../nbs/01_host.ipynb #fac19fe7
 @patch(as_prop=True)
@@ -1352,6 +1360,7 @@ def research_note(self:LocalHost): return 'fossick' if self.web else 'web access
 
 LocalHost.THIN_PAGE = THIN_PAGE   #: a subclass can raise it; `read_page` is told, never assumes
 LocalHost.READERS = READERS
+LocalHost.SESSION_HOSTS = SESSION_HOSTS   #: hosts a subclass trusts with the logged-in debug Chrome; none by default
 
 # %% ../nbs/01_host.ipynb #3feed41c
 def _needs(what):
