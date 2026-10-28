@@ -1028,16 +1028,16 @@ wheels = [
 
 [[package]]
 name = "fastcdp"
-version = "0.0.11"
+version = "0.0.17"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "fastcore" },
     { name = "httpx" },
     { name = "websockets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/fc/ae/a7eb1aa617e96f7ecdae624b8adb64b5853002c189a095d95e0be26a81a3/fastcdp-0.0.11.tar.gz", hash = "sha256:1b04332d37cd8c1d98a421eb09ac9f4420ba1eb3f7b5acc82c04af40ab0aeb89", size = 290534, upload-time = "2026-09-02T03:50:12.949Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/09/d3/0a6b96b71521c0c6d4f3739f968e3ee39105fab2266661e1f2b4d4feb372/fastcdp-0.0.17.tar.gz", hash = "sha256:41ac6f256467106c614e1337b31fc0c8de99763322dd9c72281e3239a22058f9", size = 293260, upload-time = "2026-09-15T05:53:45.28Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6c/2b/da613f9972b1574a490a7bafee0f7b62514695e2c2630c7b78b8b40614cc/fastcdp-0.0.11-py3-none-any.whl", hash = "sha256:57394a35eea96d44de742de483021fceeb8eb32447d14b7e23c61fd34c5efeb3", size = 292715, upload-time = "2026-09-02T03:50:11.574Z" },
+    { url = "https://files.pythonhosted.org/packages/f0/2a/cd1d256d879f235517560c49a8bd04d4694d4749480facf721ecbd5fe63d/fastcdp-0.0.17-py3-none-any.whl", hash = "sha256:ceafcc3aa945867f79fee3feece436d2ffdc40a0656016f0a42e07f17816e31a", size = 294538, upload-time = "2026-09-15T05:53:43.613Z" },
 ]
 
 [[package]]
@@ -1054,11 +1054,11 @@ wheels = [
 
 [[package]]
 name = "fastcore"
-version = "2.2.21"
+version = "2.2.35"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/fc/25/22ff364f35b9978d05e9aca76101564300cc84da9b8fd0b27aff5aaaa8c4/fastcore-2.2.21.tar.gz", hash = "sha256:5687cc537a7aba8b88e43264e666ad8cc3f8e376d1b9c27f4d6ba6a4e098ac0a", size = 145238, upload-time = "2026-09-03T01:18:23.888Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/5c/19/45837ad449e435da74522340502bafeb66961baccc046df2e4b364a06076/fastcore-2.2.35.tar.gz", hash = "sha256:491e6d8527e1f0f9b5f43ec476991b7484e8254741f3143d96827fa4738ba9ec", size = 145263, upload-time = "2026-10-27T05:01:41.372Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/07/f9/40c29b21fa8d72c010f06ef774e3e98362597fd183b30dd2362dd07ed05a/fastcore-2.2.21-py3-none-any.whl", hash = "sha256:672f4d71988a330d0e1b2f034f9dcc171e1ab7f56b5c88a1ee2bd941168f3cca", size = 151871, upload-time = "2026-09-03T01:18:22.22Z" },
+    { url = "https://files.pythonhosted.org/packages/65/69/9de386c759a02efd21c852f26d265455f6b63613dc7ce2ad38e28d555c81/fastcore-2.2.35-py3-none-any.whl", hash = "sha256:bec75b32e7f2c78cf1c652c75f065e8e6ed94a7a92183ef11509daaf726eab00", size = 151951, upload-time = "2026-10-27T05:01:39.9Z" },
 ]
 
 [[package]]
@@ -1214,7 +1214,7 @@ wheels = [
 
 [[package]]
 name = "fossick"
-version = "0.1.17"
+version = "0.1.22"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "certifi" },
@@ -1231,9 +1231,9 @@ dependencies = [
     { name = "scrapling", extra = ["fetchers"] },
     { name = "yt-dlp" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b8/6d/5941cda5f6eb54cab03bc89351cf87dc2b3c2936061fe0151c4b7ff8627b/fossick-0.1.17.tar.gz", hash = "sha256:651000ec41b43641137e7e465ddab9fd1e60e5741190e16ac418ad1f6c5447f5", size = 98220, upload-time = "2026-08-30T04:27:47.717Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/5a/19/eae66d48e4b6f7e9438c9e2610fbb3e9370af48b48b4d6b429521a75294e/fossick-0.1.22.tar.gz", hash = "sha256:aa38d89412346e67fa7414ea1a5dd25ef87fb623da8b593ff7adef2ebdf6ae9a", size = 103277, upload-time = "2026-10-28T02:55:47.861Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d0/6e/550e5b3431512d8060ed4005c9b544204b94fcc3f70a11feac50fef20c2a/fossick-0.1.17-py3-none-any.whl", hash = "sha256:48121c3743bef9d7b2940a08dd110ebb913496f309a28a83a6e373e50ed00dd0", size = 98614, upload-time = "2026-08-30T04:27:46.501Z" },
+    { url = "https://files.pythonhosted.org/packages/62/0d/23f3312b23948c3072526f8cc991473dce15655f5e8196402e71330579b8/fossick-0.1.22-py3-none-any.whl", hash = "sha256:971c4ec075a0b2f06471d961f89158f9773d4b4f0a5e92ef35f141ef8e2e4176", size = 103619, upload-time = "2026-10-28T02:55:46.174Z" },
 ]
 
 [[package]]
@@ -2008,7 +2008,7 @@ wheels = [
 
 [[package]]
 name = "koshas"
-version = "0.1.7"
+version = "0.1.20"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "ast-grep-py" },
@@ -2018,9 +2018,9 @@ dependencies = [
     { name = "pyskills" },
     { name = "watchfiles" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e8/40/ac2c399712a18e8d073e71c4c9aca52d1466b2e489c8839a8ed306310d54/koshas-0.1.7.tar.gz", hash = "sha256:c708cdb5c7eade81626abd0296be5ae2ebd7a7235a41445ea59c1fc61f38f48d", size = 55254, upload-time = "2026-08-30T04:21:21.862Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/6b/f4/86ced981c54e68f74837da01d894d69c4ec9d211c0c1d6afb52963db5ef2/koshas-0.1.20.tar.gz", hash = "sha256:b8d09ddf6d4784f169c83853953eed7e7de3a4897d1ecd847d9a3a8bc4c90d13", size = 72986, upload-time = "2026-10-26T09:25:33.712Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/be/b7/1b5224487494bcef6d17ff6d5317d8ddcc399c5c6dcbae1d709e59e00c80/koshas-0.1.7-py3-none-any.whl", hash = "sha256:3682cf8a63416f41b199058f9247a57f5628ea3bd4321ab483e612abe4e786cf", size = 59537, upload-time = "2026-08-30T04:21:20.577Z" },
+    { url = "https://files.pythonhosted.org/packages/b7/07/2cf8474d7d773f4af0b2571bd04a48aba461242a75ab28071cd5971af4ad/koshas-0.1.20-py3-none-any.whl", hash = "sha256:d82ad77a8b4512c2ff6ac2652d756a19cf82d8bb98caacc6a9d9416681021a3c", size = 77152, upload-time = "2026-10-26T09:25:32.371Z" },
 ]
 
 [[package]]
@@ -3968,6 +3968,7 @@ dependencies = [
     { name = "fossick" },
     { name = "gheasy" },
     { name = "jupyter-client" },
+    { name = "koshas" },
     { name = "litesearch" },
     { name = "vishalakshi" },
 ]
@@ -3996,9 +3997,10 @@ requires-dist = [
     { name = "fastmux", marker = "extra == 'dev'", specifier = ">=0.0.2" },
     { name = "fastmux", marker = "extra == 'tmux'", specifier = ">=0.0.2" },
     { name = "fastspec" },
-    { name = "fossick", specifier = ">=0.1.17" },
+    { name = "fossick", specifier = ">=0.1.22" },
     { name = "gheasy", specifier = ">=0.0.10" },
     { name = "jupyter-client" },
+    { name = "koshas", specifier = ">=0.1.13" },
     { name = "litesearch", specifier = ">=0.1.61" },
     { name = "nbdev", marker = "extra == 'dev'", specifier = ">=3.3.11" },
     { name = "notebook", marker = "extra == 'dev'", specifier = ">=7.6.1" },

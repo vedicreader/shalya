@@ -655,7 +655,7 @@ def _read_index(root):
     import apsw
     from fastcore.xdg import xdg_data_home
     from kosha import Kosha
-    from kosha.core import cast_emb
+    from kosha.core import cast_emb, env_path
     from kosha.graph import CodeGraph
     from litesearch.core import database, BUSY_TIMEOUT_MS
     from litesearch.utils import static_code_embedder, doc_encoder, query_encoder
@@ -664,6 +664,7 @@ def _read_index(root):
         return database(conn, wal=False, busy_timeout=BUSY_TIMEOUT_MS)
     k = Kosha.__new__(Kosha)
     k.root, k.xdg = Path(root), xdg_data_home()
+    k.env_path = env_path(k.root)   # kosha 0.1.13+ reads packages from the project environment
     k.cp, k.ce = k.root/".kosha"/"code.db", k.xdg/"kosha"/"env.db"
     k.dp, k._docs = k.xdg/"kosha"/"docs.db", None
     k.busy_timeout, k.efn = BUSY_TIMEOUT_MS, static_code_embedder()
