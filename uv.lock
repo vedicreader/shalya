@@ -2590,7 +2590,7 @@ wheels = [
 
 [[package]]
 name = "nbdev"
-version = "3.3.15"
+version = "3.3.26"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "asttokens" },
@@ -2604,9 +2604,9 @@ dependencies = [
     { name = "setuptools" },
     { name = "watchdog" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/52/2d/36f3ae678d6bbfa3a37a35d412c336685a8fa7b03dbec18919ff7e60f193/nbdev-3.3.15.tar.gz", hash = "sha256:dedb063314cc83360238ca10af48b5daca52f3e2b01d86ad3c97bea364ed19b9", size = 87694, upload-time = "2026-09-02T02:44:11.469Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ec/43/def42cb344567321f55c9125e4381a165ad8e2687ae090b1d69d87e6251e/nbdev-3.3.26.tar.gz", hash = "sha256:139c83cab324a7c13070c76a9e5b7ed15b7ed1d42aac5f720fcce5142234800e", size = 91404, upload-time = "2026-10-25T02:34:47.879Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a3/f9/42fe52f1f3b4ef4bc0a62e90bc28bdfd08479e2a39551fac77c4e148f439/nbdev-3.3.15-py3-none-any.whl", hash = "sha256:8d9f4af0f09ef1ff4a6a528a7ca918b3fd44225692ce5c4cbc48fb80acf81208", size = 92580, upload-time = "2026-09-02T02:44:09.78Z" },
+    { url = "https://files.pythonhosted.org/packages/7b/09/3709ed23f0068f0646136e048472a40dd759d90de7df21e0572cc0df0f3e/nbdev-3.3.26-py3-none-any.whl", hash = "sha256:f514558c23ac8263741bc9bc11f77de6776b8aeb051b98a2d8c55e5f4f74ecfb", size = 95565, upload-time = "2026-10-25T02:34:46.117Z" },
 ]
 
 [[package]]
@@ -4002,7 +4002,7 @@ requires-dist = [
     { name = "jupyter-client" },
     { name = "koshas", specifier = ">=0.1.13" },
     { name = "litesearch", specifier = ">=0.1.61" },
-    { name = "nbdev", marker = "extra == 'dev'", specifier = ">=3.3.11" },
+    { name = "nbdev", marker = "extra == 'dev'", specifier = ">=3.3.25" },
     { name = "notebook", marker = "extra == 'dev'", specifier = ">=7.6.1" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0.0" },
     { name = "vishalakshi", specifier = ">=0.1.17" },

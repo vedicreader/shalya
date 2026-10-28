@@ -22,7 +22,7 @@ dependencies = ["fastcore>=2.1.16","exhash>=0.4.9","vishalakshi>=0.1.17","fastsp
 
 [project.optional-dependencies]
 tmux = ["fastmux>=0.0.2"]
-dev = ["nbdev>=3.3.11", "notebook>=7.6.1", "pytest>=8.0.0", "fastmux>=0.0.2"]
+dev = ["nbdev>=3.3.25", "notebook>=7.6.1", "pytest>=8.0.0", "fastmux>=0.0.2"]
 
 [project.urls]
 Repository = "https://github.com/vedicreader/shalya"
