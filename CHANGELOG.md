@@ -2,6 +2,9 @@
 
 <!-- do not remove -->
 
+## 0.1.25
+- `grep` searches a folder that a walk skips, such as `.venv` or `node_modules`, when `path_filter` names it or a file in it. Before, ripgrep pruned the folder first and found nothing, so agents searched installed packages with `rg -uu` through the shell instead. A plain `grep` still leaves those folders out.
+
 ## 0.1.24
 - `read_page`, `LocalHost.read_url` and `LocalHost.research` no longer call fossick with `auto=True`. That setting could end in the logged-in debug Chrome on port 9223, with your cookies, for any URL an agent opened, and a page or a prompt can make an agent open any URL. A thin page still goes on to the headless browser and then stealth mode.
 - New `SESSION_HOSTS` (empty by default) and `session_ok(url, hosts)`. A host in `LocalHost.SESSION_HOSTS`, or a subdomain of one, may use `auto=True` again. Add only hosts you trust.
