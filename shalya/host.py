@@ -746,6 +746,15 @@ def path_scope(pf, root):
     return '(?i)' + re.escape(rel)
 
 # %% ../nbs/01_host.ipynb #5e852338
+def _skipped_target(pf, root):
+    "The existing path `pf` names under `root` when it lies inside one of `SKIP_DIRS`, else None: naming such a folder asks to search it."
+    if not pf or any(c in pf for c in '*?'): return None
+    p = Path(pf).expanduser()
+    if not p.is_absolute(): p = Path(root)/pf.removeprefix('./')
+    try: rel = p.resolve().relative_to(Path(root).resolve())
+    except (OSError, ValueError): return None
+    return p if p.exists() and SKIP_DIRS & set(rel.parts) else None
+
 @patch
 def _rg(self:LocalHost, query, limit, regex=False, ignore_case=False, path_filter='', per_file=5, every_file=False):
     "Search with rgapi; `every_file=True` matches `walk`."
@@ -758,12 +767,15 @@ def _rg(self:LocalHost, query, limit, regex=False, ignore_case=False, path_filte
     hits, counts = [], {}
     try:
         for root in self._search_roots:
-            if (rx := path_scope(path_filter, root)) is None: continue
+            if every_file and (t := _skipped_target(path_filter, root)) is not None:
+                where, rkw = t, dict(kw, skip_dir=sorted(SKIP_DIRS - set(t.parts)))
+            elif (rx := path_scope(path_filter, root)) is None: continue
+            else: where, rkw = root, (dict(kw, path_re=rx) if rx else kw)
             pull = None if not per_file else max(limit * 8, limit)
-            for m in rg(pattern, root=root, max_results=pull, **(dict(kw, path_re=rx) if rx else kw)):
+            for m in rg(pattern, root=where, max_results=pull, **rkw):
                 if getattr(m, 'kind', 'match') != 'match': continue
                 path = Path(m.path)
-                if not path.is_absolute(): path = Path(root)/path
+                if not path.is_absolute(): path = Path(where)/path
                 path_s = str(path)
                 if per_file:
                     n = counts.get(path_s, 0)
