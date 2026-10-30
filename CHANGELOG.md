@@ -2,6 +2,12 @@
 
 <!-- do not remove -->
 
+## 0.1.27
+- A read through a hard link inside an open folder is refused. A hard link can be a second name for a file outside the open folders. `Sandbox.check(reading=True)` raises `Unsafe` with the new `HARDLINK` message.
+- Files under a `site-packages` or `node_modules` folder are still read, because uv and pnpm can install packages as hard links. This exception is by folder name only. It is not a trust decision.
+- The check does not cover search, diff or writes, or a file that changes between the check and the read.
+- `DENY` adds `*.pfx`, `*.kdbx`, `*.keychain` and `*.keychain-db`. These files are never read.
+
 ## 0.1.26
 - New `git_sync(onto, how)` merges or rebases the current branch onto any branch or ref. An empty `onto` means the upstream. `how` is `fast-forward`, `merge` or `rebase`. Reset is refused. A conflict comes back as a result with the conflicted files and gheasy's conflict plan, not as an error.
 - New `git_conflicts(action, file, choice, content)` settles a stopped merge or rebase. `resolve_safe` resolves the files gheasy finds safe. `resolve` settles one file with `ours`, `theirs` or given text. `continue`, `skip` and `abort` act on the operation.
