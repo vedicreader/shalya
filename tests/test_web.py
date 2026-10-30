@@ -22,7 +22,7 @@ class _Fossick:
     def __init__(self, kind, res=None, page=None):
         self._kind, self._res, self._page, self.reads, self.fetches = kind, res, page, [], []
     def what_is(self, url): return self._kind
-    def read(self, url):
+    def read(self, url, **kw):
         self.reads.append(url)
         return self._res
     def fetch(self, url, **kw):
@@ -66,7 +66,7 @@ def test_a_reader_that_cannot_answer_falls_through_to_the_page():
     f = _Fossick('youtube', _res('youtube', text='', ok=False), page=_Page(md=LONG))
     got = read_page(f, 'https://youtu.be/abc')
     assert got.kind == 'page' and got.strategy == 'readability'
-    assert f.fetches == [{'auto': True}]
+    assert f.fetches == [{}]   # no `auto`: an untrusted host never reaches the logged-in Chrome
 
 
 def test_a_generic_web_url_stays_on_the_fetch_and_extract_path():
@@ -74,7 +74,7 @@ def test_a_generic_web_url_stays_on_the_fetch_and_extract_path():
     f = _Fossick('web', res=None, page=_Page(md=LONG))
     got = read_page(f, 'https://example.com/a')
     assert f.reads == [], 'the generic path never calls fossick.read'
-    assert f.fetches == [{'auto': True}]
+    assert f.fetches == [{}]
     assert got.kind == 'page' and got.strategy == 'readability' and isinstance(got.sections, list)
 
 
@@ -90,7 +90,7 @@ class _Spy:
     def __init__(self, tier):
         self.tier, self.fetches = tier, []
     def what_is(self, url): return 'web'
-    def read(self, url): return None
+    def read(self, url, **kw): return None
     def fetch(self, url, **kw):
         self.fetches.append(kw)
         return _Page(md='thin', tier=self.tier)
@@ -100,7 +100,7 @@ class _Spy:
 def test_a_page_auto_already_took_to_stealthy_is_not_re_fetched_stealthily():
     f = _Spy('stealthy')
     read_page(f, 'https://example.com/a')
-    assert f.fetches == [{'auto': True}, {'heavy': True, 'network_idle': True}]
+    assert f.fetches == [{}, {'heavy': True, 'network_idle': True}]
     assert not any(kw.get('stealthy') for kw in f.fetches)
 
 
@@ -108,4 +108,4 @@ def test_a_thin_page_that_never_reached_stealthy_still_retries_stealthily():
     f = _Spy('plain')
     read_page(f, 'https://example.com/a')
     assert {'stealthy': True} in f.fetches
-    assert f.fetches == [{'auto': True}, {'heavy': True, 'network_idle': True}, {'stealthy': True}]
+    assert f.fetches == [{}, {'heavy': True, 'network_idle': True}, {'stealthy': True}]

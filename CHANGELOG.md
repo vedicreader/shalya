@@ -2,6 +2,13 @@
 
 <!-- do not remove -->
 
+## 0.1.26
+- New `git_sync(onto, how)` merges or rebases the current branch onto any branch or ref. An empty `onto` means the upstream. `how` is `fast-forward`, `merge` or `rebase`. Reset is refused. A conflict comes back as a result with the conflicted files and gheasy's conflict plan, not as an error.
+- New `git_conflicts(action, file, choice, content)` settles a stopped merge or rebase. `resolve_safe` resolves the files gheasy finds safe. `resolve` settles one file with `ours`, `theirs` or given text. `continue`, `skip` and `abort` act on the operation.
+- Both are write tools in `GIT_WRITE_TOOLS`, so a host asks before they run and keeps their undo token.
+- `git_status` shows the conflict plan while files are conflicted. Looking at it needs no approval.
+- A real host sets `GIT_EDITOR=true` when it is not set, so `continue` keeps the commit message instead of waiting for an editor.
+
 ## 0.1.25
 - `grep` searches a folder that a walk skips, such as `.venv` or `node_modules`, when `path_filter` names it or a file in it. Before, ripgrep pruned the folder first and found nothing, so agents searched installed packages with `rg -uu` through the shell instead. A plain `grep` still leaves those folders out.
 

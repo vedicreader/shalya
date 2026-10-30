@@ -1060,6 +1060,14 @@ def _report(r, out=None):
     return ({'result': said, 'summary': d.get('summary', said), 'undo': d.get('undo', ''), 'undoes': d.get('undoes', ''),
              'head': d.get('head', ''), 'moved': bool(d.get('moved', False))} | _state(r))
 
+def _plan(r):
+    "gheasy's conflict plan under `plan` when files are conflicted, else nothing."
+    return {'plan': r.conflict_plan()} if any(c['conflicted'] for c in r.changes()) else {}
+
+def _after(r, out):
+    "A merge or conflict step's report: the write report, gheasy's own answer, and the conflict plan while files are conflicted."
+    return _report(r, out) | (out if isinstance(out, dict) else {}) | _plan(r)
+
 def git_repo(host, path=''):
     "The repository holding `path`, else the host's project, else its first root; refused outside the open folders."
     roots = L(host.roots).map(lambda r: Path(r).expanduser().resolve())
@@ -1085,7 +1093,9 @@ def screen_diff(host, root, diff):
 
 def git_tools(host, mx=MAX_TOOL_CHARS):
     "Git tools for repositories inside the host's open folders; each write reports an undo token and the new state."
-    if host is not None: os.environ.setdefault('GIT_TERMINAL_PROMPT', '0')   # a real host runs git; naming the tools does not
+    if host is not None:   # a real host runs git; naming the tools does not
+        os.environ.setdefault('GIT_TERMINAL_PROMPT', '0')
+        os.environ.setdefault('GIT_EDITOR', 'true')   # `continue` keeps the commit message instead of waiting on an editor
     repo = functools.partial(git_repo, host)
     def answer(what, path, make, text=False):
         try:
@@ -1096,7 +1106,7 @@ def git_tools(host, mx=MAX_TOOL_CHARS):
     def git_status(path: str = '',  # a path inside the repository; empty is the project
                    ) -> str:
         "Branch, upstream, ahead/behind counts, local and remote branches, and every changed file."
-        return answer('git status', path, _state)
+        return answer('git status', path, lambda r: _state(r) | _plan(r))
     @summary(lambda a: f'Git divergence vs {a.get("against") or "upstream"}')
     def git_divergence(against: str = '', # branch or ref to compare with; empty is the upstream
                        path: str = '',    # a path inside the repository; empty is the project
@@ -1160,7 +1170,32 @@ def git_tools(host, mx=MAX_TOOL_CHARS):
         if op not in REMOTE_OPS: return err('git remote', ValueError(f'op must be one of {", ".join(REMOTE_OPS)}'))
         go = (lambda r: r.push(publish=publish)) if op == 'push' else (lambda r: getattr(r, op)())
         return answer(f'git {op}', path, lambda r: _report(r, go(r)))
-    return [git_status, git_divergence, git_diff, git_log, git_commit, git_checkout, git_stash, git_remote]
+    @writes
+    @summary(lambda a: f'Git {a.get("how") or "rebase"} onto {a.get("onto") or "upstream"}')
+    def git_sync(onto: str = '',      # branch or ref to bring this branch up to; empty is its upstream
+                 how: str = 'rebase', # `fast-forward`, `merge` or `rebase`; reset is not offered
+                 path: str = '',      # a path inside the repository; empty is the project
+                 ) -> str:
+        "Merge or rebase the current branch onto `onto`; a conflict is returned with its plan, to settle with `git_conflicts`."
+        if how not in ('fast-forward', 'merge', 'rebase'): return err('git sync', ValueError(f'how must be fast-forward, merge or rebase, not {how!r}; reset is never offered'))
+        return answer(f'git {how}', path, lambda r: _after(r, r.sync(how, onto)))
+    @writes
+    @summary(lambda a: f'Git conflicts {a.get("action", "?")}' + (f' {a["file"]}' if a.get('file') else ''))
+    def git_conflicts(action: str,        # `resolve_safe`, `resolve`, `continue`, `skip` or `abort`
+                      file: str = '',     # `resolve`: the conflicted file, relative to the repository; `resolve_safe` takes every file when empty
+                      choice: str = '',   # `resolve`: `ours` or `theirs`, unless `content` is given
+                      content: str = '',  # `resolve`: the whole resolved text of `file`
+                      path: str = '',     # a path inside the repository; empty is the project
+                      ) -> str:
+        "Settle a merge or rebase stopped on conflicts: resolve files, then continue, skip the commit, or abort."
+        def resolve(r):
+            if not file or not (content or choice in ('ours', 'theirs')): raise ValueError('resolve needs `file` and either choice ours or theirs, or `content`')
+            return r.resolve_conflict(file, 'resolved' if content else choice, content or None)
+        ops = {'resolve_safe': lambda r: r.resolve_safe_conflicts([file] if file else ()), 'resolve': resolve,
+               **{a: (lambda r, a=a: r.operation_action(a)) for a in ('continue', 'skip', 'abort')}}
+        if action not in ops: return err('git conflicts', ValueError(f'action must be one of {", ".join(ops)}'))
+        return answer(f'git conflicts {action}', path, lambda r: _after(r, ops[action](r)))
+    return [git_status, git_divergence, git_diff, git_log, git_commit, git_checkout, git_stash, git_remote, git_sync, git_conflicts]
 
 # %% ../nbs/02_tools.ipynb #27cb24b1
 def legacy_tools(host, mx=MAX_TOOL_CHARS):

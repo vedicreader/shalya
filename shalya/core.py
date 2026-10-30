@@ -341,7 +341,7 @@ def summarise(tool, args=None):
     return f'{nm}({", ".join(f"{k}={one_line(v, 30)!r}" for k, v in a.items())})'
 
 GIT_READ_TOOLS = ('git_status', 'git_divergence', 'git_diff', 'git_log')
-GIT_WRITE_TOOLS = frozenset({'git_remote', 'git_checkout', 'git_commit', 'git_stash'})
+GIT_WRITE_TOOLS = frozenset({'git_remote', 'git_checkout', 'git_commit', 'git_stash', 'git_sync', 'git_conflicts'})
 GIT_TOOLS = (*GIT_READ_TOOLS, *sorted(GIT_WRITE_TOOLS))
 
 WRITE_TOOLS = frozenset({'edit_file', 'replace_text', 'create_file', 'edit_cell', 'add_cell', 'run_python', 'run_shell', 'run_shell_bg', 'memory_forget',
