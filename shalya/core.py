@@ -6,11 +6,11 @@ Docs: https://vedicreader.github.io/shalya/core.html.md"""
 
 # %% auto #0
 __all__ = ['MAX_TOOL_CHARS', 'MAX_HITS', 'MAX_GREP_HITS', 'MAX_API', 'MAX_FILE', 'ERR', 'WITHHELD', 'SANDBOX', 'READ_ONLY',
-           'SECRET', 'NO_ROOTS', 'DENY', 'SUMMARIES', 'GIT_READ_TOOLS', 'GIT_WRITE_TOOLS', 'GIT_TOOLS', 'WRITE_TOOLS',
-           'ACTING_TOOLS', 'Hit', 'HostError', 'host_err', 'err', 'failed', 'Media', 'attempt', 'ReadCheck', 'Refusal',
-           'guard_read', 'screened', 'Unsafe', 'denied', 'spill_dir', 'spill', 'Sandbox', 'clip', 'clip_json',
-           'clip_lines', 'cmds', 'edits', 'apply_edits', 'diff_text', 'writes', 'is_write', 'acts', 'has_effect',
-           'one_line', 'summary', 'summarise']
+           'SECRET', 'NO_ROOTS', 'HARDLINK', 'DENY', 'SUMMARIES', 'GIT_READ_TOOLS', 'GIT_WRITE_TOOLS', 'GIT_TOOLS',
+           'WRITE_TOOLS', 'ACTING_TOOLS', 'Hit', 'HostError', 'host_err', 'err', 'failed', 'Media', 'attempt',
+           'ReadCheck', 'Refusal', 'guard_read', 'screened', 'Unsafe', 'denied', 'spill_dir', 'spill', 'Sandbox',
+           'clip', 'clip_json', 'clip_lines', 'cmds', 'edits', 'apply_edits', 'diff_text', 'writes', 'is_write', 'acts',
+           'has_effect', 'one_line', 'summary', 'summarise']
 
 # %% ../nbs/00_core.ipynb #8ff4e050
 import functools, json, os, tempfile, threading, uuid
@@ -100,9 +100,10 @@ SANDBOX = 'path is outside the open folders'
 READ_ONLY = 'path is in a folder opened for reading only'
 SECRET = 'path holds credentials and is never read'
 NO_ROOTS = 'no folders are open, so no path is inside them'
+HARDLINK = 'path is a hard link, so it may be a second name for a file outside the open folders'
 #: Credential-shaped paths refused even with `read_outside`. `fnmatch` on the resolved path.
 DENY = ('*/.ssh/*', '*/.aws/*', '*/.gnupg/*', '*/.config/gcloud/*', '*/.netrc', '*/.git-credentials', '*/.codex/auth.json', '*/.claude/.credentials.json',
-        '*/.env', '*/.env.*', '*/id_rsa*', '*/id_ed25519*', '*.pem', '*.key', '*.p12')
+        '*/.env', '*/.env.*', '*/id_rsa*', '*/id_ed25519*', '*.pem', '*.key', '*.p12', '*.pfx', '*.kdbx', '*.keychain', '*.keychain-db')
 class Unsafe(HostError): "A path that resolves outside every open root, or one refused for safety."
 
 def denied(path, patterns=DENY):
@@ -159,11 +160,12 @@ class Sandbox:
         self.roots, self.read_roots = self.roots.filter(lambda r: r != p), self.read_roots.filter(lambda r: r != p)
         return p
     def check(self, path, must_exist=False, reading=False):
-        "Resolve `path`, and refuse it unless it lands inside an open root."
+        "Resolve `path` inside an open root. Reads refuse hard links except under `site-packages` or `node_modules` directories."
         if not (self.roots or self.read_roots): raise Unsafe(f'{NO_ROOTS}: {path}')
         p = Path(path).expanduser()
         if not p.is_absolute(): p = (self.roots or self.read_roots)[0]/p
         p = p.resolve()
+        if reading and (self.covers(p) or self.reads(p)) and not {'site-packages', 'node_modules'}.intersection(p.parts[:-1]) and p.is_file() and p.stat().st_nlink > 1: raise Unsafe(f'{HARDLINK}: {p}')   # `resolve` leaves a hard link alone
         if not self.covers(p) and not (reading and _SPILL and p.is_relative_to(_SPILL[0])):
             if self.reads(p):
                 if not reading: raise Unsafe(f'{READ_ONLY}: {p}')
