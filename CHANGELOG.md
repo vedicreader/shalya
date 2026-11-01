@@ -2,6 +2,11 @@
 
 <!-- do not remove -->
 
+## 0.1.28
+- `LocalHost(url_ok=, on_read=)` gives a host a URL policy and a read observer. Both are off by default.
+- `url_ok(url)` gives the reason to refuse a URL, or None. `web_search` drops each result that it refuses. `read_url` raises `HostError` with the reason before fossick is asked, and checks the URL that a reader gives back too. The `read_url` tool shows the refusal as an `ERROR: ` result. `research` does not use `url_ok`.
+- `on_read(tool, target, result)` is called after each `web_search`, `read_url` and `read`, with the query, the URL or the path, and the result. `grep` with no index reads files through `read`, so the observer sees those reads too.
+
 ## 0.1.27
 - A read through a hard link inside an open folder is refused. A hard link can be a second name for a file outside the open folders. `Sandbox.check(reading=True)` raises `Unsafe` with the new `HARDLINK` message.
 - Files under a `site-packages` or `node_modules` folder are still read, because uv and pnpm can install packages as hard links. This exception is by folder name only. It is not a trust decision.

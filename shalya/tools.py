@@ -420,7 +420,8 @@ def web_tools(host, mx=MAX_TOOL_CHARS):
                  remember: bool = True, # keep the page in durable memory
                  ) -> str:
         "Read a URL as text suited to its kind: article, PDF, repo file or transcript."
-        d = host.read_url(url, remember=remember)
+        try: d = host.read_url(url, remember=remember)
+        except HostError as e: return err('read_url', e)
         return clip(str(screened(host, url, d.text, 'read_url', 'url')) if d else f'could not read {url} ({host.research_note})', mx, keep=True)
 
     def no_save_read(url: str,  # http(s) address

@@ -466,12 +466,15 @@ class LocalHost(Host, CodeHost, WebHost, NotebookHost, SessionHost, ShellHost, M
                  read_roots=(),         # folders the read tools search and no write may touch
                  tmux=None,             # None detects `$TMUX`; False off; True on; or this host's own pane (target or `Pane`)
                  read_guard=None,       # `(ReadCheck) -> None | str | Refusal`: what the read tools may send
-                 model_local=None):     # `() -> (local, model)` for the turn's model
+                 model_local=None,      # `() -> (local, model)` for the turn's model
+                 url_ok=None,           # `(url) -> str | None`: the reason to refuse a URL; None refuses none
+                 on_read=None):         # `(tool, target, result)`: called after each `web_search`, `read_url` and `read`
         self.sandbox = Sandbox(roots, read_outside=read_outside, deny=deny, read_roots=read_roots)
         self._added_roots = []         # excluded when resuming
         self.ns = ifnone(ns, {'__name__': '__main__'})
         self._approvals, self._note, self.web = approvals, note, web
         self.read_guard, self.model_local = read_guard, model_local
+        self.url_ok, self.on_read = url_ok, on_read
         self.transcript = []
         self._indexes, self._index_errors, self._index_thread = [], [], None
         self._pending = list(self._search_roots)
@@ -590,16 +593,29 @@ def _walk(self:LocalHost, root):
 @patch
 def walk(self:LocalHost): return [p for r in self._search_roots for p in self._walk(r)]
 
+# %% ../nbs/01_host.ipynb #a9b9355c
+@patch
+def _url_refused(self:LocalHost, url):
+    "The reason `url_ok` gives to refuse `url`, or None. A host with no `url_ok` refuses no URL."
+    return (f := getattr(self, 'url_ok', None)) and f(str(url)) or None
+
+@patch
+def _seen(self:LocalHost, tool, target, result):
+    "Give one read to `on_read`, then return its `result`."
+    if (f := getattr(self, 'on_read', None)): f(tool, target, result)
+    return result
+
 # %% ../nbs/01_host.ipynb #26c39f55
 @patch
 def read(self:LocalHost, path):
     "Read text or return None on failure. Refuse SQLite paths with HostError."
     refuse_sqlite(path)
     try: p = self.check(path, must_exist=True, reading=True)
-    except Exception: return None
+    except Exception: return self._seen('read', path, None)
     refuse_sqlite(p)
-    try: return p.read_text(encoding='utf-8')
-    except Exception: return None
+    try: text = p.read_text(encoding='utf-8')
+    except Exception: text = None
+    return self._seen('read', path, text)
 
 # %% ../nbs/01_host.ipynb #fc9d7ee5
 @patch
@@ -1208,11 +1224,12 @@ def _fossick(self:LocalHost):
 # %% ../nbs/01_host.ipynb #5d1cd1db
 @patch
 def web_search(self:LocalHost, query, n=20):
-    "Search the web through fossick. An empty query answers `[]` without reaching the network."
+    "Search the web through fossick. An empty query answers `[]` without reaching the network. A row that `url_ok` refuses is dropped."
     fossick = self._fossick()
     if not str(query).strip(): return []
     rows = fossick.search(str(query), n=int(n))
-    return [AttrDict(title=str(r.get('title', '')), url=str(r.get('href') or r.get('url', ''))) for r in rows]
+    rows = [AttrDict(title=str(r.get('title', '')), url=str(r.get('href') or r.get('url', ''))) for r in rows]
+    return self._seen('web_search', query, [r for r in rows if not self._url_refused(r.url)])
 
 # %% ../nbs/01_host.ipynb #abb87c05
 #: Where the article is when a page does not say. Each is tried; the best-scoring one wins.
@@ -1357,9 +1374,12 @@ def read_page(fossick, url, sel=None, note=None, readers=READERS, thin=THIN_PAGE
 # %% ../nbs/01_host.ipynb #b7f2f630
 @patch
 def read_url(self:LocalHost, url, remember=True, sel=None):
-    "One page as markdown. `remember=False` keeps sensitive or low-quality results ephemeral."
-    return read_page(self._fossick(), url, sel=sel, note=self.note,
-                     readers=self.READERS, thin=self.THIN_PAGE, session_hosts=self.SESSION_HOSTS)
+    "One page as markdown. `remember=False` keeps sensitive or low-quality results ephemeral. A URL that `url_ok` refuses raises `HostError`."
+    if (why := self._url_refused(url)): raise HostError(f'refused {url}: {why}')
+    got = read_page(self._fossick(), url, sel=sel, note=self.note,
+                    readers=self.READERS, thin=self.THIN_PAGE, session_hosts=self.SESSION_HOSTS)
+    if got and got.url != url and (why := self._url_refused(got.url)): raise HostError(f'refused {got.url}: {why}')
+    return self._seen('read_url', url, got)
 
 # %% ../nbs/01_host.ipynb #85171ef8
 @patch
