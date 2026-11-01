@@ -109,3 +109,78 @@ def test_a_thin_page_that_never_reached_stealthy_still_retries_stealthily():
     read_page(f, 'https://example.com/a')
     assert {'stealthy': True} in f.fetches
     assert f.fetches == [{}, {'heavy': True, 'network_idle': True}, {'stealthy': True}]
+
+
+class _Typed(_Fossick):
+    "A fossick whose pages carry a Content-Type."
+    def __init__(self, kind, ct, md=LONG, res=None):
+        super().__init__(kind, res)
+        self.ct, self.md = ct, md
+    def fetch(self, url, **kw):
+        self.fetches.append(kw)
+        pg = _Page(md=self.md)
+        pg.headers = {'Content-Type': self.ct}
+        return pg
+
+
+def test_fetch_kw_reaches_each_fetch():
+    "`max_bytes` and the other options go to fossick.fetch as they are, on the first fetch and on the rendered retries."
+    f = _Typed('web', 'text/html; charset=utf-8', md='thin')
+    read_page(f, 'https://example.com/a', fetch_kw=dict(max_bytes=1000, timeout=5, allow_private=False))
+    assert f.fetches[0] == dict(max_bytes=1000, timeout=5, allow_private=False)
+    assert f.fetches[1:] == [dict(max_bytes=1000, timeout=5, allow_private=False, heavy=True, network_idle=True),
+                             dict(max_bytes=1000, timeout=5, allow_private=False, stealthy=True)]
+
+
+def test_fetch_kw_cannot_turn_on_auto():
+    "Only `session_hosts` lets a fetch reach the logged-in debug Chrome."
+    f = _Typed('web', 'text/html')
+    read_page(f, 'https://example.com/a', fetch_kw=dict(auto=True, timeout=5))
+    assert f.fetches == [dict(timeout=5)]
+
+
+def test_thin_zero_is_one_plain_fetch():
+    f = _Typed('web', 'text/html', md='thin')
+    read_page(f, 'https://example.com/a', fetch_kw=dict(max_bytes=10), thin=0)
+    assert f.fetches == [dict(max_bytes=10)]
+
+
+def test_a_pdf_is_refused_when_types_is_set():
+    "The pdf reader is not asked, and the fetched page says application/pdf, so the answer is None with a note."
+    said, f = [], _Typed('pdf', 'application/pdf', res=_res('pdf', text='pdf body ' * 200))
+    assert read_page(f, 'https://x/doc.pdf', types=('text/html', 'text/plain'), note=said.append) is None
+    assert f.reads == [] and len(f.fetches) == 1
+    assert 'application/pdf' in said[-1]
+
+
+def test_a_page_of_an_allowed_type_is_read():
+    f = _Typed('web', 'text/html; charset=utf-8')
+    got = read_page(f, 'https://example.com/a', types=('text/html', 'text/plain'))
+    assert got.strategy == 'readability' and got.text == LONG.strip()
+
+
+def test_a_page_with_no_type_is_refused_when_types_is_set():
+    f = _Fossick('web', page=_Page(md=LONG))
+    assert read_page(f, 'https://example.com/a', types=('text/html',)) is None
+
+
+def test_a_reader_runs_when_its_type_is_allowed():
+    f = _Typed('pdf', 'application/pdf', res=_res('pdf', text='pdf body ' * 200))
+    assert read_page(f, 'https://x/doc.pdf', types=('application/pdf',)).strategy == 'pdf2md'
+
+
+def test_the_default_path_does_not_change():
+    "No `fetch_kw` and no `types`: one fetch with no options, and a PDF still goes to the reader."
+    f = _Typed('web', 'application/pdf')
+    assert read_page(f, 'https://example.com/a').strategy == 'readability' and f.fetches == [{}]
+    f = _Typed('pdf', 'application/pdf', res=_res('pdf', text='pdf body ' * 200))
+    assert read_page(f, 'https://x/doc.pdf').strategy == 'pdf2md' and f.fetches == []
+
+
+def test_a_host_passes_its_fetch_kw_and_types(tmp_path):
+    "`LocalHost.FETCH_KW` and `LocalHost.TYPES` reach `read_page` through `read_url`."
+    from shalya.host import LocalHost
+    class H(LocalHost): FETCH_KW, TYPES = dict(max_bytes=10), ('text/html',)
+    h, f = H([str(tmp_path)], index=False), _Typed('web', 'application/pdf')
+    h._fossick = lambda: f
+    assert h.read_url('https://example.com/a.pdf') is None and f.fetches == [dict(max_bytes=10)]

@@ -6,6 +6,9 @@
 - `LocalHost(url_ok=, on_read=)` gives a host a URL policy and a read observer. Both are off by default.
 - `url_ok(url)` gives the reason to refuse a URL, or None. `web_search` drops each result that it refuses. `read_url` raises `HostError` with the reason before fossick is asked, and checks the URL that a reader gives back too. The `read_url` tool shows the refusal as an `ERROR: ` result. `research` does not use `url_ok`.
 - `on_read(tool, target, result)` is called after each `web_search`, `read_url` and `read`, with the query, the URL or the path, and the result. `grep` with no index reads files through `read`, so the observer sees those reads too.
+- `read_page(fetch_kw=, types=)`. `fetch_kw` goes as it is to each `fossick.fetch`, for example `timeout`, `max_bytes` or `allow_private=False`. It cannot set `auto`: only `session_hosts` does that. `types` is the tuple of Content-Types to read. A page of another type, or with no type, gives `None` and a note. A dedicated reader runs only when its type is in `types` (`application/pdf` for a PDF, `text/html` for the others). With either one set, the independent extraction is not tried, because it makes its own fetch. Use `thin=0` for one plain fetch with no browser.
+- New `page_type(page)` gives the Content-Type of a fetched page, with no parameters.
+- `LocalHost.FETCH_KW` and `LocalHost.TYPES` (None by default) give `read_url` the same two options.
 
 ## 0.1.27
 - A read through a hard link inside an open folder is refused. A hard link can be a second name for a file outside the open folders. `Sandbox.check(reading=True)` raises `Unsafe` with the new `HARDLINK` message.

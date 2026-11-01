@@ -9,7 +9,7 @@ __all__ = ['SKIP_DIRS', 'SKIP_SUFFIXES', 'MAX_VARS', 'LD_CHARS', 'PANE_LINES', '
            'MAX_PAGE', 'MIN_SECTION', 'SESSION_HOSTS', 'READERS', 'Capability', 'Host', 'sqlite_path', 'refuse_sqlite',
            'nb_read', 'CodeHost', 'WebHost', 'BrowserHost', 'NotebookHost', 'MemoryHost', 'AskHost', 'WatchHost',
            'SessionHost', 'ShellHost', 'ApiHost', 'GitHost', 'fuse', 'ld_json', 'LocalHost', 'path_scope', 'md_title',
-           'session_ok', 'read_page', 'implemented']
+           'session_ok', 'page_type', 'read_page', 'implemented']
 
 # %% ../nbs/01_host.ipynb #2f4ef978
 import ast, copy, json, os, re, shutil, signal, subprocess, sys, uuid
@@ -1303,6 +1303,7 @@ def _extracted(rows):
     return '\n\n'.join(x for x in (body(r).strip() for r in (rows if isinstance(rows, list) else [rows])) if x)
 
 _READER_KIND = {'arxiv': 'paper', 'ghfile': 'repo', 'youtube': 'page', 'pdf': 'page'}
+_READER_TYPE = {'pdf': 'application/pdf'}   # what a reader reads, for `types`; the other readers read web pages
 _READER_STRATEGY = {'arxiv': 'read_arxiv', 'ghfile': 'read_gh_file', 'youtube': 'read_yt', 'pdf': 'pdf2md'}
 
 def session_ok(url, hosts=SESSION_HOSTS):
@@ -1310,12 +1311,18 @@ def session_ok(url, hosts=SESSION_HOSTS):
     h = (urlparse(str(url)).hostname or '').lower()
     return bool(h) and any(h == x or h.endswith('.' + x) for x in (str(o).lower().strip('.') for o in hosts) if x)
 
-def _reader_doc(fossick, url, say, mx, auto=False):
+def page_type(page):
+    "The Content-Type of a fetched `page`, in lower case and with no parameters, or '' when it gives none."
+    hs = dict(getattr(page, 'headers', None) or {})
+    return str(next((v for k, v in hs.items() if str(k).lower() == 'content-type'), '') or '').split(';')[0].strip().lower()
+
+def _reader_doc(fossick, url, say, mx, auto=False, types=None):
     "A target fossick reads with a dedicated reader (arxiv, gh file, youtube, pdf), adapted to read_page's contract."
     what_is = getattr(fossick, 'what_is', None)
     try: kind = what_is(url) if what_is else None
     except Exception: kind = None
     if kind not in _READER_KIND: return None
+    if types is not None and _READER_TYPE.get(kind, 'text/html') not in types: return None
     try: res = fossick.read(url, auto=auto)
     except Exception as e:
         say(f'read could not read {url} ({host_err(e)}); fetching the page')
@@ -1325,13 +1332,17 @@ def _reader_doc(fossick, url, say, mx, auto=False):
     return AttrDict(text=text, url=res.get('source') or url, title=res.get('title') or md_title(text, url),
                     kind=_READER_KIND[kind], sections=[], strategy=_READER_STRATEGY[kind])
 
-def read_page(fossick, url, sel=None, note=None, readers=READERS, thin=THIN_PAGE, mx=MAX_PAGE, session_hosts=SESSION_HOSTS):
+def read_page(fossick, url, sel=None, note=None, readers=READERS, thin=THIN_PAGE, mx=MAX_PAGE, session_hosts=SESSION_HOSTS,
+              fetch_kw=None,  # options for each `fossick.fetch`, such as `timeout`, `max_bytes` or `allow_private=False`
+              types=None):    # the Content-Types to read, such as `('text/html', 'text/plain')`; None reads any
     "One URL as markdown, with its title, kind, sections and extraction strategy, or None; `sel` is a CSS selector to try first."
     url, say = str(url or '').strip(), note or (lambda msg: None)
     if not url: return None
     auto = session_ok(url, session_hosts)   # only a trusted host may reach the logged-in debug Chrome
+    fkw = {k: v for k, v in (fetch_kw or {}).items() if k != 'auto'}   # `auto` stays the choice of `session_hosts`
+    typed = lambda pg: types is None or page_type(pg) in types
     if getattr(fossick, 'read', None) is not None:      # fossick reads arxiv/gh/youtube/pdf itself
-        if (got := _reader_doc(fossick, url, say, mx, auto)) is not None: return got
+        if (got := _reader_doc(fossick, url, say, mx, auto, types)) is not None: return got
     else:
         for rx, name, kw, kind in readers:              # a fossick without `read`: shalya's own dispatch
             if not rx.search(url) or (reader := getattr(fossick, name, None)) is None: continue
@@ -1344,24 +1355,27 @@ def read_page(fossick, url, sel=None, note=None, readers=READERS, thin=THIN_PAGE
                 return AttrDict(text=text[:mx], url=url, title=titled or md_title(text, url),
                                 kind=kind, sections=[], strategy=name)
             break
-    try: page = fossick.fetch(url, auto=True) if auto else fossick.fetch(url)
+    try: page = fossick.fetch(url, **fkw, auto=True) if auto else fossick.fetch(url, **fkw)
     except Exception as e:
         say(f'could not fetch {url} ({host_err(e)})')
         page = None
+    if page is not None and not typed(page):
+        say(f'{url} is {page_type(page) or "of no stated type"}; read_page reads only {", ".join(types)}')
+        return None
     text, strategy = _page_text(fossick, page, sel, mx) if page is not None else ('', 'nothing fetched')
     sections = _sections(fossick, page, mx) if page is not None and not sel else []
     if len(text.strip()) < thin:
         reached = getattr(page, 'tier', None) in ('stealthy', 'stealthy+session', 'blocked')
         for opts in ({'heavy': True, 'network_idle': True}, {'stealthy': True}):
             if opts.get('stealthy') and reached: continue   # `auto` already escalated to stealthy; a manual retry only repeats it
-            try: heavy = fossick.fetch(url, **opts)
+            try: heavy = fossick.fetch(url, **{**fkw, **opts})
             except Exception: continue
-            if heavy is None: continue
+            if heavy is None or not typed(heavy): continue
             richer, label = _page_text(fossick, heavy, sel, mx)
             if not sel and len(rich := _sections(fossick, heavy, mx)) > len(sections): sections = rich
             if len(richer) > len(text): page, text, strategy = heavy, richer, f'rendered {label}'
             if len(text.strip()) >= thin: break
-    if len(text.strip()) < thin and hasattr(fossick, 'extract'):
+    if len(text.strip()) < thin and hasattr(fossick, 'extract') and fetch_kw is None and types is None:   # `extract` fetches on its own
         try: fallback = _extracted(fossick.extract(url))
         except Exception: fallback = ''
         if len(fallback) > len(text): text, strategy = fallback[:mx], 'independent extraction'
@@ -1377,7 +1391,7 @@ def read_url(self:LocalHost, url, remember=True, sel=None):
     "One page as markdown. `remember=False` keeps sensitive or low-quality results ephemeral. A URL that `url_ok` refuses raises `HostError`."
     if (why := self._url_refused(url)): raise HostError(f'refused {url}: {why}')
     got = read_page(self._fossick(), url, sel=sel, note=self.note,
-                    readers=self.READERS, thin=self.THIN_PAGE, session_hosts=self.SESSION_HOSTS)
+                    readers=self.READERS, thin=self.THIN_PAGE, session_hosts=self.SESSION_HOSTS, fetch_kw=self.FETCH_KW, types=self.TYPES)
     if got and got.url != url and (why := self._url_refused(got.url)): raise HostError(f'refused {got.url}: {why}')
     return self._seen('read_url', url, got)
 
@@ -1394,6 +1408,8 @@ def research_note(self:LocalHost): return 'fossick' if self.web else 'web access
 LocalHost.THIN_PAGE = THIN_PAGE   #: a subclass can raise it; `read_page` is told, never assumes
 LocalHost.READERS = READERS
 LocalHost.SESSION_HOSTS = SESSION_HOSTS   #: hosts a subclass trusts with the logged-in debug Chrome; none by default
+LocalHost.FETCH_KW = None   #: `read_page`'s `fetch_kw` for `read_url`; None adds no options
+LocalHost.TYPES = None      #: `read_page`'s `types` for `read_url`; None reads any Content-Type
 
 # %% ../nbs/01_host.ipynb #3feed41c
 def _needs(what):
