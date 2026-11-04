@@ -1,4 +1,4 @@
-__version__ = "0.1.29"
+__version__ = "0.1.30"
 
 from . import core, host, skills, tools
 from .core import *
