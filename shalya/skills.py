@@ -6,10 +6,17 @@ Docs: https://vedicreader.github.io/shalya/skills.html.md"""
 
 # %% auto #0
 __all__ = ['GROUP', 'EXTRA_MODULES', 'MAX_SKILL_CHARS', 'SKILL_DESC_MAX', 'EVENTS', 'HOOK_TIMEOUT', 'describe', 'Skill',
-           'mod_skill', 'skill_dirs', 'discover', 'skill_index', 'find', 'Registry', 'ext_dirs', 'load', 'shell_hooks']
+           'mod_skill', 'skill_dirs', 'discover', 'skill_index', 'find', 'Registry', 'ext_dirs', 'load', 'check',
+           'shell_hooks']
 
 # %% ../nbs/03_skills.ipynb #f73d3eef
-import fnmatch, json, runpy, subprocess
+import fcntl, fnmatch, inspect, json, runpy, subprocess, threading, tomllib
+from contextvars import ContextVar, copy_context
+from functools import update_wrapper, wraps
+from importlib.metadata import entry_points
+from fastcore.basics import AttrDict
+from fastcore.parallel import startthread
+from fastcore.xtras import atomic_save
 from dataclasses import dataclass, field
 from pathlib import Path
 from fastcore.docments import frontmatter
@@ -145,9 +152,65 @@ def find(skills, name):
     return None
 
 # %% ../nbs/03_skills.ipynb #935db1a7
-EVENTS = ('session_start', 'before_turn', 'after_turn', 'before_tool', 'after_tool', 'stop', 'compact', 'approval', 'background_done', 'watch')
+EVENTS = ('session_start', 'before_turn', 'after_turn', 'before_tool', 'after_tool', 'stop', 'compact', 'approval', 'background_done', 'watch', 'session_end')
 
 # %% ../nbs/03_skills.ipynb #18873bfa
+class _Callback:
+    def __init__(self, reg, fn, kind, owner, rows=None):
+        self.reg, self.fn, self.kind, self.owner = reg, fn, kind, owner
+        self.rows, self.failed = rows, False
+        self.errors = set()
+        self.lock = threading.RLock()
+        update_wrapper(self, fn, updated=())
+
+    def __call__(self, *args, **kw):
+        with self.lock:
+            if self.failed or (self.owner is not None and not self.owner.on): return None
+        token = self.reg._context.set((self.owner, False))
+        try: return self.fn(*args, **kw)
+        except Exception as e:
+            if self.owner is None and self.kind.endswith(' hook'): raise
+            decision = self.kind in ('before_tool hook', 'before_turn hook', 'approval')
+            error = host_err(e)
+            with self.lock:
+                if error not in self.errors:
+                    self.errors.add(error)
+                    self.reg._note(self.owner, f'{self.kind} failed: {error}')
+                if not decision: self.failed = True
+            if decision:
+                return 'deny' if self.kind == 'approval' else f'mod {self.owner.name} failed: {e}'
+        finally: self.reg._context.reset(token)
+
+class _Timer:
+    def __init__(self, seconds, callback, repeat):
+        if seconds < 0 or (repeat and seconds == 0): raise ValueError('timer interval must be positive')
+        self.seconds, self.callback, self.repeat = seconds, callback, repeat
+        self.stop = threading.Event()
+        self.thread = None
+
+    @property
+    def cancelled(self): return self.stop.is_set()
+
+    def cancel(self):
+        self.stop.set()
+        self._remove()
+
+    def _remove(self):
+        reg = self.callback.reg
+        with reg._lock:
+            reg.timers[:] = [t for t in reg.timers if t is not self]
+            reg._entries[:] = [e for e in reg._entries if e.value is not self]
+
+    def start(self):
+        self.thread = startthread(self.run, daemon=True)
+
+    def run(self):
+        try:
+            while not self.stop.wait(self.seconds):
+                self.callback()
+                if not self.repeat or self.callback.failed: break
+        finally: self._remove()
+
 class Registry:
     "What an extension's `setup(reg)` may add: tools, skills, commands, hooks and an approval policy."
 
@@ -156,36 +219,42 @@ class Registry:
         self.tools, self.skills, self.commands = [], [], {}
         self.hooks = {e: [] for e in EVENTS}
         self.approve = None
-        self.notes = []          # one line per extension: loaded, or why not
-        self._base = None        # the span the extension files registered inside
+        self.notes, self.mods = [], []
+        self.status_segments, self.bands, self.timers = [], [], []
+        self.on_redraw = None
+        self._base, self._dry = None, False
+        self._entries, self._notices = [], []
+        self._lock = threading.RLock()
+        self._status_state = threading.local()
+        self._context = ContextVar('mod_context', default=(None, False))
 
 
     def tool(self, f):
         "Register a tool."
-        self.tools.append(f)
+        self._add('tool', self._owned(f))
         return f
 
     def skill(self, name, text, description=''):
         "Register a skill."
         s = Skill(name=name, source='ext', description=description or describe(text if isinstance(text, str) else ''),
                   where='extension', _text=text)
-        self.skills.append(s)
+        self._add('skill', s)
         return s
 
     def command(self, name, fn, help=''):
         "Add a slash command. `fn(agent, arg)` returns text for the frontend to show."
-        self.commands[name.lstrip('/')] = (fn, help)
+        self._add('command', (self._owned(fn), help), name.lstrip('/'))
         return fn
 
     def on(self, event, fn):
         "Register a hook for a known lifecycle event."
         if event not in EVENTS: raise KeyError(f'unknown event {event!r}; known: {", ".join(EVENTS)}')
-        self.hooks[event].append(fn)
+        self._add('hook', self._callback(fn, f'{event} hook'), event)
         return fn
 
     def approval(self, fn):
         "Replace the approval policy; the last registration wins."
-        self.approve = fn
+        self._add('approval', self._callback(fn, 'approval') if self.mod is not None else fn)
         return fn
 
 
@@ -196,34 +265,289 @@ class Registry:
 
     def mark(self):
         "What is registered right now. `load` brackets itself with two of these."
-        return (len(self.tools), len(self.skills), len(self.notes), dict(self.commands),
-                {e: len(v) for e, v in self.hooks.items()}, self.approve)
+        class Mark(tuple): pass
+        mark = Mark((len(self.tools), len(self.skills), len(self.notes), dict(self.commands),
+                     {e: len(v) for e, v in self.hooks.items()}, self.approve))
+        mark._entries, mark._mods = list(self._entries), list(self.mods)
+        return mark
 
     def mark_loaded(self, before):
         "Record the span the extension files registered inside, from the `mark` taken before them."
-        self._base = (before, self.mark())
+        prior = getattr(before, '_entries', None)
+        if prior is None:
+            counts = dict(tool=before[0], skill=before[1])
+            hooks = dict(before[4])
+            prior = []
+            for e in self._entries:
+                if e.kind in counts and counts[e.kind]:
+                    prior.append(e)
+                    counts[e.kind] -= 1
+                elif e.kind == 'hook' and hooks.get(e.key, 0):
+                    prior.append(e)
+                    hooks[e.key] -= 1
+                elif e.kind == 'command' and before[3].get(e.key) is e.value: prior.append(e)
+                elif e.kind == 'approval' and before[5] is e.value: prior.append(e)
+        self._base = (before, self.mark(), [e for e in self._entries if all(e is not old for old in prior)],
+                      [m for m in self.mods if all(m is not old for old in getattr(before, '_mods', ()))])
         return self
 
     def drop_loaded(self):
         "Forget what the extension files registered, keeping what was registered outside that span."
         if self._base is None: return self
-        (bt, bs, bn, bc, bh, ba), (at, as_, an, ac, ah, aa) = self._base
-        self.tools, self.skills = self.tools[:bt] + self.tools[at:], self.skills[:bs] + self.skills[as_:]
-        self.notes = self.notes[:bn] + self.notes[an:]
-        self.hooks = {e: v[:bh.get(e, 0)] + v[ah.get(e, 0):] for e, v in self.hooks.items()}
-        # a name the files added, unless something has replaced their entry since
-        self.commands = {k: v for k, v in self.commands.items() if k in bc or v is not ac.get(k)}
-        if self.approve is aa: self.approve = ba
-        self._base = None
+        before, after, entries, mods = self._base
+        for mod in mods: self.off(mod.name)
+        self._remove(entries)
+        with self._lock:
+            self.mods = [m for m in self.mods if all(m is not old for old in mods)]
+            self.notes = self.notes[:before[2]] + self.notes[after[2]:]
+            self._base = None
         return self
 
     def fire(self, event, *args, **kw):
         "Run hooks for `event`, recording failures. Returns what each surviving hook returned, in registration order."
         out = []
-        for f in self.hooks.get(event, ()):
-            try: out.append(f(*args, **kw))
-            except Exception as e: self.notes.append(f'{event} hook failed: {host_err(e)}')
+        for f in list(self.hooks.get(event, ())):
+            if isinstance(f, _Callback) and (f.failed or (f.owner is not None and not f.owner.on)): continue
+            try:
+                result = f(*args, **kw)
+                if not isinstance(f, _Callback) or not f.failed: out.append(result)
+            except Exception as e:
+                with self._lock: self.notes.append(f'{event} hook failed: {host_err(e)}')
         return out
+
+    def each(self, event):
+        "Return live hooks with their owners in registration order."
+        with self._lock: hooks = list(self.hooks.get(event, ()))
+        out = []
+        for fn in hooks:
+            callback = fn if isinstance(fn, _Callback) else _Callback(self, fn, f'{event} hook', None)
+            if callback.failed or (callback.owner is not None and not callback.owner.on): continue
+            @wraps(callback)
+            def call(*args, _callback=callback, **kw):
+                try: return _callback(*args, **kw)
+                except Exception as e:
+                    with self._lock: self.notes.append(f'{event} hook failed: {host_err(e)}')
+            out.append((callback.owner.name if callback.owner is not None else None, call))
+        return out
+
+    @property
+    def mod(self):
+        "Return the name of the calling mod."
+        owner, setup = self._context.get()
+        return owner.name if owner is not None else None
+
+    @property
+    def home(self):
+        "Return the home folder of the calling mod."
+        owner, setup = self._context.get()
+        return owner.home if owner is not None else None
+
+    def _owned(self, fn):
+        owner = self._context.get()[0]
+        if owner is None: return fn
+        @wraps(fn)
+        def call(*args, **kw):
+            token = self._context.set((owner, False))
+            try: return fn(*args, **kw)
+            finally: self._context.reset(token)
+        return call
+
+    def thread(self, fn, *args, **kw):
+        "Start a daemon thread with the calling mod's context."
+        context = copy_context()
+        context.run(self._context.set, (self._context.get()[0], False))
+        thread = threading.Thread(target=lambda: context.run(fn, *args, **kw), daemon=True)
+        if not self._dry: thread.start()
+        return thread
+
+    def store(self, default=None):
+        "Return the calling mod's persistent JSON store."
+        owner = self._context.get()[0]
+        if owner is None: raise RuntimeError('store requires a mod context')
+        with self._lock:
+            if getattr(owner, '_store', None) is None: owner._store = _Store(owner.home, default)
+            return owner._store
+
+    def _add(self, kind, value, key=None):
+        owner = self._context.get()[0]
+        with self._lock:
+            if owner is not None and not owner.on: return value
+            entry = AttrDict(owner=owner, kind=kind, value=value, key=key, previous=None)
+            if kind == 'command':
+                entry.previous = self.commands.get(key)
+                self.commands[key] = value
+            elif kind == 'approval':
+                entry.previous, self.approve = self.approve, value
+            else:
+                target = self.hooks[key] if kind == 'hook' else getattr(self, {'tool':'tools', 'skill':'skills', 'status':'status_segments', 'band':'bands', 'timer':'timers'}[kind])
+                target.append(value)
+            self._entries.append(entry)
+        return value
+
+    def _remove(self, entries):
+        with self._lock:
+            for entry in reversed(entries):
+                if not any(e is entry for e in self._entries): continue
+                kind, value, key = entry.kind, entry.value, entry.key
+                if kind in ('command', 'approval'):
+                    for later in self._entries:
+                        if later.kind == kind and later.key == key and later.previous is value:
+                            later.previous = entry.previous
+                    if kind == 'command' and self.commands.get(key) is value:
+                        if entry.previous is None: self.commands.pop(key, None)
+                        else: self.commands[key] = entry.previous
+                    elif kind == 'approval' and self.approve is value: self.approve = entry.previous
+                else:
+                    target = self.hooks[key] if kind == 'hook' else getattr(self, {'tool':'tools', 'skill':'skills', 'status':'status_segments', 'band':'bands', 'timer':'timers'}[kind])
+                    for i, item in enumerate(target):
+                        if item is value:
+                            target.pop(i)
+                            break
+                    if kind == 'timer': value.cancel()
+                self._entries = [e for e in self._entries if e is not entry]
+
+    def _callback(self, fn, kind):
+        return _Callback(self, fn, kind, self._context.get()[0])
+
+    def _note(self, owner, text):
+        with self._lock:
+            if owner is not None: owner.note = f'{owner.note}; {text}' if owner.note else text
+            label = owner.path.name if owner is not None and owner.path is not None else owner.name if owner is not None else None
+            self.notes.append(f'{label}: {text}' if label is not None else text)
+
+    def status(self, fn):
+        "Add a status segment."
+        self._add('status', self._callback(fn, 'status'))
+        return fn
+
+    def status_texts(self, agent):
+        "Return live nonempty status strings without same-thread re-entry."
+        if getattr(self._status_state, 'active', False): return []
+        self._status_state.active = True
+        try:
+            with self._lock: segments = list(self.status_segments)
+            return [text for fn in segments if isinstance(text := fn(agent), str) and text]
+        finally: self._status_state.active = False
+
+    def band(self, fn, rows=6):
+        "Add a band above the prompt."
+        if type(rows) is not int or not 1 <= rows <= 50: raise ValueError('rows must be an integer from 1 to 50')
+        callback = self._callback(fn, 'band')
+        callback.rows = rows
+        self._add('band', callback)
+        return fn
+
+    def notify(self, text):
+        "Queue a notice from any thread."
+        owner = self._context.get()[0]
+        with self._lock: self._notices.append(dict(mod=owner.name if owner is not None else None, text=text))
+        self.redraw()
+
+    def drain_notices(self):
+        "Return and clear queued notices in order."
+        with self._lock:
+            notices, self._notices = self._notices, []
+        return notices
+
+    def redraw(self):
+        "Ask the frontend to draw again."
+        if self.on_redraw is not None: self.on_redraw()
+
+    def _timer(self, seconds, fn, repeat):
+        timer = _Timer(seconds, self._callback(fn, 'timer'), repeat)
+        self._add('timer', timer)
+        owner, setup = self._context.get()
+        if not self._dry and not setup:
+            with self._lock:
+                if owner is None or owner.on: timer.start()
+                else: timer.cancel()
+        return timer
+
+    def after(self, seconds, fn):
+        "Run a callback once after a delay."
+        return self._timer(seconds, fn, False)
+
+    def every(self, seconds, fn):
+        "Run a callback repeatedly until cancelled."
+        return self._timer(seconds, fn, True)
+
+    def off(self, name):
+        "Remove one mod's registrations and cancel its timers."
+        mod = self._find_mod(name)
+        with self._lock:
+            mod.on = False
+            self._remove([e for e in self._entries if e.owner is mod])
+        return self
+
+    def on_mod(self, name):
+        "Run a disabled mod's setup again."
+        mod = self._find_mod(name)
+        with self._lock:
+            if mod.on: return self
+            mod.on, mod.note = True, ''
+        token = self._context.set((mod, True))
+        try:
+            if mod.setup is None:
+                if mod.path is None: mod.setup = mod.entry.load()
+                else:
+                    if mod.path.is_dir() and (mod.path/'mod.toml').exists():
+                        meta = tomllib.loads((mod.path/'mod.toml').read_text())
+                        mod.description, mod.version = meta.get('description', ''), meta.get('version', '')
+                    target = mod.path/'mod.py' if mod.path.is_dir() else mod.path
+                    mod.setup = runpy.run_path(str(target)).get('setup')
+            if not callable(mod.setup):
+                self._note(mod, 'loaded, no setup()')
+            else:
+                mod.setup(self)
+            if mod.path is not None and mod.path.is_dir():
+                for skill in _md_skills(mod.path/'skills'):
+                    if not skill.name.startswith(('_', '.')): self._add('skill', skill)
+            entries = [e for e in self._entries if e.owner is mod]
+            counts = {k: sum(e.kind == k for e in entries) for k in ('tool', 'skill', 'command', 'hook', 'approval', 'status', 'band', 'timer')}
+            if callable(mod.setup):
+                summary = ', '.join(f'{n} {k if n == 1 else "statuses" if k == "status" else k + "s"}' for k, n in counts.items() if n)
+                self._note(mod, summary or 'nothing registered')
+            if not self._dry:
+                for e in entries:
+                    if e.kind == 'timer':
+                        with self._lock:
+                            if mod.on and not e.value.cancelled: e.value.start()
+        except (Exception, SystemExit) as e:
+            phase = 'setup() failed' if callable(mod.setup) else 'failed to load'
+            self._note(mod, f'{phase} ({host_err(e)})')
+            self.off(name)
+        finally: self._context.reset(token)
+        return self
+
+    def _find_mod(self, name):
+        mod = next((m for m in self.mods if m.name == name), None)
+        if mod is None: raise KeyError(f'unknown mod {name!r}; known: {", ".join(m.name for m in self.mods)}')
+        return mod
+
+    def add_mod(self, name, setup, home=None):
+        "Register a setup callable under its mod context and return the mod record."
+        return self._mod(name, 'callable', setup=setup, home=home)
+
+    def _mod(self, name, source, path=None, entry=None, cfg=None, only=None, setup=None, home=None):
+        if setup is None and name.startswith(('_', '.')): return
+        with self._lock:
+            old = next((m for m in self.mods if m.name == name), None)
+            if old is not None:
+                self.off(name)
+                self.mods.remove(old)
+        if home is not None: home = Path(home)
+        elif path is not None:
+            if path.is_dir(): home = path
+            elif path.parent.name == 'extensions': home = path.parent.parent/'mods'/name
+            elif path.parent.name == 'mods' or cfg is None: home = path.parent/name
+            else: home = Path(cfg)/'mods'/name
+        elif cfg is not None: home = Path(cfg)/'mods'/name
+        mod = AttrDict(name=name, source=source, on=False, note='', home=home, path=path, entry=entry,
+                       setup=setup, description='', version='')
+        with self._lock: self.mods.append(mod)
+        if only is None or name in only: self.on_mod(name)
+        else: self._note(mod, 'not in this vesha')
+        return mod
 
 def ext_dirs(roots=(), cfg=None, project=False):
     "The extension folders to load: `cfg/extensions`, and with `project=True` each root's `.leela/extensions`."
@@ -233,32 +557,52 @@ def ext_dirs(roots=(), cfg=None, project=False):
         for r in roots: ds.append(Path(r)/'.leela'/'extensions')
     return ds
 
-def load(reg, roots=(), cfg=None, project=False, paths=()):
+def load(reg, roots=(), cfg=None, project=False, paths=(), only=None):
     "Run each extension file and call its `setup(reg)`, recording in `reg.notes` what each added or why it failed."
-    mark, files = reg.mark(), []
-    for d in ext_dirs(roots, cfg, project):
-        if Path(d).is_dir(): files += sorted(p for p in Path(d).glob('*.py') if not p.name.startswith('_'))
-    for p in paths or ():
-        p = Path(p)
-        files += sorted(p.glob('*.py')) if p.is_dir() else [p]
-    for f in files:
-        try: ns = runpy.run_path(str(f))
-        except Exception as e:
-            reg.notes.append(f'{f.name}: failed to load ({host_err(e)})')
-            continue
-        fn = ns.get('setup')
-        if not callable(fn):
-            reg.notes.append(f'{f.name}: loaded, no setup()')
-            continue
-        before = (len(reg.tools), len(reg.skills), len(reg.commands))
-        try: fn(reg)
-        except Exception as e:
-            reg.notes.append(f'{f.name}: setup() failed ({host_err(e)})')
-            continue
-        d = [n - b for n, b in zip((len(reg.tools), len(reg.skills), len(reg.commands)), before)]
-        reg.notes.append(f'{f.name}: {d[0]} tool(s), {d[1]} skill(s), {d[2]} command(s)')
-    if cfg is not None: shell_hooks(reg, Path(cfg)/'hooks.json')
-    return reg.mark_loaded(mark)
+    mark = reg.mark()
+    sources = {}
+    for ep in entry_points(group='ramabana.mods'):
+        if not ep.name.startswith(('_', '.')): sources[ep.name] = ('entry point', None, ep)
+    bases = ([Path(cfg)] if cfg is not None else []) + ([Path(r)/'.leela' for r in roots] if project else [])
+    for base in bases:
+        for directory in (base/'extensions', base/'mods'):
+            for p in _mod_paths(directory):
+                name = p.stem if p.is_file() else p.name
+                sources.pop(name, None)
+                sources[name] = (str(p), p, None)
+    for path in paths or ():
+        p = Path(path)
+        for item in ([p] if p.is_file() or (p/'mod.py').is_file() else _mod_paths(p)):
+            if not item.name.startswith(('_', '.')):
+                name = item.stem if item.is_file() else item.name
+                sources.pop(name, None)
+                sources[name] = (str(item), item, None)
+    try:
+        for name, (source, path, ep) in sources.items(): reg._mod(name, source, path, ep, cfg, only)
+        if cfg is not None: shell_hooks(reg, Path(cfg)/'hooks.json')
+    finally: reg.mark_loaded(mark)
+    return reg
+
+def _mod_paths(directory):
+    "Return visible mod files followed by mod folders."
+    directory = Path(directory)
+    if not directory.is_dir(): return []
+    visible = [p for p in sorted(directory.iterdir()) if not p.name.startswith(('_', '.'))]
+    return [p for p in visible if p.is_file() and p.suffix == '.py'] + [p for p in visible if p.is_dir() and (p/'mod.py').is_file()]
+
+def check(path):
+    "Inspect one mod without starting registry timers."
+    path = Path(path)
+    reg = Registry()
+    reg._dry = True
+    reg._mod(path.stem if path.is_file() else path.name, str(path), path)
+    return dict(tools=[getattr(f, '__name__', type(f).__name__) for f in reg.tools],
+                tool_docs=[dict(name=getattr(f, '__name__', type(f).__name__), signature=str(inspect.signature(f)), doc=inspect.getdoc(f) or '') for f in reg.tools],
+                commands=list(reg.commands), skills=[s.name for s in reg.skills],
+                hooks={e: len(h) for e, h in reg.hooks.items() if h}, status=[getattr(f.fn, '__name__', type(f.fn).__name__) for f in reg.status_segments],
+                bands=[dict(rows=b.rows) for b in reg.bands],
+                timers=[dict(seconds=t.seconds, repeat=t.repeat) for t in reg.timers],
+                mods=[dict(name=m.name, source=m.source, on=m.on, note=m.note) for m in reg.mods])
 
 # %% ../nbs/03_skills.ipynb #6452ff1a
 HOOK_TIMEOUT = 30
@@ -295,3 +639,63 @@ def shell_hooks(reg, path):
         reg.on(ev, _shell_hook(ev, cmd, h.get('match', ''))); n += 1
     reg.notes.append(f'{path.name}: {n} hook(s)')
     return reg
+
+# %% ../nbs/03_skills.ipynb #e032cd5d
+class _Store:
+    def __init__(self, home, default):
+        self.path = Path(home)/'state.json' if home is not None else None
+        self.default = dict(default or {})
+        self._data = None
+        self.problem = ''
+        self._lock = threading.RLock()
+
+    def _read(self):
+        self.problem = ''
+        if self.path is not None:
+            try:
+                data = json.loads(self.path.read_text())
+                if not isinstance(data, dict): raise ValueError('expected a JSON object')
+                return data
+            except FileNotFoundError: pass
+            except (OSError, ValueError) as e: self.problem = str(e).splitlines()[0][:160]
+        return dict(self.default)
+
+    @property
+    def data(self):
+        "Load the store's data on first access."
+        with self._lock:
+            if self._data is None: self._data = self._read()
+            return self._data
+
+    def reload(self):
+        "Re-read the file and return its data or the default."
+        with self._lock:
+            self._data = self._read()
+            return self._data
+
+    def save(self):
+        "Write data atomically unless the existing file cannot be read."
+        with self._lock:
+            data = self.data
+            if self.problem: raise ValueError(f'{self.path}: {self.problem}')
+            if self.path is not None:
+                self._read()
+                if self.problem: raise ValueError(f'{self.path}: {self.problem}')
+                with atomic_save(self.path, 'w') as f: json.dump(data, f)
+
+    def update(self, fn):
+        "Re-read, change and save data under an exclusive file lock."
+        with self._lock:
+            if self.path is None:
+                fn(self.data)
+                return self.data
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            with self.path.with_suffix('.lock').open('a') as lock:
+                fcntl.flock(lock, fcntl.LOCK_EX)
+                try:
+                    self.reload()
+                    if self.problem: raise ValueError(f'{self.path}: {self.problem}')
+                    fn(self._data)
+                    self.save()
+                    return self._data
+                finally: fcntl.flock(lock, fcntl.LOCK_UN)
