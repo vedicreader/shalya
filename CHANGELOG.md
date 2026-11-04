@@ -2,6 +2,21 @@
 
 <!-- do not remove -->
 
+## 0.1.29
+- A mod is one `.py` file, or one folder with `mod.py` and an optional `mod.toml`, `skills/` and data. Its `setup(reg)` registers tools, commands, skills, hooks and an approval policy under the mod's name, like an extension does.
+- New `reg.status(fn)` adds a status segment. `fn(agent)` gives a short text or None. `reg.status_texts(agent)` evaluates every live segment in order. A failed segment is skipped, and a segment that asks for the status again gets no recursion.
+- New `reg.band(fn, rows=6)` adds a band of rows above the input line. `fn(view)` gives the rows to draw. `rows` must be an integer from 1 to 12.
+- New `reg.notify(text)` queues a notice from any thread. `reg.drain_notices()` takes the queue, and `reg.redraw()` asks the frontend to draw again.
+- New `reg.after(seconds, fn)` and `reg.every(seconds, fn)` run timers that stop when their mod is turned off.
+- New `reg.store(default)` gives a mod a JSON state file in its home folder. It refuses to overwrite a file that is not valid JSON. `reg.mod` and `reg.home` give the mod that is running, also inside its callbacks.
+- New `reg.off(name)` removes one mod's registrations and cancels its timers. `reg.on_mod(name)` runs its setup again. `reg.mods` lists each mod with its source, state and a note of what it registered.
+- New `reg.each(event)` gives each hook for an event with its owner, so a host can run hooks one by one and chain their changes.
+- `load(..., only=)` loads only the named mods. The others are listed as off, and their code is not run.
+- New `check(path)` loads one mod in a dry run and gives what it registers, with no timers started.
+- New `Registry.add_mod(name, setup, home=None)` registers a mod from a setup function, for tests.
+- A `before_tool` or `approval` hook that raises now refuses the call. Before, the hook was turned off, and later calls ran with no check. A shell hook from `hooks.json` is never turned off by an error.
+- A `SystemExit` in one mod's setup no longer stops the load of the other mods.
+
 ## 0.1.28
 - `LocalHost(url_ok=, on_read=)` gives a host a URL policy and a read observer. Both are off by default.
 - `url_ok(url)` gives the reason to refuse a URL, or None. `web_search` drops each result that it refuses. `read_url` raises `HostError` with the reason before fossick is asked, and checks the URL that a reader gives back too. The `read_url` tool shows the refusal as an `ERROR: ` result. `research` does not use `url_ok`.
