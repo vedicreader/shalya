@@ -220,7 +220,7 @@ class Registry:
         self.hooks = {e: [] for e in EVENTS}
         self.approve = None
         self.notes, self.mods = [], []
-        self.status_segments, self.bands, self.timers = [], [], []
+        self.status_segments, self.bands, self.sections, self.timers = [], [], [], []
         self.on_redraw = None
         self._base, self._dry = None, False
         self._entries, self._notices = [], []
@@ -347,6 +347,7 @@ class Registry:
         if owner is None: return fn
         @wraps(fn)
         def call(*args, **kw):
+            if not owner.on: raise RuntimeError(f'mod {owner.name!r} was turned off or reloaded, so this copy of its function no longer runs')
             token = self._context.set((owner, False))
             try: return fn(*args, **kw)
             finally: self._context.reset(token)
@@ -379,7 +380,7 @@ class Registry:
             elif kind == 'approval':
                 entry.previous, self.approve = self.approve, value
             else:
-                target = self.hooks[key] if kind == 'hook' else getattr(self, {'tool':'tools', 'skill':'skills', 'status':'status_segments', 'band':'bands', 'timer':'timers'}[kind])
+                target = self.hooks[key] if kind == 'hook' else getattr(self, {'tool':'tools', 'skill':'skills', 'status':'status_segments', 'band':'bands', 'section':'sections', 'timer':'timers'}[kind])
                 target.append(value)
             self._entries.append(entry)
         return value
@@ -398,7 +399,7 @@ class Registry:
                         else: self.commands[key] = entry.previous
                     elif kind == 'approval' and self.approve is value: self.approve = entry.previous
                 else:
-                    target = self.hooks[key] if kind == 'hook' else getattr(self, {'tool':'tools', 'skill':'skills', 'status':'status_segments', 'band':'bands', 'timer':'timers'}[kind])
+                    target = self.hooks[key] if kind == 'hook' else getattr(self, {'tool':'tools', 'skill':'skills', 'status':'status_segments', 'band':'bands', 'section':'sections', 'timer':'timers'}[kind])
                     for i, item in enumerate(target):
                         if item is value:
                             target.pop(i)
@@ -436,6 +437,23 @@ class Registry:
         callback.rows = rows
         self._add('band', callback)
         return fn
+
+    def section(self, title, fn, style=''):
+        "Add a section to the side pane; `style` names the palette colour of its rows, and '' keeps the default."
+        if not isinstance(title, str): raise TypeError('title must be a string')
+        callback = self._callback(fn, 'section')
+        callback.title, callback.style = title, style
+        self._add('section', callback)
+        return fn
+
+    def section_rows(self, agent):
+        "Return the title and string rows of each section that has any; other rows are left out."
+        with self._lock: sections = list(self.sections)
+        out = []
+        for s in sections:
+            rows = s(agent)
+            if isinstance(rows, list) and (rows := [r for r in rows if isinstance(r, str)]): out.append(dict(title=s.title, rows=rows, style=s.style))
+        return out
 
     def notify(self, text):
         "Queue a notice from any thread."
@@ -503,7 +521,7 @@ class Registry:
                 for skill in _md_skills(mod.path/'skills'):
                     if not skill.name.startswith(('_', '.')): self._add('skill', skill)
             entries = [e for e in self._entries if e.owner is mod]
-            counts = {k: sum(e.kind == k for e in entries) for k in ('tool', 'skill', 'command', 'hook', 'approval', 'status', 'band', 'timer')}
+            counts = {k: sum(e.kind == k for e in entries) for k in ('tool', 'skill', 'command', 'hook', 'approval', 'status', 'band', 'section', 'timer')}
             if callable(mod.setup):
                 summary = ', '.join(f'{n} {k if n == 1 else "statuses" if k == "status" else k + "s"}' for k, n in counts.items() if n)
                 self._note(mod, summary or 'nothing registered')
@@ -600,7 +618,7 @@ def check(path):
                 tool_docs=[dict(name=getattr(f, '__name__', type(f).__name__), signature=str(inspect.signature(f)), doc=inspect.getdoc(f) or '') for f in reg.tools],
                 commands=list(reg.commands), skills=[s.name for s in reg.skills],
                 hooks={e: len(h) for e, h in reg.hooks.items() if h}, status=[getattr(f.fn, '__name__', type(f.fn).__name__) for f in reg.status_segments],
-                bands=[dict(rows=b.rows) for b in reg.bands],
+                bands=[dict(rows=b.rows) for b in reg.bands], sections=[s.title for s in reg.sections],
                 timers=[dict(seconds=t.seconds, repeat=t.repeat) for t in reg.timers],
                 mods=[dict(name=m.name, source=m.source, on=m.on, note=m.note) for m in reg.mods])
 

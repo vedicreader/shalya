@@ -20,6 +20,7 @@ def setup(reg):
     reg.approval(lambda *a: 'approved')
     reg.status(lambda a: 'status')
     reg.band(lambda view: ['band'], rows=3)
+    reg.section('Owned', lambda a: ['row'], style='aqua')
     reg.after(3600, lambda: None)
     reg.every(3600, lambda: None)
 '''
@@ -80,16 +81,20 @@ def test_off_on_owns_every_registration(tmp_path, monkeypatch):
     assert reg.status_segments[0](None) == 'status'
     assert not (tmp_path/'mods'/'owned').exists()
     assert reg.bands[0].rows == 3 and reg.bands[0](None) == ['band']
+    assert reg.section_rows(None) == [dict(title='Owned', rows=['row'], style='aqua')]
     assert reg.fire('session_end', None) == ['hook']
     handles = list(reg.timers)
     assert len(handles) == 2 and all(t.thread.daemon for t in handles)
+    stale = reg.tools[0]
+    assert stale() == 'tool'
     reg.off('owned')
-    assert not reg.tools and not reg.skills and not reg.status_segments and not reg.bands and not reg.timers
+    with pytest.raises(RuntimeError, match="mod 'owned' was turned off or reloaded"): stale()
+    assert not reg.tools and not reg.skills and not reg.status_segments and not reg.bands and not reg.sections and not reg.timers
     assert reg.commands['shared'][0] is baseline and reg.approve is baseline
     assert reg.fire('session_end', None) == []
     assert all(t.cancelled for t in handles)
     reg.on_mod('owned')
-    assert len(reg.tools) == len(reg.skills) == len(reg.status_segments) == len(reg.bands) == 1
+    assert len(reg.tools) == len(reg.skills) == len(reg.status_segments) == len(reg.bands) == len(reg.sections) == 1
     assert len(reg.timers) == 2 and reg.commands['shared'][0] is not baseline
     assert all(t.thread.is_alive() and not t.cancelled for t in reg.timers)
     outside = lambda: 'outside'
