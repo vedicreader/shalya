@@ -8,8 +8,8 @@ Docs: https://vedicreader.github.io/shalya/host.html.md"""
 __all__ = ['SKIP_DIRS', 'SKIP_SUFFIXES', 'MAX_VARS', 'LD_CHARS', 'PANE_LINES', 'CONTENT_SEL', 'BLOCK_SEL', 'THIN_PAGE',
            'MAX_PAGE', 'MIN_SECTION', 'SESSION_HOSTS', 'READERS', 'Capability', 'Host', 'sqlite_path', 'refuse_sqlite',
            'nb_read', 'CodeHost', 'WebHost', 'BrowserHost', 'NotebookHost', 'MemoryHost', 'AskHost', 'WatchHost',
-           'SessionHost', 'ShellHost', 'ApiHost', 'GitHost', 'fuse', 'ld_json', 'LocalHost', 'path_scope', 'md_title',
-           'session_ok', 'page_type', 'read_page', 'implemented']
+           'SessionHost', 'OwnPythonHost', 'ShellHost', 'ApiHost', 'GitHost', 'fuse', 'ld_json', 'LocalHost',
+           'path_scope', 'md_title', 'session_ok', 'page_type', 'read_page', 'implemented']
 
 # %% ../nbs/01_host.ipynb #2f4ef978
 import ast, copy, json, os, re, shutil, signal, subprocess, sys, uuid
@@ -336,6 +336,15 @@ class SessionHost(Capability):
 
     @property
     def concurrent(self): return self.kernel_kind == 'ipymini'
+
+
+class OwnPythonHost(Capability):
+    "The host's own Python, apart from the user's namespace: where the agent imports the host's packages."
+    group = 'own_python'
+
+    @abstractmethod
+    def own_python(self, code, timeout=120):
+        "Run `code` on the host's interpreter, with the project folder as cwd and none of the user's names; names bound stay for the next call."
 
 
 class ShellHost(Capability):

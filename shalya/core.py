@@ -346,7 +346,7 @@ GIT_READ_TOOLS = ('git_status', 'git_divergence', 'git_diff', 'git_log')
 GIT_WRITE_TOOLS = frozenset({'git_remote', 'git_checkout', 'git_commit', 'git_stash', 'git_sync', 'git_conflicts'})
 GIT_TOOLS = (*GIT_READ_TOOLS, *sorted(GIT_WRITE_TOOLS))
 
-WRITE_TOOLS = frozenset({'edit_file', 'replace_text', 'create_file', 'edit_cell', 'add_cell', 'run_python', 'run_shell', 'run_shell_bg', 'memory_forget',
+WRITE_TOOLS = frozenset({'edit_file', 'replace_text', 'create_file', 'edit_cell', 'add_cell', 'run_python', 'own_python', 'run_shell', 'run_shell_bg', 'memory_forget',
                          'create_skill', 'cancel_watch', 'add_root', 'restart_kernel', 'page_click', 'page_type', 'page_eval'}) | GIT_WRITE_TOOLS
 
 ACTING_TOOLS = frozenset({'inspect_python', 'shell_stop', 'api_call', 'generate_image', 'research', 'watch',

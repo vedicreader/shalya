@@ -10,10 +10,10 @@ __all__ = ['LESSON_COMPONENTS', 'LESSON_CONFIDENCE', 'LESSON_FIELDS', 'WATCH_KIN
            'GROUPS', 'readable', 'resolved', 'reach_hint', 'screen_hits', 'outside_note', 'code_tools', 'picture_mime',
            'file_tools', 'exhash_tools', 'notebook_tools', 'web_tools', 'research_tools', 'browser_tools',
            'lesson_text', 'memory_tools', 'parse_lesson', 'lessons', 'watch_tools', 'ask_tools', 'session_tools',
-           'shell_tools', 'api_tools', 'skill_tools', 'author_tools', 'media_dir', 'mime_for', 'save_media',
-           'image_available', 'openai_route', 'post_image', 'image_refs', 'image_targets', 'image_dest', 'api_model',
-           'post_responses', 'image_tools', 'git_repo', 'screen_diff', 'git_tools', 'legacy_tools', 'tools_for',
-           'tool_groups', 'group_of', 'read_only']
+           'shell_tools', 'own_python_tools', 'api_tools', 'skill_tools', 'author_tools', 'media_dir', 'mime_for',
+           'save_media', 'image_available', 'openai_route', 'post_image', 'image_refs', 'image_targets', 'image_dest',
+           'api_model', 'post_responses', 'image_tools', 'git_repo', 'screen_diff', 'git_tools', 'legacy_tools',
+           'tools_for', 'tool_groups', 'group_of', 'read_only']
 
 # %% ../nbs/02_tools.ipynb #a71f9b84
 import functools, json, mimetypes, os, re, shlex, threading, uuid
@@ -29,7 +29,7 @@ from .core import (Hit, ERR, MAX_TOOL_CHARS, MAX_HITS, MAX_GREP_HITS, MAX_API, G
                          edits, apply_edits, diff_text, err, failed, attempt, is_write, writes, acts, has_effect,
                          ACTING_TOOLS, summary, summarise, one_line as _1, DENY, denied, Media, Refusal, guard_read, screened)
 from .host import (Host, HostError, LocalHost, host_err, path_scope, sqlite_path, refuse_sqlite, CodeHost, WebHost, BrowserHost, NotebookHost,
-                         MemoryHost, AskHost, WatchHost, SessionHost, ShellHost, ApiHost, GitHost)
+                         MemoryHost, AskHost, WatchHost, SessionHost, OwnPythonHost, ShellHost, ApiHost, GitHost)
 from .skills import Skill, find, skill_index
 
 # %% ../nbs/02_tools.ipynb #837ae38d
@@ -755,6 +755,21 @@ def shell_tools(host, mx=MAX_TOOL_CHARS):
 
     return [run_shell, run_shell_bg, shell_output, shell_stop]
 
+# %% ../nbs/02_tools.ipynb #4d6d26a6
+def own_python_tools(host, mx=MAX_TOOL_CHARS):
+    "The agent's own Python, apart from the user's namespace: own_python."
+    @writes
+    @summary(lambda a: f'Own python: {_1((a.get("code") or "").strip().splitlines()[0] if a.get("code") else "")}')
+    def own_python(code: str,          # Python statements
+                   timeout: int = 120, # seconds before the run is given up
+                   ) -> str:
+        "Run Python in your own kernel, where the host's own packages import and the project folder is the working folder. The user's variables are not here: use `run_python` for them. Names you bind stay for the next call."
+        out = attempt('run failed', lambda: host.own_python(code, int(timeout)))
+        return clip(str(screened(host, 'python', out, 'own_python', 'python')), mx, keep=True)
+
+    return [own_python]
+
+
 # %% ../nbs/02_tools.ipynb #80208a7b
 def api_tools(host, mx=MAX_TOOL_CHARS):
     "Tools to load an OpenAPI specification, list its operations and call one: api_load, api_ops and api_call."
@@ -1275,7 +1290,7 @@ _OPTIN_GROUP = {**{n: 'browser' for n in ('browse', 'screenshot', 'page_text', '
 GROUPS = ((CodeHost, code_tools), (Host, file_tools), (NotebookHost, notebook_tools),
           (WebHost, web_tools), (MemoryHost, memory_tools), (AskHost, ask_tools),
           (WatchHost, watch_tools),
-          (ApiHost, api_tools), (SessionHost, session_tools), (ShellHost, shell_tools),
+          (ApiHost, api_tools), (SessionHost, session_tools), (OwnPythonHost, own_python_tools), (ShellHost, shell_tools),
           (GitHost, git_tools))
 
 def tools_for(host, get_skills=None, extra=(), mx=MAX_TOOL_CHARS, drop=(), image=None, optin=()):
