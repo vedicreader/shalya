@@ -2,6 +2,10 @@
 
 <!-- do not remove -->
 
+## 0.1.31
+
+- New capability `OwnPythonHost` and tool `own_python`: code runs on the host's own interpreter, where the agent's own packages import, beside `run_python`, which keeps the user's kernel and variables. It asks for approval like `run_python`. A host that runs everything in one interpreter does not declare it.
+
 ## 0.1.30
 - New `reg.section(title, fn, style='')` adds a section to the side pane. `fn(agent)` gives the rows of the section. `style` names a palette colour for the rows. The section belongs to its mod, so `reg.off` removes it.
 - New `reg.section_rows(agent)` gives the title, rows and style of each section that has rows. Rows that are not strings are dropped. A callback that raises is turned off and noted on its mod, the same as a band.
