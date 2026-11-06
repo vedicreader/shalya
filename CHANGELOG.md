@@ -2,6 +2,11 @@
 
 <!-- do not remove -->
 
+## 0.1.30
+- New `reg.section(title, fn, style='')` adds a section to the side pane. `fn(agent)` gives the rows of the section. `style` names a palette colour for the rows. The section belongs to its mod, so `reg.off` removes it.
+- New `reg.section_rows(agent)` gives the title, rows and style of each section that has rows. Rows that are not strings are dropped. A callback that raises is turned off and noted on its mod, the same as a band.
+- A tool or command that was kept from a mod after `reg.off` or a reload now raises `RuntimeError`. Before, the old copy still ran with the old copy's state.
+
 ## 0.1.29
 - A mod is one `.py` file, or one folder with `mod.py` and an optional `mod.toml`, `skills/` and data. Its `setup(reg)` registers tools, commands, skills, hooks and an approval policy under the mod's name, like an extension does.
 - New `reg.status(fn)` adds a status segment. `fn(agent)` gives a short text or None. `reg.status_texts(agent)` evaluates every live segment in order. A failed segment is skipped, and a segment that asks for the status again gets no recursion.
