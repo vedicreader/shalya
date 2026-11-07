@@ -7,10 +7,10 @@ Docs: https://vedicreader.github.io/shalya/core.html.md"""
 # %% auto #0
 __all__ = ['MAX_TOOL_CHARS', 'MAX_HITS', 'MAX_GREP_HITS', 'MAX_API', 'MAX_FILE', 'ERR', 'WITHHELD', 'SANDBOX', 'READ_ONLY',
            'SECRET', 'NO_ROOTS', 'HARDLINK', 'DENY', 'SUMMARIES', 'GIT_READ_TOOLS', 'GIT_WRITE_TOOLS', 'GIT_TOOLS',
-           'WRITE_TOOLS', 'ACTING_TOOLS', 'Hit', 'HostError', 'host_err', 'err', 'failed', 'Media', 'attempt',
-           'ReadCheck', 'Refusal', 'guard_read', 'screened', 'Unsafe', 'denied', 'spill_dir', 'spill', 'Sandbox',
-           'clip', 'clip_json', 'clip_lines', 'cmds', 'edits', 'apply_edits', 'diff_text', 'writes', 'is_write', 'acts',
-           'has_effect', 'one_line', 'summary', 'summarise']
+           'WRITE_TOOLS', 'ACTING_TOOLS', 'ASK_TOOLS', 'Hit', 'HostError', 'host_err', 'err', 'failed', 'Media',
+           'attempt', 'ReadCheck', 'Refusal', 'guard_read', 'screened', 'Unsafe', 'denied', 'spill_dir', 'spill',
+           'Sandbox', 'clip', 'clip_json', 'clip_lines', 'cmds', 'edits', 'apply_edits', 'diff_text', 'writes',
+           'is_write', 'acts', 'has_effect', 'one_line', 'summary', 'summarise', 'arg_write']
 
 # %% ../nbs/00_core.ipynb #8ff4e050
 import functools, json, os, tempfile, threading, uuid
@@ -351,3 +351,12 @@ WRITE_TOOLS = frozenset({'edit_file', 'replace_text', 'create_file', 'edit_cell'
 
 ACTING_TOOLS = frozenset({'inspect_python', 'shell_stop', 'api_call', 'generate_image', 'research', 'watch',
                           'browse', 'screenshot', 'page_text', 'page_reload'})
+
+#: Acting tools that ask a person whatever their arguments: one spends money, one files into memory.
+ASK_TOOLS = frozenset({'generate_image', 'remember'})
+
+def arg_write(name, args):
+    "Whether an acting call writes by its arguments: code in the real interpreter, or a watch that reads a URL or a folder."
+    a = args if isinstance(args, dict) else {}
+    if name == 'inspect_python': return (a.get('scope') or 'isolated') != 'isolated' and bool(str(a.get('code') or '').strip())
+    return name == 'watch_url' or name == 'watch' and (a.get('kind') or 'url') in ('url', 'folder')
