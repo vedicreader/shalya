@@ -2,6 +2,10 @@
 
 <!-- do not remove -->
 
+## 0.1.32
+
+- `ASK_TOOLS` names the tools a host asks about in every mode short of full auto (`generate_image`, `remember`). `arg_write(name, args)` is true for a call whose arguments make it act: overlay `inspect_python`, a folder or URL watch, `watch_url`. `WRITE_TOOLS` does not change.
+
 ## 0.1.31
 
 - New capability `OwnPythonHost` and tool `own_python`: code runs on the host's own interpreter, where the agent's own packages import, beside `run_python`, which keeps the user's kernel and variables. It asks for approval like `run_python`. A host that runs everything in one interpreter does not declare it.
