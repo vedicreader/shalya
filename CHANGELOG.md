@@ -5,6 +5,7 @@
 ## 0.1.33
 
 - `IMAGE_MODEL` is now `gpt-image-2.5-sunburst`. OpenAI shut down `gpt-image-1` on 23 October 2026, so `generate_image` failed with the old default.
+- The edits call sends `input_fidelity` only to `gpt-image-1` models. If the API answers 400 and names `input_fidelity`, the call is sent again without it.
 
 ## 0.1.32
 

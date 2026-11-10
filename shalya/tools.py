@@ -926,11 +926,14 @@ def post_image(prompt, size, n, timeout=120, model=IMAGE_MODEL, base_url=None, a
 
 _post_image = post_image   # the old name
 def _post_edit(prompt, size, n, images, timeout=300, model=IMAGE_MODEL, base_url=None, api_key=None):
-    "Raw `data` rows from the edits endpoint, drawn from `images`, a list of `(name, bytes, mime)`."
+    "Raw `data` rows from the edits endpoint, drawn from `images`, a list of `(name, bytes, mime)`; `input_fidelity` goes only to `gpt-image-1` models, and a 400 that names it is retried without it."
     import httpx
     data = {'model': model, 'prompt': prompt, 'size': size, 'n': str(n)}
-    if model.startswith('gpt-image') and 'mini' not in model: data['input_fidelity'] = 'high'   # keep a reference face, not a paraphrase of it
-    return _reply(httpx.post(_url(base_url, 'images/edits', IMAGE_EDIT_API), timeout=timeout, headers=_hdrs(api_key), files=[('image[]', i) for i in images], data=data)).get('data') or []
+    if model.startswith('gpt-image-1') and 'mini' not in model: data['input_fidelity'] = 'high'   # keep a reference face, not a paraphrase of it
+    post = lambda: httpx.post(_url(base_url, 'images/edits', IMAGE_EDIT_API), timeout=timeout, headers=_hdrs(api_key), files=[('image[]', i) for i in images], data=data)
+    r = post()
+    if r.status_code == 400 and 'input_fidelity' in r.text and data.pop('input_fidelity', None): r = post()
+    return _reply(r).get('data') or []
 
 def image_refs(host, paths, model=IMAGE_MODEL):
     "`(refs, '')` for pictures inside the host's roots as `(name, bytes, mime)`, or `([], err)` for the first one refused, `host.read_guard` included."
