@@ -2,6 +2,10 @@
 
 <!-- do not remove -->
 
+## 0.1.33
+
+- `IMAGE_MODEL` is now `gpt-image-2.5-sunburst`. OpenAI shut down `gpt-image-1` on 23 October 2026, so `generate_image` failed with the old default.
+
 ## 0.1.32
 
 - `ASK_TOOLS` names the tools a host asks about in every mode short of full auto (`generate_image`, `remember`). `arg_write(name, args)` is true for a call whose arguments make it act: overlay `inspect_python`, a folder or URL watch, `watch_url`. `WRITE_TOOLS` does not change.
