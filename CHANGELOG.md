@@ -2,6 +2,11 @@
 
 <!-- do not remove -->
 
+## 0.1.34
+
+- `grep` skips a folder named `build`, `dist`, `_docs` or `_proc` only when it is directly under a search root. Before, it also skipped a source folder with one of these names deeper in the tree, such as `abhyasa/blocks/build/`.
+- `grep` with a `path_filter` that names one file gives that file's exact path. Before, it could print a path such as `app.py/app.py`.
+
 ## 0.1.33
 
 - `IMAGE_MODEL` is now `gpt-image-2.5-sunburst`. OpenAI shut down `gpt-image-1` on 23 October 2026, so `generate_image` failed with the old default.
